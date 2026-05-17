@@ -65,6 +65,7 @@ interface TaskNodeData {
   groupByProject?: boolean;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onDeleteTask?: (taskId: string) => void;
+  onTaskChanged?: () => void;
 }
 
 export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
@@ -77,6 +78,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     tagColorPalette = "rainbow",
     groupByProject = false,
     onDeleteTask,
+    onTaskChanged,
   } = data;
 
   const { allTags, updateTaskTags } = useContext(TagsContext);
@@ -212,6 +214,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             task={task}
             app={app}
             onTaskDeleted={() => onDeleteTask?.(task.id)}
+            onTaskChanged={onTaskChanged}
           />
         </div>
 

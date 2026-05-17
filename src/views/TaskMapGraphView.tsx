@@ -6,6 +6,7 @@ import ReactFlow, {
   addEdge,
   useReactFlow,
   type NodeDragHandler,
+  type NodeMouseHandler,
   type SelectionDragHandler,
 } from "reactflow";
 import { Notice } from "obsidian";
@@ -24,7 +25,11 @@ import {
   getTasksApi,
   parseTaskLine,
 } from "src/lib/utils";
-import { BaseTask } from "src/types/task";
+import { BaseTask, TaskNodeData } from "src/types/task";
+import {
+  isTaskNotesTaskFile,
+  openTaskNotesEditModal,
+} from "src/lib/tasknotes-bridge";
 import { NoteTask } from "src/types/note-task";
 import GuiOverlay from "src/components/gui-overlay";
 import FilterPresetsPanel from "src/components/filter-presets-panel";
@@ -270,7 +275,8 @@ export default function TaskMapGraphView({
       settings.debugVisualization,
       handleDeleteTask,
       groupByProject,
-      settings.tagColorPalette
+      settings.tagColorPalette,
+      reloadTasks
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -331,6 +337,7 @@ export default function TaskMapGraphView({
     handleDeleteTask,
     droppedTaskIds,
     groupByProject,
+    reloadTasks,
   ]);
 
   const nodeTypes = useMemo(
@@ -357,6 +364,22 @@ export default function TaskMapGraphView({
   const onNodeClick = useCallback(() => {
     setSelectedEdge(null);
   }, [setSelectedEdge]);
+
+  // Double-clicking a TaskNotes task node opens its edit modal directly,
+  // skipping the ⋮ menu. Non-TaskNotes nodes fall through to the default
+  // (ReactFlow zoom-on-double-click).
+  const onNodeDoubleClick = useCallback<NodeMouseHandler>(
+    (event, node) => {
+      if (node.type !== "task") return;
+      const task = (node.data as TaskNodeData | undefined)?.task;
+      if (!task || task.type !== "note" || !task.link) return;
+      if (!isTaskNotesTaskFile(app, task.link)) return;
+      // Stop the event from reaching ReactFlow's zoom-on-double-click handler.
+      event.stopPropagation();
+      void openTaskNotesEditModal(app, task.link, reloadTasks);
+    },
+    [app, reloadTasks]
+  );
 
   const onPaneClick = useCallback(() => {
     setSelectedEdge(null);
@@ -967,6 +990,7 @@ export default function TaskMapGraphView({
           onConnectEnd={(e) => void onConnectEnd(e)}
           onEdgeClick={onEdgeClick}
           onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
           onPaneClick={onPaneClick}
           onNodeDrag={onNodeDrag}
           onNodeDragStop={(e, node, nodes) =>

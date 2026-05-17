@@ -26,6 +26,8 @@ export interface TaskNodeData {
   tagColorPalette?: TagColorPalette;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onDeleteTask?: (taskId: string) => void;
+  /** Called after an external editor (e.g. TaskNotes modal) saves changes. */
+  onTaskChanged?: () => void;
 }
 
 export interface TaskEdgeData {

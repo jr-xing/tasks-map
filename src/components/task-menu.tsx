@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MoreVertical, Trash2 } from "lucide-react";
+import { MoreVertical, Trash2, SquareArrowOutUpRight } from "lucide-react";
 import { App } from "obsidian";
 import { BaseTask } from "src/types/task";
 import { CirclePlus, SquarePen } from "lucide-react";
@@ -9,14 +9,24 @@ import {
   findTaskLineByIdOrText,
   getTasksApi,
 } from "../lib/utils";
+import {
+  isTaskNotesTaskFile,
+  openTaskNotesEditModal,
+} from "../lib/tasknotes-bridge";
 
 interface TaskMenuProps {
   task: BaseTask;
   app: App;
   onTaskDeleted?: () => void;
+  onTaskChanged?: () => void;
 }
 
-const TaskMenu = ({ task, app, onTaskDeleted }: TaskMenuProps) => {
+const TaskMenu = ({
+  task,
+  app,
+  onTaskDeleted,
+  onTaskChanged,
+}: TaskMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -119,6 +129,22 @@ const TaskMenu = ({ task, app, onTaskDeleted }: TaskMenuProps) => {
     }
   };
 
+  const handleOpenInTaskNotes = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsOpen(false);
+
+    if (!task.link) return;
+
+    const opened = await openTaskNotesEditModal(app, task.link, () =>
+      onTaskChanged?.()
+    );
+    if (!opened) {
+      console.warn("Could not open TaskNotes editor for:", task.link);
+    }
+  };
+
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -132,6 +158,13 @@ const TaskMenu = ({ task, app, onTaskDeleted }: TaskMenuProps) => {
 
     setIsOpen(false);
   };
+
+  // The TaskNotes modal only applies to note-based tasks whose file is an
+  // actual TaskNotes task. Computed on render; the dropdown is mounted lazily.
+  const canOpenInTaskNotes =
+    task.type === "note" &&
+    !!task.link &&
+    isTaskNotesTaskFile(app, task.link);
 
   return (
     <div className="tasks-map-task-menu nodrag" ref={menuRef}>
@@ -159,6 +192,15 @@ const TaskMenu = ({ task, app, onTaskDeleted }: TaskMenuProps) => {
             <SquarePen size={12} />
             <span>Edit task</span>
           </button>
+          {canOpenInTaskNotes && (
+            <button
+              className="tasks-map-task-menu-item"
+              onClick={(e) => void handleOpenInTaskNotes(e)}
+            >
+              <SquareArrowOutUpRight size={12} />
+              <span>Open in TaskNotes</span>
+            </button>
+          )}
           <button
             className="tasks-map-task-menu-item tasks-map-task-menu-item--danger"
             onClick={(e) => void handleDelete(e)}
