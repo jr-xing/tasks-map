@@ -18,13 +18,16 @@ export function obsidianSelectStyles<
     }),
     control: (base, state) => ({
       ...base,
-      background: "var(--background-primary)",
+      background: "var(--background-modifier-form-field)",
       color: "var(--text-normal)",
-      borderColor: "var(--background-modifier-border)",
+      borderRadius: "var(--radius-s)",
+      borderColor: state.isFocused
+        ? "var(--background-modifier-border-focus)"
+        : "var(--background-modifier-border)",
       boxShadow: state.isFocused
-        ? "0 0 0 1px var(--interactive-accent)"
+        ? "0 0 0 2px var(--background-modifier-border-focus)"
         : base.boxShadow,
-      "&:hover": { borderColor: "var(--interactive-accent)" },
+      "&:hover": { borderColor: "var(--background-modifier-border-hover)" },
     }),
     option: (base, state) => ({
       ...base,

@@ -148,6 +148,12 @@ export default class TasksMapPlugin extends Plugin {
     window.dispatchEvent(new Event("tasks-map:settings-changed"));
   }
 
+  /** Apply a partial settings patch and persist it. */
+  async updateSettings(patch: Partial<TasksMapSettings>): Promise<void> {
+    Object.assign(this.settings, patch);
+    await this.saveSettings();
+  }
+
   async savePreset(name: string, filter: FilterState): Promise<void> {
     const preset: FilterPreset = {
       id: crypto.randomUUID(),

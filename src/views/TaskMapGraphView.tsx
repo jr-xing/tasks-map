@@ -281,6 +281,80 @@ export default function TaskMapGraphView({
     []
   );
 
+  // Editor panel layout preferences (seeded from settings, persisted on commit).
+  const [editorPanelWidth, setEditorPanelWidth] = React.useState(
+    settings.editorPanelWidth
+  );
+  const [editorPanelLayout, setEditorPanelLayout] = React.useState(
+    settings.editorPanelLayout
+  );
+  const [editorBodyFontSize, setEditorBodyFontSize] = React.useState(
+    settings.editorBodyFontSize
+  );
+
+  const handleEditorLayoutChange = useCallback(
+    (layout: TasksMapSettings["editorPanelLayout"]) => {
+      setEditorPanelLayout(layout);
+      void plugin.updateSettings({ editorPanelLayout: layout });
+    },
+    [plugin]
+  );
+
+  const handleEditorBodyFontSizeChange = useCallback(
+    (size: number) => {
+      const clamped = Math.min(24, Math.max(10, size));
+      setEditorBodyFontSize(clamped);
+      void plugin.updateSettings({ editorBodyFontSize: clamped });
+    },
+    [plugin]
+  );
+
+  // Drag-to-resize the editor panel; persists width only on pointer-up.
+  // editorWidthRef tracks the live width so pointer handlers avoid stale state.
+  const editorResizeRef = useRef<{ startX: number; startWidth: number } | null>(
+    null
+  );
+  const editorWidthRef = useRef(editorPanelWidth);
+
+  const onEditorResizePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      editorResizeRef.current = {
+        startX: e.clientX,
+        startWidth: editorWidthRef.current,
+      };
+    },
+    []
+  );
+
+  const onEditorResizePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const drag = editorResizeRef.current;
+      if (!drag) return;
+      const parentW = containerRef.current?.clientWidth ?? window.innerWidth;
+      const max = Math.max(360, parentW * 0.9);
+      // Dragging the handle leftwards (smaller clientX) widens the panel.
+      const next = Math.min(
+        max,
+        Math.max(300, drag.startWidth + (drag.startX - e.clientX))
+      );
+      editorWidthRef.current = next;
+      setEditorPanelWidth(next);
+    },
+    []
+  );
+
+  const onEditorResizePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!editorResizeRef.current) return;
+      editorResizeRef.current = null;
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      void plugin.updateSettings({ editorPanelWidth: editorWidthRef.current });
+    },
+    [plugin]
+  );
+
   const handleEditTaskByPath = useCallback(
     (taskPath: string) => openTaskEditor("edit", taskPath),
     [openTaskEditor]
@@ -393,9 +467,23 @@ export default function TaskMapGraphView({
     [setSelectedEdge]
   );
 
-  const onNodeClick = useCallback(() => {
-    setSelectedEdge(null);
-  }, [setSelectedEdge]);
+  const onNodeClick = useCallback<NodeMouseHandler>(
+    (_event, node) => {
+      setSelectedEdge(null);
+      // When the editor panel is already open, a single click retargets it to
+      // the clicked TaskNotes task (ReactFlow handles node selection itself).
+      if (!editorState) return;
+      if (node.type !== "task") return;
+      const task = (node.data as TaskNodeData | undefined)?.task;
+      if (!task || task.type !== "note" || !task.link) return;
+      if (!isTaskNotesTaskFile(app, task.link)) return;
+      if (editorState.mode === "edit" && editorState.taskPath === task.link) {
+        return;
+      }
+      openTaskEditor("edit", task.link);
+    },
+    [setSelectedEdge, editorState, app, openTaskEditor]
+  );
 
   // Double-clicking a TaskNotes task node opens the editor panel directly,
   // skipping the ⋮ menu. Non-TaskNotes nodes fall through to the default
@@ -1089,13 +1177,31 @@ export default function TaskMapGraphView({
           </button>
         )}
         {editorState && (
-          <div className="tasks-map-editor-panel-container">
+          <div
+            className="tasks-map-editor-panel-container"
+            ref={(el) => {
+              if (el) el.style.width = `${editorPanelWidth}px`;
+            }}
+          >
+            <div
+              className="tasks-map-editor-resize-handle"
+              onPointerDown={onEditorResizePointerDown}
+              onPointerMove={onEditorResizePointerMove}
+              onPointerUp={onEditorResizePointerUp}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t("task_editor.resize")}
+            />
             <TaskEditorPanel
               key={`${editorState.mode}:${editorState.taskPath ?? ""}`}
               app={app}
               mode={editorState.mode}
               taskPath={editorState.taskPath}
               availableTasks={noteTasks}
+              layout={editorPanelLayout}
+              onLayoutChange={handleEditorLayoutChange}
+              bodyFontSize={editorBodyFontSize}
+              onBodyFontSizeChange={handleEditorBodyFontSizeChange}
               onClose={() => setEditorState(null)}
               onSaved={reloadTasks}
             />

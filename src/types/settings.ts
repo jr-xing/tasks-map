@@ -37,6 +37,15 @@ export interface TasksMapSettings {
   // and project-tree panels.
   sidebarWidth: number;
 
+  // Task editor (right sidebar) panel preferences.
+  // Width in pixels of the resizable panel.
+  editorPanelWidth: number;
+  // Whether metadata sits above the body ("stacked"), beside it
+  // ("side-by-side"), or adapts to the panel width ("auto").
+  editorPanelLayout: "auto" | "stacked" | "side-by-side";
+  // Font size (in pixels) of the markdown body editor.
+  editorBodyFontSize: number;
+
   // Tag color settings
   tagColorPalette: TagColorPalette;
 
@@ -73,6 +82,11 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
 
   // Left sidebar width default
   sidebarWidth: 220,
+
+  // Task editor panel defaults
+  editorPanelWidth: 340,
+  editorPanelLayout: "auto",
+  editorBodyFontSize: 14,
 
   // Tag color defaults
   tagColorPalette: "rainbow",

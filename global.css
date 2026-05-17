@@ -2203,8 +2203,39 @@ If your plugin does not need CSS, delete this file.
   right: 0;
   bottom: 0;
   width: 340px;
+  min-width: 300px;
+  max-width: 90%;
   z-index: 45;
   display: flex;
+}
+
+/* Drag handle on the panel's left edge to resize it. */
+.tasks-map-editor-resize-handle {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  bottom: 0;
+  width: 7px;
+  cursor: ew-resize;
+  z-index: 1;
+  touch-action: none;
+}
+
+.tasks-map-editor-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 3px;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.tasks-map-editor-resize-handle:hover::after,
+.tasks-map-editor-resize-handle:active::after {
+  background: var(--interactive-accent);
+  width: 2px;
 }
 
 .tasks-map-editor-panel {
@@ -2213,22 +2244,24 @@ If your plugin does not need CSS, delete this file.
   width: 100%;
   height: 100%;
   background: var(--background-primary);
-  border-left: 1px solid var(--background-modifier-border);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--background-modifier-border);
+  /* Round only the inner (left) corners; the right edge is flush. */
+  border-radius: var(--radius-m) 0 0 var(--radius-m);
+  box-shadow: var(--shadow-l, -4px 0 16px rgba(0, 0, 0, 0.18));
 }
 
 .tasks-map-editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: var(--size-4-3) var(--size-4-4);
   border-bottom: 1px solid var(--background-modifier-border);
   flex: 0 0 auto;
 }
 
 .tasks-map-editor-title {
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: var(--font-semibold, 600);
+  font-size: var(--font-ui-medium);
   color: var(--text-normal);
 }
 
@@ -2239,9 +2272,9 @@ If your plugin does not need CSS, delete this file.
   background: transparent;
   border: none;
   color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  cursor: var(--cursor, pointer);
+  padding: var(--size-2-2);
+  border-radius: var(--radius-s);
 }
 
 .tasks-map-editor-close:hover {
@@ -2249,41 +2282,176 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-normal);
 }
 
+.tasks-map-editor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+/* Segmented layout toggle (auto / stacked / side-by-side). */
+.tasks-map-editor-layout-toggle {
+  display: flex;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+
+.tasks-map-editor-layout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--size-2-2) var(--size-2-3);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  cursor: var(--cursor, pointer);
+  box-shadow: none;
+}
+
+.tasks-map-editor-layout-btn:last-child {
+  border-right: none;
+}
+
+.tasks-map-editor-layout-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-editor-layout-btn--active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 .tasks-map-editor-body {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: var(--size-4-3) var(--size-4-4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--size-4-3);
+  container-type: inline-size;
+  container-name: tm-editor;
+}
+
+/* Metadata/body arrangement. Stacked by default; side-by-side when wide.
+   The layout fills the panel body so the markdown editor can grow. */
+.tasks-map-editor-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-3);
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tasks-map-editor-layout[data-layout="side-by-side"] {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+/* In a row layout the metadata block shares the width and scrolls on its own. */
+.tasks-map-editor-layout[data-layout="side-by-side"] > .tasks-map-editor-meta {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@container tm-editor (min-width: 600px) {
+  .tasks-map-editor-layout[data-layout="auto"] {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .tasks-map-editor-layout[data-layout="auto"] > .tasks-map-editor-meta {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* Metadata fields reflow into columns as horizontal space allows.
+   Stacked layout: natural height so the body region fills the rest. */
+.tasks-map-editor-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--size-4-3);
+  align-content: start;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.tasks-map-editor-field--full {
+  grid-column: 1 / -1;
+}
+
+/* Body region: label row + markdown editor. Fills the remaining height. */
+.tasks-map-editor-body-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-2-2);
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tasks-map-editor-body-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+}
+
+.tasks-map-editor-font-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  color: var(--text-muted);
+}
+
+.tasks-map-editor-font-icon {
+  color: var(--text-muted);
+}
+
+.tasks-map-editor-font-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--size-2-1);
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  cursor: var(--cursor, pointer);
+  box-shadow: none;
+}
+
+.tasks-map-editor-font-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-editor-font-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .tasks-map-editor-message {
   color: var(--text-muted);
-  font-size: 13px;
-  padding: 16px 4px;
+  font-size: var(--font-ui-small);
+  padding: var(--size-4-4) var(--size-2-2);
   text-align: center;
 }
 
 .tasks-map-editor-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.tasks-map-editor-row {
-  display: flex;
-  gap: 10px;
-}
-
-.tasks-map-editor-row .tasks-map-editor-field {
-  flex: 1 1 0;
-  min-width: 0;
+  gap: var(--size-2-2);
 }
 
 .tasks-map-editor-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold, 600);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -2293,46 +2461,56 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-editor-textarea {
   width: 100%;
   box-sizing: border-box;
-  background: var(--background-primary);
+  background: var(--background-modifier-form-field);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 13px;
+  border-radius: var(--radius-s);
+  padding: var(--size-2-3) var(--size-4-2);
+  font-size: var(--font-ui-small);
   font-family: inherit;
 }
 
 .tasks-map-editor-input:focus,
 .tasks-map-editor-textarea:focus {
   outline: none;
-  border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 1px var(--interactive-accent);
+  border-color: var(--background-modifier-border-focus);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
 .tasks-map-editor-textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 120px;
+  flex: 1 1 auto;
+  font-size: var(--tm-body-font-size, 14px);
 }
 
-/* Embedded markdown body editor (CodeMirror Live Preview). */
+/* Embedded markdown body editor (CodeMirror Live Preview).
+   Grows to fill the body region; CodeMirror scrolls internally. */
 .tasks-map-editor-markdown {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   min-height: 120px;
-  max-height: 360px;
-  overflow-y: auto;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .tasks-map-editor-markdown:focus-within {
-  border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 1px var(--interactive-accent);
+  border-color: var(--background-modifier-border-focus);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
+/* stylelint-disable selector-class-pattern -- CodeMirror internal classes */
 .tasks-map-editor-markdown .cm-editor {
+  flex: 1 1 auto;
+  min-height: 0;
   background: transparent;
+  font-size: var(--tm-body-font-size, 14px);
 }
+
 
 .tasks-map-editor-markdown .cm-scroller {
   padding: 4px 6px;
@@ -2341,47 +2519,54 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-editor-markdown .cm-editor.cm-focused {
   outline: none;
 }
+/* stylelint-enable selector-class-pattern */
 
 .tasks-map-editor-nlp {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+  gap: var(--size-2-3);
+  padding: var(--size-4-2);
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
+  border-radius: var(--radius-m);
 }
 
 .tasks-map-editor-nlp-input {
   width: 100%;
   box-sizing: border-box;
-  background: var(--background-primary);
+  background: var(--background-modifier-form-field);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 13px;
+  border-radius: var(--radius-s);
+  padding: var(--size-2-3) var(--size-4-2);
+  font-size: var(--font-ui-small);
   font-family: inherit;
   resize: vertical;
+}
+
+.tasks-map-editor-nlp-input:focus {
+  outline: none;
+  border-color: var(--background-modifier-border-focus);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
 .tasks-map-editor-nlp-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--size-2-3);
   align-self: flex-end;
   background: var(--interactive-normal);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 12px;
-  cursor: pointer;
+  border-radius: var(--radius-s);
+  padding: var(--size-2-3) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  cursor: var(--cursor, pointer);
 }
 
 .tasks-map-editor-nlp-button:hover:not(:disabled) {
-  background: var(--background-modifier-hover);
+  background: var(--interactive-hover);
 }
 
 .tasks-map-editor-nlp-button:disabled {
@@ -2392,24 +2577,24 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-editor-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-4);
   border-top: 1px solid var(--background-modifier-border);
   flex: 0 0 auto;
 }
 
 .tasks-map-editor-btn {
-  padding: 6px 14px;
-  border-radius: 4px;
+  padding: var(--size-2-3) var(--size-4-3);
+  border-radius: var(--radius-s);
   border: 1px solid var(--background-modifier-border);
   background: var(--interactive-normal);
   color: var(--text-normal);
-  font-size: 13px;
-  cursor: pointer;
+  font-size: var(--font-ui-small);
+  cursor: var(--cursor, pointer);
 }
 
 .tasks-map-editor-btn:hover:not(:disabled) {
-  background: var(--background-modifier-hover);
+  background: var(--interactive-hover);
 }
 
 .tasks-map-editor-btn:disabled {
@@ -2430,21 +2615,21 @@ If your plugin does not need CSS, delete this file.
 /* "New task" floating action button */
 .tasks-map-new-task-button {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
+  right: var(--size-4-4);
+  bottom: var(--size-4-4);
   z-index: 36;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: var(--size-2-3);
+  padding: var(--size-4-2) var(--size-4-3);
   border-radius: 20px;
   border: none;
   background: var(--interactive-accent);
   color: var(--text-on-accent);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold, 600);
+  cursor: var(--cursor, pointer);
+  box-shadow: var(--shadow-s, 0 2px 8px rgba(0, 0, 0, 0.25));
 }
 
 .tasks-map-new-task-button:hover {

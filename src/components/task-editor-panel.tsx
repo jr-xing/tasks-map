@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { App } from "obsidian";
 import Select, { type MultiValue, type SingleValue } from "react-select";
 import CreatableSelect from "react-select/creatable";
-import { Sparkles, X } from "lucide-react";
+import { ALargeSmall, Columns2, Minus, Plus, Rows2, Sparkles, Wand2, X } from "lucide-react";
+import { TasksMapSettings } from "src/types/settings";
 import { BaseTask } from "src/types/task";
 import { t } from "../i18n";
 import { obsidianSelectStyles } from "../lib/select-styles";
@@ -26,6 +27,8 @@ interface Option {
   label: string;
 }
 
+type EditorPanelLayout = TasksMapSettings["editorPanelLayout"];
+
 interface TaskEditorPanelProps {
   app: App;
   mode: "create" | "edit";
@@ -33,9 +36,32 @@ interface TaskEditorPanelProps {
   taskPath?: string;
   /** Note tasks available as dependency targets. */
   availableTasks: BaseTask[];
+  /** Metadata/body arrangement: stacked, side-by-side, or width-adaptive. */
+  layout: EditorPanelLayout;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onLayoutChange: (layout: EditorPanelLayout) => void;
+  /** Markdown body editor font size, in pixels. */
+  bodyFontSize: number;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onBodyFontSizeChange: (size: number) => void;
   onClose: () => void;
   onSaved: () => void;
 }
+
+/** Layout options shown in the header toggle, with their icons. */
+const LAYOUT_OPTIONS: {
+  value: EditorPanelLayout;
+  icon: typeof Wand2;
+  labelKey: string;
+}[] = [
+  { value: "auto", icon: Wand2, labelKey: "task_editor.layout_auto" },
+  { value: "stacked", icon: Rows2, labelKey: "task_editor.layout_stacked" },
+  { value: "side-by-side", icon: Columns2, labelKey: "task_editor.layout_side" },
+];
+
+/** Allowed body-font-size range, in pixels. */
+const MIN_BODY_FONT = 10;
+const MAX_BODY_FONT = 24;
 
 /** Default reltype for dependencies created through the panel. */
 const DEFAULT_RELTYPE = "FINISHTOSTART";
@@ -98,6 +124,10 @@ export default function TaskEditorPanel({
   mode,
   taskPath,
   availableTasks,
+  layout,
+  onLayoutChange,
+  bodyFontSize,
+  onBodyFontSizeChange,
   onClose,
   onSaved,
 }: TaskEditorPanelProps) {
@@ -201,13 +231,35 @@ export default function TaskEditorPanel({
     <div className="tasks-map-editor-panel">
       <div className="tasks-map-editor-header">
         <span className="tasks-map-editor-title">{headerTitle}</span>
-        <button
-          className="tasks-map-editor-close"
-          onClick={onClose}
-          aria-label={t("task_editor.close")}
-        >
-          <X size={16} />
-        </button>
+        <div className="tasks-map-editor-header-actions">
+          <div className="tasks-map-editor-layout-toggle" role="group">
+            {LAYOUT_OPTIONS.map(({ value, icon: Icon, labelKey }) => (
+              <button
+                key={value}
+                type="button"
+                className={
+                  "tasks-map-editor-layout-btn" +
+                  (layout === value
+                    ? " tasks-map-editor-layout-btn--active"
+                    : "")
+                }
+                onClick={() => onLayoutChange(value)}
+                aria-label={t(labelKey)}
+                aria-pressed={layout === value}
+                title={t(labelKey)}
+              >
+                <Icon size={14} />
+              </button>
+            ))}
+          </div>
+          <button
+            className="tasks-map-editor-close"
+            onClick={onClose}
+            aria-label={t("task_editor.close")}
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="tasks-map-editor-body">
@@ -244,7 +296,9 @@ export default function TaskEditorPanel({
               </div>
             )}
 
-            <div className="tasks-map-editor-field">
+            <div className="tasks-map-editor-layout" data-layout={layout}>
+              <div className="tasks-map-editor-meta">
+            <div className="tasks-map-editor-field tasks-map-editor-field--full">
               <span className="tasks-map-editor-label">
                 {t("task_editor.field_title")}
               </span>
@@ -287,29 +341,27 @@ export default function TaskEditorPanel({
               />
             </div>
 
-            <div className="tasks-map-editor-row">
-              <div className="tasks-map-editor-field">
-                <span className="tasks-map-editor-label">
-                  {t("task_editor.field_due")}
-                </span>
-                <input
-                  type="date"
-                  className="tasks-map-editor-input"
-                  value={form.due}
-                  onChange={(e) => update("due", e.target.value)}
-                />
-              </div>
-              <div className="tasks-map-editor-field">
-                <span className="tasks-map-editor-label">
-                  {t("task_editor.field_scheduled")}
-                </span>
-                <input
-                  type="date"
-                  className="tasks-map-editor-input"
-                  value={form.scheduled}
-                  onChange={(e) => update("scheduled", e.target.value)}
-                />
-              </div>
+            <div className="tasks-map-editor-field">
+              <span className="tasks-map-editor-label">
+                {t("task_editor.field_due")}
+              </span>
+              <input
+                type="date"
+                className="tasks-map-editor-input"
+                value={form.due}
+                onChange={(e) => update("due", e.target.value)}
+              />
+            </div>
+            <div className="tasks-map-editor-field">
+              <span className="tasks-map-editor-label">
+                {t("task_editor.field_scheduled")}
+              </span>
+              <input
+                type="date"
+                className="tasks-map-editor-input"
+                value={form.scheduled}
+                onChange={(e) => update("scheduled", e.target.value)}
+              />
             </div>
 
             <div className="tasks-map-editor-field">
@@ -392,48 +444,85 @@ export default function TaskEditorPanel({
               />
             </div>
 
-            <div className="tasks-map-editor-row">
-              <div className="tasks-map-editor-field">
-                <span className="tasks-map-editor-label">
-                  {t("task_editor.field_time_estimate")}
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  className="tasks-map-editor-input"
-                  value={form.timeEstimate || ""}
-                  onChange={(e) =>
-                    update(
-                      "timeEstimate",
-                      Math.max(0, Math.floor(Number(e.target.value) || 0))
-                    )
-                  }
-                />
-              </div>
-              <div className="tasks-map-editor-field">
-                <span className="tasks-map-editor-label">
-                  {t("task_editor.field_recurrence")}
-                </span>
-                <input
-                  type="text"
-                  className="tasks-map-editor-input"
-                  value={form.recurrence}
-                  placeholder="FREQ=WEEKLY"
-                  onChange={(e) => update("recurrence", e.target.value)}
-                />
-              </div>
-            </div>
-
             <div className="tasks-map-editor-field">
               <span className="tasks-map-editor-label">
-                {t("task_editor.field_body")}
+                {t("task_editor.field_time_estimate")}
               </span>
-              <MarkdownBodyEditor
-                app={app}
-                value={form.details}
-                onChange={(v) => update("details", v)}
-                filePath={mode === "edit" ? taskPath : undefined}
+              <input
+                type="number"
+                min={0}
+                className="tasks-map-editor-input"
+                value={form.timeEstimate || ""}
+                onChange={(e) =>
+                  update(
+                    "timeEstimate",
+                    Math.max(0, Math.floor(Number(e.target.value) || 0))
+                  )
+                }
               />
+            </div>
+            <div className="tasks-map-editor-field">
+              <span className="tasks-map-editor-label">
+                {t("task_editor.field_recurrence")}
+              </span>
+              <input
+                type="text"
+                className="tasks-map-editor-input"
+                value={form.recurrence}
+                placeholder="FREQ=WEEKLY"
+                onChange={(e) => update("recurrence", e.target.value)}
+              />
+            </div>
+              </div>
+
+              <div
+                className="tasks-map-editor-body-region"
+                ref={(el) => {
+                  if (el)
+                    el.style.setProperty(
+                      "--tm-body-font-size",
+                      `${bodyFontSize}px`
+                    );
+                }}
+              >
+                <div className="tasks-map-editor-body-head">
+                  <span className="tasks-map-editor-label">
+                    {t("task_editor.field_body")}
+                  </span>
+                  <div className="tasks-map-editor-font-stepper">
+                    <button
+                      type="button"
+                      className="tasks-map-editor-font-btn"
+                      onClick={() => onBodyFontSizeChange(bodyFontSize - 1)}
+                      disabled={bodyFontSize <= MIN_BODY_FONT}
+                      aria-label={t("task_editor.body_font_smaller")}
+                      title={t("task_editor.body_font_smaller")}
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <ALargeSmall
+                      size={14}
+                      className="tasks-map-editor-font-icon"
+                    />
+                    <button
+                      type="button"
+                      className="tasks-map-editor-font-btn"
+                      onClick={() => onBodyFontSizeChange(bodyFontSize + 1)}
+                      disabled={bodyFontSize >= MAX_BODY_FONT}
+                      aria-label={t("task_editor.body_font_larger")}
+                      title={t("task_editor.body_font_larger")}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                </div>
+                <MarkdownBodyEditor
+                  app={app}
+                  value={form.details}
+                  onChange={(v) => update("details", v)}
+                  filePath={mode === "edit" ? taskPath : undefined}
+                />
+              </div>
             </div>
           </>
         )}

@@ -202,6 +202,12 @@
     "save": "Opslaan",
     "saving": "Opslaan…",
     "cancel": "Annuleren",
-    "close": "Sluiten"
+    "close": "Sluiten",
+    "resize": "Paneel vergroten/verkleinen",
+    "layout_auto": "Automatische indeling",
+    "layout_stacked": "Gestapelde indeling",
+    "layout_side": "Indeling naast elkaar",
+    "body_font_smaller": "Kleinere tekst",
+    "body_font_larger": "Grotere tekst"
   }
 }

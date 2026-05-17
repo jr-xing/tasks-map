@@ -202,6 +202,12 @@
     "save": "Save",
     "saving": "Saving…",
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "resize": "Resize panel",
+    "layout_auto": "Auto layout",
+    "layout_stacked": "Stacked layout",
+    "layout_side": "Side-by-side layout",
+    "body_font_smaller": "Smaller body text",
+    "body_font_larger": "Larger body text"
   }
 }
