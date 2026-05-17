@@ -176,5 +176,32 @@
     "dataview_required": "任务地图需要 Dataview 插件。",
     "invalid_json": "此任务地图嵌入块包含无效的 JSON。请通过命令面板重新插入以修复。",
     "legacy_format": "此任务地图嵌入块使用过时的格式。请通过命令面板重新插入以迁移。"
+  },
+  "task_editor": {
+    "create_title": "新建任务",
+    "edit_title": "编辑任务",
+    "new_task": "新建任务",
+    "loading": "正在加载任务…",
+    "load_error": "无法加载此任务。",
+    "nlp_placeholder": "用自然语言输入任务…",
+    "nlp_parse": "解析",
+    "field_title": "标题",
+    "field_status": "状态",
+    "field_priority": "优先级",
+    "field_due": "截止日期",
+    "field_scheduled": "计划日期",
+    "field_tags": "标签",
+    "field_contexts": "情境",
+    "field_projects": "项目",
+    "field_blocked_by": "被阻塞于",
+    "field_time_estimate": "预估时间（分钟）",
+    "field_recurrence": "重复规则（RRULE）",
+    "field_body": "正文",
+    "title_placeholder": "任务标题",
+    "add_placeholder": "添加…",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "取消",
+    "close": "关闭"
   }
 }

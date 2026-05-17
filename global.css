@@ -2193,3 +2193,232 @@ If your plugin does not need CSS, delete this file.
   margin-top: 10px;
   flex-wrap: wrap;
 }
+
+/* ------------------------------------------------------------------ */
+/* In-app TaskNotes task editor panel (right sidebar)                  */
+/* ------------------------------------------------------------------ */
+.tasks-map-editor-panel-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  z-index: 45;
+  display: flex;
+}
+
+.tasks-map-editor-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--background-primary);
+  border-left: 1px solid var(--background-modifier-border);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.18);
+}
+
+.tasks-map-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex: 0 0 auto;
+}
+
+.tasks-map-editor-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-normal);
+}
+
+.tasks-map-editor-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.tasks-map-editor-close:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-editor-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tasks-map-editor-message {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 16px 4px;
+  text-align: center;
+}
+
+.tasks-map-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tasks-map-editor-row {
+  display: flex;
+  gap: 10px;
+}
+
+.tasks-map-editor-row .tasks-map-editor-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tasks-map-editor-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.tasks-map-editor-input,
+.tasks-map-editor-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.tasks-map-editor-input:focus,
+.tasks-map-editor-textarea:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.tasks-map-editor-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.tasks-map-editor-nlp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+}
+
+.tasks-map-editor-nlp-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.tasks-map-editor-nlp-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  align-self: flex-end;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tasks-map-editor-nlp-button:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-editor-nlp-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tasks-map-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--background-modifier-border);
+  flex: 0 0 auto;
+}
+
+.tasks-map-editor-btn {
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tasks-map-editor-btn:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-editor-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tasks-map-editor-btn--primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.tasks-map-editor-btn--primary:hover:not(:disabled) {
+  background: var(--interactive-accent-hover);
+}
+
+/* "New task" floating action button */
+.tasks-map-new-task-button {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 36;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: none;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.tasks-map-new-task-button:hover {
+  background: var(--interactive-accent-hover);
+}

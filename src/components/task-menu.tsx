@@ -1,5 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MoreVertical, Trash2, SquareArrowOutUpRight } from "lucide-react";
+import {
+  MoreVertical,
+  Trash2,
+  SquareArrowOutUpRight,
+  PanelRight,
+} from "lucide-react";
 import { App } from "obsidian";
 import { BaseTask } from "src/types/task";
 import { CirclePlus, SquarePen } from "lucide-react";
@@ -19,6 +24,8 @@ interface TaskMenuProps {
   app: App;
   onTaskDeleted?: () => void;
   onTaskChanged?: () => void;
+  /** Open the in-app task editor panel for this task. */
+  onEditTask?: () => void;
 }
 
 const TaskMenu = ({
@@ -26,6 +33,7 @@ const TaskMenu = ({
   app,
   onTaskDeleted,
   onTaskChanged,
+  onEditTask,
 }: TaskMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -145,6 +153,13 @@ const TaskMenu = ({
     }
   };
 
+  const handleOpenEditorPanel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOpen(false);
+    onEditTask?.();
+  };
+
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -192,13 +207,22 @@ const TaskMenu = ({
             <SquarePen size={12} />
             <span>Edit task</span>
           </button>
+          {canOpenInTaskNotes && onEditTask && (
+            <button
+              className="tasks-map-task-menu-item"
+              onClick={handleOpenEditorPanel}
+            >
+              <PanelRight size={12} />
+              <span>Open in editor panel</span>
+            </button>
+          )}
           {canOpenInTaskNotes && (
             <button
               className="tasks-map-task-menu-item"
               onClick={(e) => void handleOpenInTaskNotes(e)}
             >
               <SquareArrowOutUpRight size={12} />
-              <span>Open in TaskNotes</span>
+              <span>Open TaskNotes modal</span>
             </button>
           )}
           <button

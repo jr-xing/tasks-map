@@ -28,6 +28,9 @@ export interface TaskNodeData {
   onDeleteTask?: (taskId: string) => void;
   /** Called after an external editor (e.g. TaskNotes modal) saves changes. */
   onTaskChanged?: () => void;
+  /** Open the in-app task editor panel for the given task file path. */
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onEditTask?: (taskPath: string) => void;
 }
 
 export interface TaskEdgeData {

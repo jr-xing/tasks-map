@@ -176,5 +176,32 @@
     "dataview_required": "Taken Kaart vereist de Dataview-plugin.",
     "invalid_json": "Dit Taken Kaart-blok bevat ongeldige JSON. Voeg het opnieuw in via het opdrachtenpalet om het te herstellen.",
     "legacy_format": "Dit Taken Kaart-blok gebruikt een verouderd formaat. Voeg het opnieuw in via het opdrachtenpalet om het te migreren."
+  },
+  "task_editor": {
+    "create_title": "Nieuwe taak",
+    "edit_title": "Taak bewerken",
+    "new_task": "Nieuwe taak",
+    "loading": "Taak laden…",
+    "load_error": "Kan deze taak niet laden.",
+    "nlp_placeholder": "Typ een taak in natuurlijke taal…",
+    "nlp_parse": "Verwerken",
+    "field_title": "Titel",
+    "field_status": "Status",
+    "field_priority": "Prioriteit",
+    "field_due": "Deadline",
+    "field_scheduled": "Gepland",
+    "field_tags": "Labels",
+    "field_contexts": "Contexten",
+    "field_projects": "Projecten",
+    "field_blocked_by": "Geblokkeerd door",
+    "field_time_estimate": "Tijdsinschatting (min)",
+    "field_recurrence": "Herhaling (RRULE)",
+    "field_body": "Inhoud",
+    "title_placeholder": "Taaktitel",
+    "add_placeholder": "Toevoegen…",
+    "save": "Opslaan",
+    "saving": "Opslaan…",
+    "cancel": "Annuleren",
+    "close": "Sluiten"
   }
 }

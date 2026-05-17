@@ -25,11 +25,13 @@ import {
   getTasksApi,
   parseTaskLine,
 } from "src/lib/utils";
+import { Plus } from "lucide-react";
 import { BaseTask, TaskNodeData } from "src/types/task";
 import {
   isTaskNotesTaskFile,
-  openTaskNotesEditModal,
+  isTaskNotesEditorAvailable,
 } from "src/lib/tasknotes-bridge";
+import TaskEditorPanel from "src/components/task-editor-panel";
 import { NoteTask } from "src/types/note-task";
 import GuiOverlay from "src/components/gui-overlay";
 import FilterPresetsPanel from "src/components/filter-presets-panel";
@@ -266,6 +268,34 @@ export default function TaskMapGraphView({
     );
   }, [tasks, allUnlinkedTasks, droppedTaskIds, hideUnlinkedTasks]);
 
+  // In-app task editor panel state (create or edit a TaskNotes task).
+  const [editorState, setEditorState] = React.useState<{
+    mode: "create" | "edit";
+    taskPath?: string;
+  } | null>(null);
+
+  const openTaskEditor = useCallback(
+    (mode: "create" | "edit", taskPath?: string) => {
+      setEditorState({ mode, taskPath });
+    },
+    []
+  );
+
+  const handleEditTaskByPath = useCallback(
+    (taskPath: string) => openTaskEditor("edit", taskPath),
+    [openTaskEditor]
+  );
+
+  // Note-based tasks offered as dependency targets in the editor panel.
+  const noteTasks = useMemo(
+    () => tasks.filter((task) => task.type === "note"),
+    [tasks]
+  );
+  const taskNotesEditorAvailable = useMemo(
+    () => isTaskNotesEditorAvailable(app),
+    [app]
+  );
+
   useEffect(() => {
     let newNodes = createNodesFromTasks(
       graphTasks,
@@ -276,7 +306,8 @@ export default function TaskMapGraphView({
       handleDeleteTask,
       groupByProject,
       settings.tagColorPalette,
-      reloadTasks
+      reloadTasks,
+      handleEditTaskByPath
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -338,6 +369,7 @@ export default function TaskMapGraphView({
     droppedTaskIds,
     groupByProject,
     reloadTasks,
+    handleEditTaskByPath,
   ]);
 
   const nodeTypes = useMemo(
@@ -365,7 +397,7 @@ export default function TaskMapGraphView({
     setSelectedEdge(null);
   }, [setSelectedEdge]);
 
-  // Double-clicking a TaskNotes task node opens its edit modal directly,
+  // Double-clicking a TaskNotes task node opens the editor panel directly,
   // skipping the ⋮ menu. Non-TaskNotes nodes fall through to the default
   // (ReactFlow zoom-on-double-click).
   const onNodeDoubleClick = useCallback<NodeMouseHandler>(
@@ -376,9 +408,9 @@ export default function TaskMapGraphView({
       if (!isTaskNotesTaskFile(app, task.link)) return;
       // Stop the event from reaching ReactFlow's zoom-on-double-click handler.
       event.stopPropagation();
-      void openTaskNotesEditModal(app, task.link, reloadTasks);
+      openTaskEditor("edit", task.link);
     },
-    [app, reloadTasks]
+    [app, openTaskEditor]
   );
 
   const onPaneClick = useCallback(() => {
@@ -1046,6 +1078,28 @@ export default function TaskMapGraphView({
         </ReactFlow>
         {selectedEdge && (
           <DeleteEdgeButton onDelete={() => void onDeleteSelectedEdge()} />
+        )}
+        {taskNotesEditorAvailable && !editorState && (
+          <button
+            className="tasks-map-new-task-button"
+            onClick={() => openTaskEditor("create")}
+          >
+            <Plus size={16} />
+            <span>{t("task_editor.new_task")}</span>
+          </button>
+        )}
+        {editorState && (
+          <div className="tasks-map-editor-panel-container">
+            <TaskEditorPanel
+              key={`${editorState.mode}:${editorState.taskPath ?? ""}`}
+              app={app}
+              mode={editorState.mode}
+              taskPath={editorState.taskPath}
+              availableTasks={noteTasks}
+              onClose={() => setEditorState(null)}
+              onSaved={reloadTasks}
+            />
+          </div>
         )}
       </div>
     </TagsContext.Provider>

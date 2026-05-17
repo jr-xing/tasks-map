@@ -176,5 +176,32 @@
     "dataview_required": "Tasks Map requires the Dataview plugin.",
     "invalid_json": "This Tasks Map embed contains invalid JSON. Re-insert it using the command palette to fix it.",
     "legacy_format": "This Tasks Map embed uses an outdated format. Re-insert it using the command palette to migrate it."
+  },
+  "task_editor": {
+    "create_title": "New task",
+    "edit_title": "Edit task",
+    "new_task": "New task",
+    "loading": "Loading task…",
+    "load_error": "Could not load this task.",
+    "nlp_placeholder": "Type a task in natural language…",
+    "nlp_parse": "Parse",
+    "field_title": "Title",
+    "field_status": "Status",
+    "field_priority": "Priority",
+    "field_due": "Due",
+    "field_scheduled": "Scheduled",
+    "field_tags": "Tags",
+    "field_contexts": "Contexts",
+    "field_projects": "Projects",
+    "field_blocked_by": "Blocked by",
+    "field_time_estimate": "Time estimate (min)",
+    "field_recurrence": "Recurrence (RRULE)",
+    "field_body": "Body",
+    "title_placeholder": "Task title",
+    "add_placeholder": "Add…",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close"
   }
 }
