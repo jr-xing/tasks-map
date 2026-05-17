@@ -3,6 +3,7 @@ import dagre from "@dagrejs/dagre";
 import { App, TFile, Vault } from "obsidian";
 import { TaskStatus, TaskNode, TaskEdge, RawTask } from "src/types/task";
 import { BaseTask, TaskInsertPosition } from "src/types/base-task";
+import { TasksMapSettings } from "src/types/settings";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { TaskFactory } from "./task-factory";
 import { Position, Node, Edge } from "reactflow";
@@ -1231,17 +1232,65 @@ export async function removeSignFromTaskInFile(
   });
 }
 
+// Defaults for note-based task detection. Mirror DEFAULT_SETTINGS so callers
+// that omit settings (e.g. tests) keep the original #task-tag behavior.
+const DEFAULT_NOTE_TASK_PROPERTY_NAME = "tags";
+const DEFAULT_NOTE_TASK_PROPERTY_VALUE = "task";
+const DEFAULT_NOTE_DEPENDENCY_PROPERTY = "blockedBy";
+
+/** Subset of settings that controls how note-based tasks are detected. */
+export type NoteTaskConfig = Pick<
+  TasksMapSettings,
+  "noteTaskPropertyName" | "noteTaskPropertyValue" | "noteDependencyProperty"
+>;
+
+/**
+ * Normalize a criteria value for comparison: coerce to string, trim, and
+ * drop a leading "#" so that tag values like "#task" match "task".
+ */
+function normalizeCriteriaValue(value: unknown): string {
+  return String(value).trim().replace(/^#/, "");
+}
+
+/**
+ * Check whether a note's frontmatter marks it as a task, based on the
+ * configured property name and value(s). The configured value may be a
+ * comma-separated list (e.g. "task, project") and the frontmatter property
+ * may itself be a scalar or a list; a leading "#" on any value is ignored.
+ */
+function noteMatchesTaskCriteria(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- frontmatter shape is dynamic
+  frontmatter: any,
+  propertyName: string,
+  propertyValue: string
+): boolean {
+  const raw = frontmatter?.[propertyName];
+  if (raw === undefined || raw === null) return false;
+
+  const expected = propertyValue
+    .split(",")
+    .map((v) => normalizeCriteriaValue(v))
+    .filter((v) => v.length > 0);
+  if (expected.length === 0) return false;
+
+  const candidates = Array.isArray(raw) ? raw : [raw];
+  return candidates.some((c) => expected.includes(normalizeCriteriaValue(c)));
+}
+
 // TODO: Improve typing for app parameter
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-export function getAllTasks(app: any): BaseTask[] {
+export function getAllTasks(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
+  app: any,
+  settings?: Partial<NoteTaskConfig>
+): BaseTask[] {
   // Central function to gather tasks from all available sources
   const allTasks: BaseTask[] = [];
 
   // Source 1: Dataview plugin tasks
   allTasks.push(...getAllDataviewTasks(app));
 
-  // Source 2: Note-based tasks (notes with #task in frontmatter)
-  allTasks.push(...getNoteTasks(app));
+  // Source 2: Note-based tasks (notes matching the configured frontmatter criteria)
+  allTasks.push(...getNoteTasks(app, settings));
 
   return allTasks;
 }
@@ -1268,11 +1317,22 @@ export function getAllDataviewTasks(app: any): BaseTask[] {
   return parsedTasks.filter((task) => !factory.isEmptyTask(task));
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-export function getNoteTasks(app: any): BaseTask[] {
+export function getNoteTasks(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
+  app: any,
+  settings?: Partial<NoteTaskConfig>
+): BaseTask[] {
   const tasks: BaseTask[] = [];
   const vault = app.vault;
   const metadataCache = app.metadataCache;
+
+  // Resolve the configurable note-task criteria (falling back to defaults)
+  const propertyName =
+    settings?.noteTaskPropertyName || DEFAULT_NOTE_TASK_PROPERTY_NAME;
+  const propertyValue =
+    settings?.noteTaskPropertyValue || DEFAULT_NOTE_TASK_PROPERTY_VALUE;
+  const dependencyProperty =
+    settings?.noteDependencyProperty || DEFAULT_NOTE_DEPENDENCY_PROPERTY;
 
   // Get all markdown files in the vault
   const files = vault.getMarkdownFiles();
@@ -1281,22 +1341,19 @@ export function getNoteTasks(app: any): BaseTask[] {
     // Get the file's metadata (frontmatter)
     const cache = metadataCache.getFileCache(file);
 
-    if (!cache?.frontmatter?.tags) {
+    if (!cache?.frontmatter) {
       continue;
     }
 
-    // Check if the note has #task tag in frontmatter
-    const tags = cache.frontmatter.tags;
-    const hasTaskTag = Array.isArray(tags)
-      ? tags.some((tag: string) => tag === "task" || tag === "#task")
-      : tags === "task" || tags === "#task";
-
-    if (!hasTaskTag) {
+    // Check if the note matches the configured task criteria
+    if (
+      !noteMatchesTaskCriteria(cache.frontmatter, propertyName, propertyValue)
+    ) {
       continue;
     }
 
     // Parse the note as a task
-    const task = parseTaskNote(file, cache, app);
+    const task = parseTaskNote(file, cache, app, dependencyProperty);
     if (task) {
       tasks.push(task);
     }
@@ -1329,8 +1386,15 @@ function normalizeNotePriority(priority: string): string {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-function parseTaskNote(file: any, cache: any, app: any): BaseTask | null {
+function parseTaskNote(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian TFile type not available in this context
+  file: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian CachedMetadata type not available here
+  cache: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
+  app: any,
+  dependencyProperty: string = DEFAULT_NOTE_DEPENDENCY_PROPERTY
+): BaseTask | null {
   const frontmatter = cache.frontmatter || {};
   const factory = new TaskFactory();
 
@@ -1366,38 +1430,36 @@ function parseTaskNote(file: any, cache: any, app: any): BaseTask | null {
       task.starred = frontmatter.starred;
     }
 
-    // Collect all incoming links from various sources
+    // Collect incoming links (dependencies) from the configured frontmatter
+    // property. Values may be wiki-link strings ("[[Other task]]") or
+    // { uid, reltype } objects; both are resolved to file paths.
     const allIncomingLinks: string[] = [];
 
-    // Parse blockedBy dependencies (TaskNotes format)
-    // For note-based tasks, these will be file paths
-    if (frontmatter.blockedBy) {
+    const dependencyValue = frontmatter[dependencyProperty];
+    if (dependencyValue) {
       try {
-        const blockedByLinks = parseBlockedByLinks(frontmatter.blockedBy, app);
-        allIncomingLinks.push(...blockedByLinks);
+        const dependencyList = Array.isArray(dependencyValue)
+          ? dependencyValue
+          : [dependencyValue];
+        allIncomingLinks.push(...parseBlockedByLinks(dependencyList, app));
       } catch {
-        // Failed to parse blockedBy
-      }
-    }
-
-    // Also support simpler dependsOn format
-    if (frontmatter.dependsOn) {
-      try {
-        const deps = Array.isArray(frontmatter.dependsOn)
-          ? frontmatter.dependsOn
-          : [frontmatter.dependsOn];
-        allIncomingLinks.push(...deps);
-      } catch {
-        // Failed to parse dependsOn
+        // Failed to parse the dependency property
       }
     }
 
     // Remove duplicates and assign to task
     task.incomingLinks = [...new Set(allIncomingLinks)];
 
-    // Parse projects from TaskNotes frontmatter
+    // Parse projects from TaskNotes frontmatter for the "group by project"
+    // feature. Skip this when "projects" is itself the dependency property:
+    // in that case the field already drives dependency edges and reusing it
+    // for grouping would represent the same relationship twice.
     // Format: projects: ["[[Project Name]]"] or projects: ["Project Name"]
-    if (frontmatter.projects && Array.isArray(frontmatter.projects)) {
+    if (
+      dependencyProperty !== "projects" &&
+      frontmatter.projects &&
+      Array.isArray(frontmatter.projects)
+    ) {
       task.projects = frontmatter.projects
         .map((p: unknown) => {
           if (typeof p !== "string") return null;

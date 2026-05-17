@@ -164,7 +164,11 @@ export default function TaskMapGraphView({
     droppedNodePositions.current = new Map();
     // Use setTimeout to allow the loading UI to render before heavy computation
     window.setTimeout(() => {
-      const newTasks = getAllTasks(app);
+      const newTasks = getAllTasks(app, {
+        noteTaskPropertyName: settings.noteTaskPropertyName,
+        noteTaskPropertyValue: settings.noteTaskPropertyValue,
+        noteDependencyProperty: settings.noteDependencyProperty,
+      });
       setTasks(newTasks);
       const newRegistry = new Map<string, string[]>();
       newTasks.forEach((task) => {
@@ -174,7 +178,12 @@ export default function TaskMapGraphView({
       setIsLoading(false);
       new Notice("Tasks reloaded");
     }, 0);
-  }, [app]);
+  }, [
+    app,
+    settings.noteTaskPropertyName,
+    settings.noteTaskPropertyValue,
+    settings.noteDependencyProperty,
+  ]);
 
   const updateTaskTags = useCallback((taskId: string, newTags: string[]) => {
     setTaskTagsRegistry((prevRegistry) => {

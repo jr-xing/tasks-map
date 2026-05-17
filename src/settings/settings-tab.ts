@@ -260,6 +260,49 @@ export class TasksMapSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setHeading()
+      .setName(t("settings.note_tasks"));
+
+    new Setting(containerEl)
+      .setName(t("settings.note_task_property_name"))
+      .setDesc(t("settings.note_task_property_name_desc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("tags")
+          .setValue(this.plugin.settings.noteTaskPropertyName)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTaskPropertyName = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.note_task_property_value"))
+      .setDesc(t("settings.note_task_property_value_desc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("task, project")
+          .setValue(this.plugin.settings.noteTaskPropertyValue)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTaskPropertyValue = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.note_dependency_property"))
+      .setDesc(t("settings.note_dependency_property_desc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("blockedBy")
+          .setValue(this.plugin.settings.noteDependencyProperty)
+          .onChange(async (value) => {
+            this.plugin.settings.noteDependencyProperty = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setHeading()
       .setName(t("settings.advanced_options"));
 
     new Setting(containerEl)
