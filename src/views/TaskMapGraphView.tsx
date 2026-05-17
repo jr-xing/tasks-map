@@ -39,6 +39,7 @@ import { TagsContext } from "src/contexts/context";
 import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
+import ProjectTreePanel from "src/components/project-tree-panel";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
 import { t } from "../i18n";
@@ -358,6 +359,49 @@ export default function TaskMapGraphView({
   const onPaneClick = useCallback(() => {
     setSelectedEdge(null);
   }, [setSelectedEdge]);
+
+  // Pan the canvas to center a task node and briefly pulse it. Used by the
+  // project tree sidebar to jump to a node when its tree row is clicked.
+  const focusNode = useCallback(
+    (taskId: string) => {
+      const node = reactFlowInstance.getNode(taskId);
+      if (!node) return;
+
+      const pos = node.positionAbsolute ?? node.position;
+      const width = node.width ?? 0;
+      const height = node.height ?? 0;
+      reactFlowInstance.setCenter(
+        pos.x + width / 2,
+        pos.y + height / 2,
+        { zoom: reactFlowInstance.getZoom(), duration: 500 }
+      );
+
+      const FOCUS_CLASS = "tasks-map-node--focused";
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === taskId
+            ? { ...n, className: `${n.className ?? ""} ${FOCUS_CLASS}`.trim() }
+            : n
+        )
+      );
+      window.setTimeout(() => {
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === taskId
+              ? {
+                  ...n,
+                  className: (n.className ?? "")
+                    .split(/\s+/)
+                    .filter((c) => c && c !== FOCUS_CLASS)
+                    .join(" "),
+                }
+              : n
+          )
+        );
+      }, 1600);
+    },
+    [reactFlowInstance, setNodes]
+  );
 
   const onDeleteSelectedEdge = useCallback(async () => {
     if (!selectedEdge) return;
@@ -872,8 +916,16 @@ export default function TaskMapGraphView({
         onDrop={(e) => void onDrop(e)}
         onDragOver={onDragOver}
       >
-        {embed.showUnlinkedPanel && hideUnlinkedTasks && (
-          <UnlinkedTasksPanel tasks={sidebarTasks} />
+        {embed.showUnlinkedPanel && (
+          <div
+            className="tasks-map-left-sidebar"
+            ref={(el) => {
+              if (el) el.style.width = `${settings.sidebarWidth}px`;
+            }}
+          >
+            {hideUnlinkedTasks && <UnlinkedTasksPanel tasks={sidebarTasks} />}
+            <ProjectTreePanel tasks={filteredTasks} onTaskClick={focusNode} />
+          </div>
         )}
         {isLoading && (
           <div className="tasks-map-loading-container">

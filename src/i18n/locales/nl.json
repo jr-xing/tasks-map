@@ -39,6 +39,8 @@
     "edge_style_smoothstep": "Vloeiende hoek (gehoekt)",
     "smooth_step_radius": "Hoekradius",
     "smooth_step_radius_desc": "Randradius voor vloeiende hoeken (0 = scherpe rechte hoeken)",
+    "sidebar_width": "Breedte zijbalk",
+    "sidebar_width_desc": "Breedte in pixels van de linkerzijbalk (panelen voor niet-gekoppelde taken en projectboom)",
     "tag_appearance": "Tag Uiterlijk",
     "tag_color_palette": "Tagkleurenpalet",
     "tag_color_palette_desc": "Kies een kleurthema voor tags",
@@ -120,6 +122,15 @@
     "collapse": "Paneel inklappen",
     "expand": "Paneel uitklappen",
     "drag_hint": "Sleep een taak naar de grafiek om hem te plaatsen"
+  },
+  "project_tree": {
+    "title": "Projectboom",
+    "filter_placeholder": "Taken filteren...",
+    "no_results": "Geen overeenkomende taken",
+    "collapse": "Paneel inklappen",
+    "expand": "Paneel uitklappen",
+    "collapse_node": "Inklappen",
+    "expand_node": "Uitklappen"
   },
   "graph": {
     "no_tasks_hint": "Geen taken gevonden in je vault.",

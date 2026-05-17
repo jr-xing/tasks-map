@@ -146,6 +146,20 @@ export class TasksMapSettingTab extends PluginSettingTab {
         );
     }
 
+    new Setting(containerEl)
+      .setName(t("settings.sidebar_width"))
+      .setDesc(t("settings.sidebar_width_desc"))
+      .addSlider((slider) =>
+        slider
+          .setLimits(180, 600, 10)
+          .setValue(this.plugin.settings.sidebarWidth)
+          .setDynamicTooltip()
+          .onChange(async (value) => {
+            this.plugin.settings.sidebarWidth = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     new Setting(containerEl).setHeading().setName(t("settings.tag_appearance"));
 
     new Setting(containerEl)

@@ -1541,17 +1541,30 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Unlinked Tasks Panel */
-.tasks-map-unlinked-panel {
+/* Left sidebar column — stacks the unlinked-tasks and project-tree panels */
+.tasks-map-left-sidebar {
   position: absolute;
   top: 16px;
   left: 16px;
   bottom: 70px;
+  width: 220px;
   z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.tasks-map-left-sidebar > * {
+  pointer-events: auto;
+}
+
+.tasks-map-unlinked-panel {
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  width: 220px;
-  max-height: calc(100% - 86px);
+  flex: 1 1 0;
+  min-height: 0;
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
@@ -1560,9 +1573,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .tasks-map-unlinked-panel--collapsed {
-  width: auto;
-  max-height: none;
-  bottom: auto;
+  flex: 0 0 auto;
   overflow: visible;
 }
 .tasks-map-unlinked-panel__header {
@@ -1714,6 +1725,209 @@ If your plugin does not need CSS, delete this file.
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Project Tree Panel */
+.tasks-map-tree-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(var(--tasks-map-color-black-rgb), 0.15);
+  overflow: hidden;
+}
+
+.tasks-map-tree-panel--collapsed {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.tasks-map-tree-panel__header {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.tasks-map-tree-panel--collapsed .tasks-map-tree-panel__header {
+  border-bottom: none;
+}
+
+.tasks-map-tree-panel__title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 10px 12px;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__header-icon {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-left: 1px solid var(--background-modifier-border);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--background-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  height: auto;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__header-icon:hover {
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel--collapsed .tasks-map-tree-panel__header-icon {
+  border-radius: 0 8px 8px 0;
+  padding: 10px;
+}
+
+.tasks-map-tree-panel__count {
+  font-weight: normal;
+  color: var(--text-faint);
+}
+
+.tasks-map-tree-panel__filter-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__filter-input {
+  flex: 1;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-normal);
+  outline: none;
+  min-width: 0;
+}
+
+.tasks-map-tree-panel__filter-input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__filter-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tasks-map-tree-panel__filter-clear:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-tree-panel__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.tasks-map-tree-panel__empty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.tasks-map-tree-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 8px 1px 0;
+  user-select: none;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__caret:hover {
+  color: var(--text-normal);
+}
+
+.tasks-map-tree-panel__caret-spacer {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.tasks-map-tree-panel__label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-normal);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  padding: 3px 4px;
+  border-radius: 4px;
+}
+
+.tasks-map-tree-panel__label:hover {
+  background: var(--background-modifier-hover);
+  color: var(--interactive-accent);
+}
+
+/* Transient pulse when the project tree jumps to a node on the canvas */
+.react-flow__node.tasks-map-node--focused {
+  z-index: 50 !important;
+  animation: tasks-map-node-focus-pulse 1.5s ease-out;
+}
+
+@keyframes tasks-map-node-focus-pulse {
+  0% {
+    filter: drop-shadow(0 0 2px var(--interactive-accent));
+  }
+  25% {
+    filter: drop-shadow(0 0 12px var(--interactive-accent));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
 }
 
 /* Filter Preset Section */

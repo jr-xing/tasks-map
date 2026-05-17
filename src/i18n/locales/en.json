@@ -39,6 +39,8 @@
     "edge_style_smoothstep": "Smooth Step (cornered)",
     "smooth_step_radius": "Corner radius",
     "smooth_step_radius_desc": "Border radius for smooth step corners (0 = sharp right angles)",
+    "sidebar_width": "Sidebar width",
+    "sidebar_width_desc": "Width in pixels of the left sidebar (unlinked tasks and project tree panels)",
     "tag_appearance": "Tag Appearance",
     "tag_color_palette": "Tag color palette",
     "tag_color_palette_desc": "Choose a color theme for tags",
@@ -120,6 +122,15 @@
     "collapse": "Collapse panel",
     "expand": "Expand panel",
     "drag_hint": "Drag a task onto the graph to place it"
+  },
+  "project_tree": {
+    "title": "Project tree",
+    "filter_placeholder": "Filter tasks...",
+    "no_results": "No matching tasks",
+    "collapse": "Collapse panel",
+    "expand": "Expand panel",
+    "collapse_node": "Collapse",
+    "expand_node": "Expand"
   },
   "graph": {
     "no_tasks_hint": "No tasks found in your vault.",

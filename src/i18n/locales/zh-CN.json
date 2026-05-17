@@ -39,6 +39,8 @@
     "edge_style_smoothstep": "平滑折线",
     "smooth_step_radius": "圆角半径",
     "smooth_step_radius_desc": "平滑折线的圆角半径（0 = 直角）",
+    "sidebar_width": "侧边栏宽度",
+    "sidebar_width_desc": "左侧边栏（未链接任务和项目树面板）的宽度（像素）",
     "tag_appearance": "标签外观",
     "tag_color_palette": "标签配色方案",
     "tag_color_palette_desc": "为标签选择颜色主题",
@@ -120,6 +122,15 @@
     "collapse": "收起面板",
     "expand": "展开面板",
     "drag_hint": "将任务拖到图上以放置它"
+  },
+  "project_tree": {
+    "title": "项目树",
+    "filter_placeholder": "筛选任务...",
+    "no_results": "没有匹配的任务",
+    "collapse": "收起面板",
+    "expand": "展开面板",
+    "collapse_node": "收起",
+    "expand_node": "展开"
   },
   "graph": {
     "no_tasks_hint": "在你的 vault 中未找到任何任务。",

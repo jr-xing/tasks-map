@@ -29,6 +29,10 @@ export interface TasksMapSettings {
   // links or { uid } objects). Example: "blockedBy" or "projects".
   noteDependencyProperty: string;
 
+  // Width (in pixels) of the left sidebar holding the unlinked-tasks
+  // and project-tree panels.
+  sidebarWidth: number;
+
   // Tag color settings
   tagColorPalette: TagColorPalette;
 
@@ -55,6 +59,9 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   noteTaskPropertyName: "tags",
   noteTaskPropertyValue: "task",
   noteDependencyProperty: "blockedBy",
+
+  // Left sidebar width default
+  sidebarWidth: 220,
 
   // Tag color defaults
   tagColorPalette: "rainbow",
