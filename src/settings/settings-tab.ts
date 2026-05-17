@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import TasksMapPlugin from "../main";
 import { TagColorPalette, getTagColorClass } from "../lib/tag-color-manager";
+import { cloneDefaultStatuses } from "../lib/status-config";
 import { t } from "../i18n";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 
@@ -28,6 +29,147 @@ export class TasksMapSettingTab extends PluginSettingTab {
         cls: `tasks-map-tag ${getTagColorClass(tag, palette)}`,
         text: tag,
       });
+    });
+  }
+
+  /**
+   * Renders the configurable task-statuses section: an editable row per
+   * status (label, color, checkbox character, frontmatter values) plus
+   * add/reset actions and the "default visible statuses" toggles.
+   */
+  private renderTaskStatusesSection(containerEl: HTMLElement): void {
+    new Setting(containerEl)
+      .setHeading()
+      .setName(t("settings.task_statuses"));
+
+    const desc = containerEl.createDiv({ cls: "tasks-map-preview-desc" });
+    desc.textContent = t("settings.task_statuses_desc");
+
+    const statuses = this.plugin.settings.taskStatuses;
+
+    statuses.forEach((status, index) => {
+      const setting = new Setting(containerEl).setName(
+        status.label || t("settings.status_unnamed")
+      );
+
+      setting.addText((text) =>
+        text
+          .setPlaceholder(t("settings.status_label_placeholder"))
+          .setValue(status.label)
+          .onChange(async (value) => {
+            status.label = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+      setting.addColorPicker((picker) =>
+        picker.setValue(status.color).onChange(async (value) => {
+          status.color = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+      setting.addText((text) => {
+        text
+          .setPlaceholder(t("settings.status_checkbox_placeholder"))
+          .setValue(status.checkboxChar)
+          .onChange(async (value) => {
+            // Keep a single character; blank means an empty checkbox.
+            status.checkboxChar = value.length > 0 ? value[0] : " ";
+            await this.plugin.saveSettings();
+          });
+        text.inputEl.maxLength = 1;
+        text.inputEl.addClass("tasks-map-status-char-input");
+      });
+
+      setting.addText((text) =>
+        text
+          .setPlaceholder(t("settings.status_note_values_placeholder"))
+          .setValue(status.noteValues)
+          .onChange(async (value) => {
+            status.noteValues = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+      setting.addExtraButton((btn) =>
+        btn
+          .setIcon("trash")
+          .setTooltip(t("settings.status_remove"))
+          .onClick(async () => {
+            statuses.splice(index, 1);
+            this.plugin.settings.defaultStatusFilter =
+              this.plugin.settings.defaultStatusFilter.filter(
+                (id) => id !== status.id
+              );
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+    });
+
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn.setButtonText(t("settings.status_add")).onClick(async () => {
+          statuses.push({
+            id: `status-${Date.now().toString(36)}-${Math.floor(
+              Math.random() * 1296
+            ).toString(36)}`,
+            label: t("settings.status_new"),
+            color: "#8a8a8a",
+            checkboxChar: " ",
+            noteValues: "",
+          });
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t("settings.status_reset"))
+          .setWarning()
+          .onClick(async () => {
+            this.plugin.settings.taskStatuses = cloneDefaultStatuses();
+            this.plugin.settings.defaultStatusFilter = [];
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    new Setting(containerEl)
+      .setHeading()
+      .setName(t("settings.default_status_filter"));
+
+    const filterDesc = containerEl.createDiv({
+      cls: "tasks-map-preview-desc",
+    });
+    filterDesc.textContent = t("settings.default_status_filter_desc");
+
+    const allIds = statuses.map((s) => s.id);
+    // Reads the effective visible set live: an empty stored filter means
+    // "all statuses visible".
+    const effectiveVisible = (): Set<string> => {
+      const stored = this.plugin.settings.defaultStatusFilter;
+      return stored.length === 0 ? new Set(allIds) : new Set(stored);
+    };
+
+    statuses.forEach((status) => {
+      new Setting(containerEl)
+        .setName(status.label || t("settings.status_unnamed"))
+        .addToggle((toggle) => {
+          toggle.setValue(effectiveVisible().has(status.id));
+          toggle.onChange(async (value) => {
+            const visible = effectiveVisible();
+            if (value) visible.add(status.id);
+            else visible.delete(status.id);
+            // Canonicalize "everything visible" back to an empty filter.
+            this.plugin.settings.defaultStatusFilter =
+              visible.size === allIds.length
+                ? []
+                : allIds.filter((id) => visible.has(id));
+            await this.plugin.saveSettings();
+          });
+        });
     });
   }
 
@@ -190,6 +332,8 @@ export class TasksMapSettingTab extends PluginSettingTab {
       ["priority", "bug", "feature", "docs", "blocked"],
       this.plugin.settings.tagColorPalette
     );
+
+    this.renderTaskStatusesSection(containerEl);
 
     new Setting(containerEl)
       .setHeading()

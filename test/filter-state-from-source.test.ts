@@ -192,9 +192,21 @@ describe("filterStateFromSource", () => {
       expect(result.filter.traversalMode).toBe("both");
     });
 
-    it("falls back to default selectedStatuses when array contains an unknown status", () => {
+    it("preserves custom status ids in selectedStatuses", () => {
+      // Statuses are user-configurable, so any string id is accepted.
       const source = JSON.stringify({
-        filter: { selectedStatuses: ["todo", "unknown_status"] },
+        filter: { selectedStatuses: ["todo", "planned"] },
+        config: {},
+      });
+      const result = filterStateFromSource(source);
+      expect(result.kind).toBe("ok");
+      if (result.kind !== "ok") return;
+      expect(result.filter.selectedStatuses).toEqual(["todo", "planned"]);
+    });
+
+    it("falls back to default selectedStatuses when array contains a non-string", () => {
+      const source = JSON.stringify({
+        filter: { selectedStatuses: ["todo", 42] },
         config: {},
       });
       const result = filterStateFromSource(source);

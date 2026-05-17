@@ -31,9 +31,12 @@ function TaskMapGraphWrapper({
       window.removeEventListener("tasks-map:settings-changed", handler);
   }, [plugin]);
 
-  const [filterState, setFilterState] = useState<FilterState>({
+  // Seed the status filter from the configured default so the map opens with
+  // the user's preferred statuses visible instead of always showing all.
+  const [filterState, setFilterState] = useState<FilterState>(() => ({
     ...DEFAULT_FILTER_STATE,
-  });
+    selectedStatuses: [...(plugin.settings.defaultStatusFilter ?? [])],
+  }));
 
   const handleSetFilterState = useCallback(
     (state: FilterState | ((_prev: FilterState) => FilterState)) => {

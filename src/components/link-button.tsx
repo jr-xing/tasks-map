@@ -1,9 +1,10 @@
 import React from "react";
 import { App, FileView, TFile, WorkspaceLeaf } from "obsidian";
 import { ArrowUpRight } from "lucide-react";
+import { TaskStatus } from "src/types/task";
 
 interface LinkButtonProps {
-  taskStatus?: "todo" | "done" | "canceled" | "in_progress";
+  taskStatus?: TaskStatus;
   link: string;
   app: App;
 }

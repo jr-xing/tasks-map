@@ -1095,20 +1095,19 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-normal);
 }
 
-.tasks-map-task-background--todo .tasks-map-task-status-toggle {
-  color: var(--text-muted);
-}
-
-.tasks-map-task-background--in-progress .tasks-map-task-status-toggle {
-  color: var(--tasks-map-color-blue);
-}
-
-.tasks-map-task-background--done .tasks-map-task-status-toggle {
-  color: var(--tasks-map-color-green);
-}
-
-.tasks-map-task-background--canceled .tasks-map-task-status-toggle {
-  color: var(--tasks-map-color-red);
+/* Status indicator: a colored dot opening the status picker menu. */
+.tasks-map-task-status-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--tasks-map-status-color, var(--text-muted));
+  box-shadow: 0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--tasks-map-status-color, var(--text-muted)) 35%,
+      transparent
+    );
 }
 
 /* Task Node Handle Styles */
@@ -1218,62 +1217,44 @@ If your plugin does not need CSS, delete this file.
   padding-bottom: 40px; /* Extra space for expand button (24px height + 16px margin) */
 }
 
-.tasks-map-task-background--todo {
+/*
+ * Status-driven node styling. The per-status color is supplied at runtime as
+ * the `--tasks-map-status-color` custom property (see task-background.tsx),
+ * and color-mix derives the translucent border and gradient from it.
+ */
+.tasks-map-task-background--status {
   --tasks-map-node-bg: var(--background-secondary);
-  --tasks-map-node-divider: rgba(var(--tasks-map-color-black-rgb), 0.1);
-  --tasks-map-node-hover: var(--background-modifier-hover);
-  background: var(--background-secondary);
-  border: 1px solid rgba(var(--tasks-map-color-black-rgb), 0.1);
-  border-left: 4px solid transparent;
-  color: var(--text-normal);
-}
-
-.tasks-map-task-background--done {
-  --tasks-map-node-bg: var(--background-secondary);
-  --tasks-map-node-divider: rgba(var(--tasks-map-color-green-rgb), 0.3);
+  --tasks-map-node-divider: color-mix(
+    in srgb,
+    var(--tasks-map-status-color, var(--text-muted)) 30%,
+    transparent
+  );
   --tasks-map-node-hover: var(--background-modifier-hover);
   background: var(--background-secondary);
   background-image: linear-gradient(
     to right,
-    rgba(var(--tasks-map-color-green-rgb), 0.18) 0%,
-    rgba(var(--tasks-map-color-green-rgb), 0.08) 50%,
+    color-mix(
+        in srgb,
+        var(--tasks-map-status-color, var(--text-muted)) 18%,
+        transparent
+      )
+      0%,
+    color-mix(
+        in srgb,
+        var(--tasks-map-status-color, var(--text-muted)) 8%,
+        transparent
+      )
+      50%,
     transparent 100%
   );
-  border: 1px solid rgba(var(--tasks-map-color-green-rgb), 0.3);
-  border-left: 4px solid var(--tasks-map-color-green);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--tasks-map-status-color, var(--text-muted)) 30%,
+      transparent
+    );
+  border-left: 4px solid var(--tasks-map-status-color, var(--text-muted));
   color: var(--text-normal);
-}
-
-.tasks-map-task-background--in-progress {
-  --tasks-map-node-bg: var(--background-secondary);
-  --tasks-map-node-divider: rgba(var(--tasks-map-color-blue-rgb), 0.3);
-  --tasks-map-node-hover: var(--background-modifier-hover);
-  background: var(--background-secondary);
-  background-image: linear-gradient(
-    to right,
-    rgba(var(--tasks-map-color-blue-rgb), 0.18) 0%,
-    rgba(var(--tasks-map-color-blue-rgb), 0.08) 50%,
-    transparent 100%
-  );
-  border: 1px solid rgba(var(--tasks-map-color-blue-rgb), 0.3);
-  border-left: 4px solid var(--tasks-map-color-blue);
-  color: var(--text-normal);
-}
-
-.tasks-map-task-background--canceled {
-  --tasks-map-node-bg: var(--background-secondary);
-  --tasks-map-node-divider: rgba(var(--tasks-map-color-red-rgb), 0.3);
-  --tasks-map-node-hover: var(--background-modifier-hover);
-  background: var(--background-secondary);
-  background-image: linear-gradient(
-    to right,
-    rgba(var(--tasks-map-color-red-rgb), 0.18) 0%,
-    rgba(var(--tasks-map-color-red-rgb), 0.08) 50%,
-    transparent 100%
-  );
-  border: 1px solid rgba(var(--tasks-map-color-red-rgb), 0.3);
-  border-left: 4px solid var(--tasks-map-color-red);
-  color: var(--text-muted);
 }
 
 /* Hover and Selected States */
@@ -1499,22 +1480,13 @@ If your plugin does not need CSS, delete this file.
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--tasks-map-status-color, var(--text-muted));
 }
 
-.tasks-map-status-counts-dot--todo {
-  background: var(--text-muted);
-}
-
-.tasks-map-status-counts-dot--in_progress {
-  background: var(--tasks-map-color-blue);
-}
-
-.tasks-map-status-counts-dot--done {
-  background: var(--tasks-map-color-green);
-}
-
-.tasks-map-status-counts-dot--canceled {
-  background: var(--tasks-map-color-red);
+/* Narrow input for the single-character checkbox field in status settings. */
+.tasks-map-status-char-input {
+  width: 3em;
+  text-align: center;
 }
 
 .tasks-map-status-counts-label {

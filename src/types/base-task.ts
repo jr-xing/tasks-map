@@ -1,5 +1,6 @@
 import { App, Vault } from "obsidian";
 import { TaskStatus } from "./task";
+import { TaskStatusConfig } from "../lib/status-config";
 
 export type TaskInsertPosition = "before" | "after";
 
@@ -47,7 +48,11 @@ export abstract class BaseTask {
   /**
    * Update the task's status in the vault
    */
-  abstract updateStatus(_newStatus: TaskStatus, _app: App): Promise<void>;
+  abstract updateStatus(
+    _newStatus: TaskStatus,
+    _app: App,
+    _statuses?: TaskStatusConfig[]
+  ): Promise<void>;
 
   /**
    * Add a new task line to the vault

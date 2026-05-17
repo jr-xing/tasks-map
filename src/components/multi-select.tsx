@@ -6,6 +6,7 @@ interface MultiSelectProps<T extends string> {
   selected: T[];
   setSelected: (selected: T[]) => void; // eslint-disable-line no-unused-vars -- prop callback parameter convention
   placeholder?: string;
+  getOptionLabel?: (value: T) => string; // eslint-disable-line no-unused-vars -- prop callback parameter convention
 }
 
 type OptionType = { value: string; label: string };
@@ -15,12 +16,15 @@ export default function MultiSelect<T extends string>({
   selected,
   setSelected,
   placeholder = t("multiselect.select"),
+  getOptionLabel,
 }: MultiSelectProps<T>) {
+  const labelFor = (value: T): string =>
+    getOptionLabel ? getOptionLabel(value) : value;
   return (
     <Select
       isMulti
-      options={options.map((o) => ({ value: o, label: o }))}
-      value={selected.map((o) => ({ value: o, label: o }))}
+      options={options.map((o) => ({ value: o, label: labelFor(o) }))}
+      value={selected.map((o) => ({ value: o, label: labelFor(o) }))}
       onChange={(opts: MultiValue<OptionType>) =>
         setSelected(opts.map((o) => o.value as T))
       }

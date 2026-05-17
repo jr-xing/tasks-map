@@ -1,7 +1,8 @@
 import MultiSelect from "./multi-select";
 import TagSelect from "./tag-select";
-import { TaskStatus, BaseTask } from "src/types/task";
+import { BaseTask } from "src/types/task";
 import { FilterState } from "src/types/filter-state";
+import { TaskStatusConfig, getStatusById } from "src/lib/status-config";
 import type { TraversalMode } from "src/lib/traverse-graph";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
@@ -12,7 +13,7 @@ interface GuiOverlayProps {
   filterState: FilterState;
   setFilterState: React.Dispatch<React.SetStateAction<FilterState>>;
   allFiles: string[];
-  allStatuses: TaskStatus[];
+  statuses: TaskStatusConfig[];
   onSearch: (_query: string) => void;
   searchResultCount: number | null;
   suggestionTasks: BaseTask[];
@@ -24,7 +25,7 @@ export default function GuiOverlay(props: GuiOverlayProps) {
     filterState,
     setFilterState,
     allFiles,
-    allStatuses,
+    statuses,
     onSearch,
     searchResultCount,
     suggestionTasks,
@@ -279,14 +280,15 @@ export default function GuiOverlay(props: GuiOverlayProps) {
                   {t("filters.status")}
                 </label>
                 <MultiSelect
-                  options={allStatuses}
+                  options={statuses.map((s) => s.id)}
                   selected={filterState.selectedStatuses}
-                  setSelected={(statuses) =>
+                  setSelected={(selected) =>
                     setFilterState((prev) => ({
                       ...prev,
-                      selectedStatuses: statuses,
+                      selectedStatuses: selected,
                     }))
                   }
+                  getOptionLabel={(id) => getStatusById(id, statuses).label}
                   placeholder={t("filters.filter_by_status")}
                 />
               </div>

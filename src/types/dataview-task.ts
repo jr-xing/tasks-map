@@ -4,13 +4,17 @@ import { TaskStatus } from "./task";
 import { TaskInsertPosition } from "./base-task";
 import {
   findTaskLineByIdOrText,
-  statusSymbols,
   addDateToTask,
   removeDateFromTask,
   getTodayDate,
   addSignToTaskInFile,
   removeSignFromTaskInFile,
 } from "../lib/utils";
+import {
+  TaskStatusConfig,
+  DEFAULT_TASK_STATUSES,
+  getStatusById,
+} from "../lib/status-config";
 import {
   EMOJI_ID_REMOVAL,
   DATAVIEW_BRACKET_ID_REMOVAL,
@@ -25,12 +29,19 @@ import {
 export class DataviewTask extends BaseTask {
   readonly type = "dataview" as const;
 
-  async updateStatus(newStatus: TaskStatus, app: App): Promise<void> {
+  async updateStatus(
+    newStatus: TaskStatus,
+    app: App,
+    statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
+  ): Promise<void> {
     if (!this.link || !this.text) return;
     const vault = app?.vault;
     if (!vault) return;
     const file = vault.getFileByPath(this.link);
     if (!file) return;
+
+    const checkboxChar =
+      getStatusById(newStatus, statuses).checkboxChar || " ";
 
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
@@ -38,10 +49,10 @@ export class DataviewTask extends BaseTask {
 
       if (taskLineIdx === -1) return fileContent;
 
-      // TODO: Verify if the escape is really useless here (or change this parsing completely). It was added by the linter, but it seems necessary for correct regex.
+      // Replace the checkbox character, keeping the list marker intact.
       lines[taskLineIdx] = lines[taskLineIdx].replace(
-        /\[([ x/\-])\]/, // eslint-disable-line no-useless-escape -- escape required for correct character class behavior
-        statusSymbols[newStatus]
+        /^(\s*[-*+]\s+)\[([^\]])\]/,
+        `$1[${checkboxChar}]`
       );
 
       // Add done timestamp

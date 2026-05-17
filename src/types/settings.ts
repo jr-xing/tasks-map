@@ -1,6 +1,10 @@
 import { Language } from "../i18n";
 import { FilterState } from "./filter-state";
 import { TagColorPalette } from "../lib/tag-color-manager";
+import {
+  TaskStatusConfig,
+  cloneDefaultStatuses,
+} from "../lib/status-config";
 
 export interface FilterPreset {
   id: string;
@@ -36,6 +40,13 @@ export interface TasksMapSettings {
   // Tag color settings
   tagColorPalette: TagColorPalette;
 
+  // User-configurable task statuses (id, label, color, checkbox char,
+  // frontmatter values). Replaces the previously hard-coded status set.
+  taskStatuses: TaskStatusConfig[];
+  // Status ids that are visible by default when the map is opened. An empty
+  // list means "show all statuses".
+  defaultStatusFilter: string[];
+
   // Language setting
   language: Language;
 
@@ -65,6 +76,10 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
 
   // Tag color defaults
   tagColorPalette: "rainbow",
+
+  // Task status defaults (mirrors the legacy hard-coded status set)
+  taskStatuses: cloneDefaultStatuses(),
+  defaultStatusFilter: [],
 
   // Language default
   language: "en",

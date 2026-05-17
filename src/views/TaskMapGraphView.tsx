@@ -35,7 +35,7 @@ import { getFilteredNodeIds } from "src/lib/filter-tasks";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
-import { TagsContext } from "src/contexts/context";
+import { TagsContext, StatusConfigContext } from "src/contexts/context";
 import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
@@ -45,13 +45,10 @@ import ControlsPanel from "src/components/controls-panel";
 import { t } from "../i18n";
 import TasksMapPlugin from "../main";
 
-import { TaskStatus } from "src/types/task";
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
-
-const ALL_STATUSES: TaskStatus[] = ["todo", "in_progress", "done", "canceled"];
 
 interface TaskMapGraphViewProps {
   settings: TasksMapSettings;
@@ -165,11 +162,15 @@ export default function TaskMapGraphView({
     droppedNodePositions.current = new Map();
     // Use setTimeout to allow the loading UI to render before heavy computation
     window.setTimeout(() => {
-      const newTasks = getAllTasks(app, {
-        noteTaskPropertyName: settings.noteTaskPropertyName,
-        noteTaskPropertyValue: settings.noteTaskPropertyValue,
-        noteDependencyProperty: settings.noteDependencyProperty,
-      });
+      const newTasks = getAllTasks(
+        app,
+        {
+          noteTaskPropertyName: settings.noteTaskPropertyName,
+          noteTaskPropertyValue: settings.noteTaskPropertyValue,
+          noteDependencyProperty: settings.noteDependencyProperty,
+        },
+        settings.taskStatuses
+      );
       setTasks(newTasks);
       const newRegistry = new Map<string, string[]>();
       newTasks.forEach((task) => {
@@ -184,6 +185,7 @@ export default function TaskMapGraphView({
     settings.noteTaskPropertyName,
     settings.noteTaskPropertyValue,
     settings.noteDependencyProperty,
+    settings.taskStatuses,
   ]);
 
   const updateTaskTags = useCallback((taskId: string, newTags: string[]) => {
@@ -499,7 +501,11 @@ export default function TaskMapGraphView({
         return;
       }
 
-      const newTask = parseTaskLine(taskLine, anchorTask.link);
+      const newTask = parseTaskLine(
+        taskLine,
+        anchorTask.link,
+        settings.taskStatuses
+      );
       if (!newTask || newTask.type !== anchorTask.type) {
         return;
       }
@@ -569,7 +575,13 @@ export default function TaskMapGraphView({
         }
       }
     },
-    [app, createUpdatedTask, settings.linkingStyle, vault]
+    [
+      app,
+      createUpdatedTask,
+      settings.linkingStyle,
+      settings.taskStatuses,
+      vault,
+    ]
   );
 
   const onConnectStart = useCallback(
@@ -909,6 +921,7 @@ export default function TaskMapGraphView({
   );
 
   return (
+    <StatusConfigContext.Provider value={settings.taskStatuses}>
     <TagsContext.Provider value={tagsContextValue}>
       <div
         className="tasks-map-graph-container"
@@ -982,7 +995,7 @@ export default function TaskMapGraphView({
                 filterState={filterState}
                 setFilterState={setFilterState}
                 allFiles={allFiles}
-                allStatuses={ALL_STATUSES}
+                statuses={settings.taskStatuses}
                 onSearch={handleSearch}
                 searchResultCount={searchResultCount}
                 suggestionTasks={preSearchFilteredTasks}
@@ -1012,5 +1025,6 @@ export default function TaskMapGraphView({
         )}
       </div>
     </TagsContext.Provider>
+    </StatusConfigContext.Provider>
   );
 }

@@ -1,15 +1,7 @@
-import React, { useMemo, useRef, useEffect } from "react";
-import { BaseTask, TaskStatus } from "src/types/task";
+import React, { useMemo, useRef, useEffect, useContext } from "react";
+import { BaseTask } from "src/types/task";
 import { t } from "../i18n";
-
-const statusLabelKeys: Record<TaskStatus, string> = {
-  todo: "filters.status_todo",
-  in_progress: "filters.status_in_progress",
-  done: "filters.status_done",
-  canceled: "filters.status_canceled",
-};
-
-const ALL_STATUSES: TaskStatus[] = ["todo", "in_progress", "done", "canceled"];
+import { StatusConfigContext } from "src/contexts/context";
 
 function getContrastColor(bgColor: string): string {
   const canvas = activeDocument.createElement("canvas");
@@ -32,6 +24,7 @@ interface StatusCountsOverlayProps {
 export default function StatusCountsOverlay({
   tasks,
 }: StatusCountsOverlayProps) {
+  const statuses = useContext(StatusConfigContext);
   const totalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,30 +51,36 @@ export default function StatusCountsOverlay({
   }, []);
 
   const counts = useMemo(() => {
-    const map: Record<TaskStatus, number> = {
-      todo: 0,
-      in_progress: 0,
-      done: 0,
-      canceled: 0,
-    };
+    const map: Record<string, number> = {};
+    for (const status of statuses) {
+      map[status.id] = 0;
+    }
     for (const task of tasks) {
-      map[task.status]++;
+      map[task.status] = (map[task.status] ?? 0) + 1;
     }
     return map;
-  }, [tasks]);
+  }, [tasks, statuses]);
 
   return (
     <div className="tasks-map-status-counts-overlay">
-      {ALL_STATUSES.map((status) => (
-        <div key={status} className="tasks-map-status-counts-item">
+      {statuses.map((status) => (
+        <div key={status.id} className="tasks-map-status-counts-item">
           <span
-            className={`tasks-map-status-counts-dot tasks-map-status-counts-dot--${status}`}
+            className="tasks-map-status-counts-dot"
+            ref={(el) => {
+              if (el) {
+                el.style.setProperty(
+                  "--tasks-map-status-color",
+                  status.color
+                );
+              }
+            }}
           />
           <span className="tasks-map-status-counts-label">
-            {t(statusLabelKeys[status])}
+            {status.label}
           </span>
           <span className="tasks-map-status-counts-value">
-            {counts[status]}
+            {counts[status.id] ?? 0}
           </span>
         </div>
       ))}

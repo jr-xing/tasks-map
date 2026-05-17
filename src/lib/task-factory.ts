@@ -2,6 +2,11 @@ import { TaskStatus, RawTask } from "src/types/task";
 import { BaseTask } from "src/types/base-task";
 import { DataviewTask } from "src/types/dataview-task";
 import { NoteTask } from "src/types/note-task";
+import {
+  TaskStatusConfig,
+  DEFAULT_TASK_STATUSES,
+  resolveStatusId,
+} from "./status-config";
 
 import {
   EMOJI_ID_PATTERN,
@@ -27,6 +32,12 @@ const ID_MATCH_PATTERNS = [
 ];
 
 export class TaskFactory {
+  private readonly statuses: TaskStatusConfig[];
+
+  constructor(statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES) {
+    this.statuses = statuses.length > 0 ? statuses : DEFAULT_TASK_STATUSES;
+  }
+
   public parse(
     rawTask: RawTask,
     type: "dataview" | "note" = "dataview"
@@ -99,25 +110,7 @@ export class TaskFactory {
   }
 
   private parseStatus(status: string): TaskStatus {
-    switch (status) {
-      case "x":
-        return "done";
-      case "/":
-        return "in_progress";
-      case "-":
-        return "canceled";
-      // Note-based task status values
-      case "done":
-        return "done";
-      case "in-progress":
-        return "in_progress";
-      case "open":
-        return "todo";
-      case "none":
-        return "todo";
-      default:
-        return "todo";
-    }
+    return resolveStatusId(status, this.statuses);
   }
 
   private parseIncomingLinks(text: string): string[] {

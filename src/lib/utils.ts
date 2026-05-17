@@ -9,13 +9,10 @@ import { TaskFactory } from "./task-factory";
 import { Position, Node, Edge } from "reactflow";
 import { t } from "../i18n";
 import { TagColorPalette } from "./tag-color-manager";
-
-export const statusSymbols = {
-  todo: "[ ]",
-  in_progress: "[/]",
-  canceled: "[-]",
-  done: "[x]",
-};
+import {
+  TaskStatusConfig,
+  DEFAULT_TASK_STATUSES,
+} from "./status-config";
 
 const validDateTypes = [
   "due",
@@ -153,9 +150,10 @@ export function findTaskLineByIdOrText(
 export async function updateTaskStatusInVault(
   task: BaseTask,
   newStatus: TaskStatus,
-  app: App
+  app: App,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): Promise<void> {
-  await task.updateStatus(newStatus, app);
+  await task.updateStatus(newStatus, app, statuses);
 }
 
 export async function addTaskLineToVault(
@@ -185,16 +183,17 @@ export function getTasksApi(app: App): TasksApiV1 | null {
 
 export function parseTaskLine(
   taskLine: string,
-  linkPath: string
+  linkPath: string,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): BaseTask | null {
-  const match = taskLine.match(/^\s*[-*+]\s+\[([ x/-])\]\s+(.*)$/);
+  const match = taskLine.match(/^\s*[-*+]\s+\[([^\]])\]\s+(.*)$/);
 
   if (!match) {
     return null;
   }
 
   const [, status, text] = match;
-  const factory = new TaskFactory();
+  const factory = new TaskFactory(statuses);
 
   return factory.parse({
     status,
@@ -1281,22 +1280,26 @@ function noteMatchesTaskCriteria(
 export function getAllTasks(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
   app: any,
-  settings?: Partial<NoteTaskConfig>
+  settings?: Partial<NoteTaskConfig>,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): BaseTask[] {
   // Central function to gather tasks from all available sources
   const allTasks: BaseTask[] = [];
 
   // Source 1: Dataview plugin tasks
-  allTasks.push(...getAllDataviewTasks(app));
+  allTasks.push(...getAllDataviewTasks(app, statuses));
 
   // Source 2: Note-based tasks (notes matching the configured frontmatter criteria)
-  allTasks.push(...getNoteTasks(app, settings));
+  allTasks.push(...getNoteTasks(app, settings, statuses));
 
   return allTasks;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-export function getAllDataviewTasks(app: any): BaseTask[] {
+export function getAllDataviewTasks(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
+  app: any,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
+): BaseTask[] {
   let tasks: RawTask[] = [];
 
   // plugins exists, just not on the Obsidian App API?:
@@ -1310,7 +1313,7 @@ export function getAllDataviewTasks(app: any): BaseTask[] {
       }
     }
   }
-  const factory = new TaskFactory();
+  const factory = new TaskFactory(statuses);
   const parsedTasks = tasks.map((rawTask) => factory.parse(rawTask));
 
   // Filter out empty tasks (tasks with no meaningful content after stripping metadata)
@@ -1320,7 +1323,8 @@ export function getAllDataviewTasks(app: any): BaseTask[] {
 export function getNoteTasks(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
   app: any,
-  settings?: Partial<NoteTaskConfig>
+  settings?: Partial<NoteTaskConfig>,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): BaseTask[] {
   const tasks: BaseTask[] = [];
   const vault = app.vault;
@@ -1353,7 +1357,13 @@ export function getNoteTasks(
     }
 
     // Parse the note as a task
-    const task = parseTaskNote(file, cache, app, dependencyProperty);
+    const task = parseTaskNote(
+      file,
+      cache,
+      app,
+      dependencyProperty,
+      statuses
+    );
     if (task) {
       tasks.push(task);
     }
@@ -1393,10 +1403,11 @@ function parseTaskNote(
   cache: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
   app: any,
-  dependencyProperty: string = DEFAULT_NOTE_DEPENDENCY_PROPERTY
+  dependencyProperty: string = DEFAULT_NOTE_DEPENDENCY_PROPERTY,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): BaseTask | null {
   const frontmatter = cache.frontmatter || {};
-  const factory = new TaskFactory();
+  const factory = new TaskFactory(statuses);
 
   // Extract task properties from frontmatter
   const status = frontmatter.status || " "; // Default to todo

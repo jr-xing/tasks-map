@@ -6,7 +6,6 @@ import type TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState, DEFAULT_FILTER_STATE } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
-import { TaskStatus } from "src/types/task";
 
 // Discriminated result type for filterStateFromSource
 export type ParseResult =
@@ -158,33 +157,6 @@ function isValidTraversalMode(value: unknown): value is TraversalMode {
   );
 }
 
-const VALID_TASK_STATUSES: TaskStatus[] = [
-  "todo",
-  "in_progress",
-  "canceled",
-  "done",
-];
-
-/**
- * Coerce a raw value to an array of valid TaskStatus values; returns
- * `defaultVal` when the value is not an array or contains any invalid status.
- */
-function coerceTaskStatuses(
-  value: unknown,
-  defaultVal: TaskStatus[]
-): TaskStatus[] {
-  if (
-    Array.isArray(value) &&
-    value.every(
-      (v): v is TaskStatus =>
-        typeof v === "string" && (VALID_TASK_STATUSES as string[]).includes(v)
-    )
-  ) {
-    return value;
-  }
-  return defaultVal;
-}
-
 /**
  * Validate and coerce raw parsed filter fields into a valid FilterState,
  * falling back to defaults for any field that has an incorrect type.
@@ -199,7 +171,7 @@ function coerceFilterState(raw: Record<string, unknown>): FilterState {
       raw.excludedTags,
       DEFAULT_FILTER_STATE.excludedTags
     ),
-    selectedStatuses: coerceTaskStatuses(
+    selectedStatuses: coerceStringArray(
       raw.selectedStatuses,
       DEFAULT_FILTER_STATE.selectedStatuses
     ),

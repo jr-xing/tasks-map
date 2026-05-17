@@ -2,6 +2,11 @@ import { App, Vault, parseYaml, stringifyYaml } from "obsidian";
 import { BaseTask } from "./base-task";
 import { TaskStatus } from "./task";
 import { TaskInsertPosition } from "./base-task";
+import {
+  TaskStatusConfig,
+  DEFAULT_TASK_STATUSES,
+  getStatusById,
+} from "../lib/status-config";
 
 interface DependencyEntry {
   uid: string;
@@ -14,12 +19,22 @@ interface DependencyEntry {
 export class NoteTask extends BaseTask {
   readonly type = "note" as const;
 
-  async updateStatus(newStatus: TaskStatus, app: App): Promise<void> {
+  async updateStatus(
+    newStatus: TaskStatus,
+    app: App,
+    statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
+  ): Promise<void> {
     if (!this.link || !this.text) return;
     const vault = app?.vault;
     if (!vault) return;
     const file = vault.getFileByPath(this.link);
     if (!file) return;
+
+    // Map the configured status to the frontmatter value to write. Use the
+    // first listed `noteValues` token, falling back to the status id.
+    const statusConfig = getStatusById(newStatus, statuses);
+    const firstNoteValue = statusConfig.noteValues.split(",")[0]?.trim();
+    const noteStatus = firstNoteValue || statusConfig.id;
 
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
@@ -30,18 +45,6 @@ export class NoteTask extends BaseTask {
       if (frontmatterStart === -1 || frontmatterEnd === -1) {
         return fileContent;
       }
-
-      // Map TaskStatus to note-based status format
-      const noteStatus =
-        newStatus === "todo"
-          ? "open"
-          : newStatus === "done"
-            ? "done"
-            : newStatus === "in_progress"
-              ? "in-progress"
-              : newStatus === "canceled"
-                ? "canceled"
-                : "open";
 
       // Find and update status line
       for (let i = frontmatterStart + 1; i < frontmatterEnd; i++) {

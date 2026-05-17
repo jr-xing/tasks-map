@@ -2,7 +2,9 @@ import { Node, Edge } from "reactflow";
 import { BaseTask } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
 
-export type TaskStatus = "todo" | "in_progress" | "canceled" | "done";
+// Status is a configured status `id` (see src/lib/status-config.ts). It is a
+// plain string because the available statuses are user-configurable.
+export type TaskStatus = string;
 export type TaskType = "dataview" | "note";
 
 export interface RawTask {

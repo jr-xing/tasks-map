@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { TaskStatus } from "src/types/task";
+import { StatusConfigContext } from "src/contexts/context";
+import { getStatusById } from "src/lib/status-config";
 
 interface TaskBackgroundProps {
   status: TaskStatus;
@@ -18,22 +20,12 @@ export function TaskBackground({
   selected = false,
   children,
 }: TaskBackgroundProps) {
-  const getStatusClass = () => {
-    switch (status) {
-      case "done":
-        return "tasks-map-task-background--done";
-      case "in_progress":
-        return "tasks-map-task-background--in-progress";
-      case "canceled":
-        return "tasks-map-task-background--canceled";
-      default:
-        return "tasks-map-task-background--todo";
-    }
-  };
+  const statuses = useContext(StatusConfigContext);
+  const color = getStatusById(status, statuses).color;
 
   const className = [
     "tasks-map-task-background",
-    getStatusClass(),
+    "tasks-map-task-background--status",
     starred && "tasks-map-task-background--starred",
     expanded && "tasks-map-task-background--expanded",
     debugVisualization && "tasks-map-task-background--debug",
@@ -42,5 +34,14 @@ export function TaskBackground({
     .filter(Boolean)
     .join(" ");
 
-  return <div className={className}>{children}</div>;
+  return (
+    <div
+      className={className}
+      ref={(el) => {
+        if (el) el.style.setProperty("--tasks-map-status-color", color);
+      }}
+    >
+      {children}
+    </div>
+  );
 }
