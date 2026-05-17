@@ -6,6 +6,7 @@ import { Sparkles, X } from "lucide-react";
 import { BaseTask } from "src/types/task";
 import { t } from "../i18n";
 import { obsidianSelectStyles } from "../lib/select-styles";
+import MarkdownBodyEditor from "./markdown-body-editor";
 import {
   TaskNotesTaskInfo,
   createTaskNotesTask,
@@ -427,11 +428,11 @@ export default function TaskEditorPanel({
               <span className="tasks-map-editor-label">
                 {t("task_editor.field_body")}
               </span>
-              <textarea
-                className="tasks-map-editor-textarea"
-                rows={6}
+              <MarkdownBodyEditor
+                app={app}
                 value={form.details}
-                onChange={(e) => update("details", e.target.value)}
+                onChange={(v) => update("details", v)}
+                filePath={mode === "edit" ? taskPath : undefined}
               />
             </div>
           </>

@@ -2314,6 +2314,34 @@ If your plugin does not need CSS, delete this file.
   min-height: 80px;
 }
 
+/* Embedded markdown body editor (CodeMirror Live Preview). */
+.tasks-map-editor-markdown {
+  box-sizing: border-box;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  min-height: 120px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.tasks-map-editor-markdown:focus-within {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.tasks-map-editor-markdown .cm-editor {
+  background: transparent;
+}
+
+.tasks-map-editor-markdown .cm-scroller {
+  padding: 4px 6px;
+}
+
+.tasks-map-editor-markdown .cm-editor.cm-focused {
+  outline: none;
+}
+
 .tasks-map-editor-nlp {
   display: flex;
   flex-direction: column;
