@@ -139,6 +139,10 @@ function coerceEmbedConfig(raw: Record<string, unknown>): EmbedConfig {
       raw.showStatusCounts,
       DEFAULT_EMBED_CONFIG.showStatusCounts
     ),
+    showProjectBar: coerceBool(
+      raw.showProjectBar,
+      DEFAULT_EMBED_CONFIG.showProjectBar
+    ),
   };
 }
 
@@ -187,6 +191,10 @@ function coerceFilterState(raw: Record<string, unknown>): FilterState {
       ? raw.traversalMode
       : DEFAULT_FILTER_STATE.traversalMode,
     onlyStarred: coerceBool(raw.onlyStarred, DEFAULT_FILTER_STATE.onlyStarred),
+    selectedRootTask:
+      typeof raw.selectedRootTask === "string"
+        ? raw.selectedRootTask
+        : DEFAULT_FILTER_STATE.selectedRootTask,
   };
 }
 

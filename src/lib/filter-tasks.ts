@@ -64,11 +64,35 @@ const applySearchFilter = (
   );
 };
 
+/**
+ * Restricts `allowed` to the subtree rooted at `rootTaskId`: the root task plus
+ * every task that transitively depends on it (its downstream dependents).
+ *
+ * The subtree is walked over *all* tasks so that an intermediate node hidden by
+ * a status/tag filter does not sever the branch below it; the result is then
+ * intersected with `allowed` so those other filters still apply.
+ */
+const applyRootTaskScope = (
+  tasks: BaseTask[],
+  allowed: BaseTask[],
+  rootTaskId: string
+): BaseTask[] => {
+  const allIds = new Set(tasks.map((task) => task.id));
+  const subtree = new Set(
+    traverseGraph([rootTaskId], tasks, allIds, "downstream")
+  );
+  return allowed.filter((task) => subtree.has(task.id));
+};
+
 export const getFilteredNodeIds = (
   tasks: BaseTask[],
   filter: FilterState
 ): string[] => {
-  const allowed = applyNonSearchFilters(tasks, filter);
+  let allowed = applyNonSearchFilters(tasks, filter);
+
+  if (filter.selectedRootTask) {
+    allowed = applyRootTaskScope(tasks, allowed, filter.selectedRootTask);
+  }
 
   if (!filter.searchQuery.trim()) {
     return allowed.map((task) => task.id);

@@ -144,6 +144,14 @@
     "collapse_node": "收起",
     "expand_node": "展开"
   },
+  "project_switcher": {
+    "label": "项目",
+    "all_projects": "所有项目 ({{count}})",
+    "include_subtasks": "包含有子任务的任务"
+  },
+  "rail": {
+    "label": "面板"
+  },
   "graph": {
     "no_tasks_hint": "在你的 vault 中未找到任何任务。",
     "all_unlinked_hint": "将左侧面板中的任务拖到图上以放置它们。"

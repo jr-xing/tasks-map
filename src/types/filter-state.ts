@@ -9,6 +9,11 @@ export interface FilterState {
   searchQuery: string;
   traversalMode: TraversalMode;
   onlyStarred: boolean;
+  /**
+   * ID of the task whose subtree the map is scoped to. When set, only this
+   * task and its transitive dependents are shown. `null` shows the whole map.
+   */
+  selectedRootTask: string | null;
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
@@ -19,4 +24,5 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   searchQuery: "",
   traversalMode: "match",
   onlyStarred: false,
+  selectedRootTask: null,
 };

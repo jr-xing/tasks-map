@@ -39,6 +39,7 @@ import StatusCountsOverlay from "src/components/status-counts-overlay";
 import TaskNode from "src/components/task-node";
 import ProjectGroupNode from "src/components/project-group-node";
 import { getFilteredNodeIds } from "src/lib/filter-tasks";
+import { traverseGraph } from "src/lib/traverse-graph";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
@@ -47,6 +48,10 @@ import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
 import ProjectTreePanel from "src/components/project-tree-panel";
+import ProjectSwitcherBar, {
+  RootTaskOption,
+} from "src/components/project-switcher-bar";
+import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
 import { t } from "../i18n";
@@ -82,6 +87,42 @@ export default function TaskMapGraphView({
   const [isLoading, setIsLoading] = React.useState(true);
   const reactFlowInstance = useReactFlow();
   const skipFitViewRef = React.useRef(false);
+  // Holds the in-flight requestAnimationFrame id for the camera-fit poll.
+  const fitRafRef = React.useRef<number | null>(null);
+
+  // Fit the camera to a freshly built node set once ReactFlow has caught up.
+  // `expectedIds` is the id set just handed to setNodes; the poll waits until
+  // ReactFlow's store holds exactly those nodes (so it never fits to the
+  // previous selection) and every one has been measured. Polls per animation
+  // frame and bails out after ~40 frames so an unmeasured node cannot stall
+  // the camera forever.
+  const scheduleFitView = useCallback(
+    (expectedIds: Set<string>) => {
+      if (fitRafRef.current !== null) {
+        cancelAnimationFrame(fitRafRef.current);
+      }
+      let frames = 0;
+      const tick = () => {
+        const currentNodes = reactFlowInstance.getNodes();
+        const ready =
+          currentNodes.length === expectedIds.size &&
+          currentNodes.length > 0 &&
+          currentNodes.every(
+            (n) =>
+              expectedIds.has(n.id) && n.width != null && n.height != null
+          );
+        if (ready || frames >= 40) {
+          fitRafRef.current = null;
+          reactFlowInstance.fitView({ duration: 400 });
+          return;
+        }
+        frames += 1;
+        fitRafRef.current = requestAnimationFrame(tick);
+      };
+      fitRafRef.current = requestAnimationFrame(tick);
+    },
+    [reactFlowInstance]
+  );
   const connectStartRef = React.useRef<{
     nodeId: string;
     handleType: "source" | "target";
@@ -93,6 +134,12 @@ export default function TaskMapGraphView({
   );
   const [groupByProject, setGroupByProject] = React.useState(true);
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Which left-rail panel is open in the flyout; `null` keeps all collapsed.
+  const [openPanel, setOpenPanel] = React.useState<RailPanelId | null>(null);
+  const togglePanel = useCallback((panel: RailPanelId) => {
+    setOpenPanel((prev) => (prev === panel ? null : panel));
+  }, []);
 
   // Tracks which unlinked task IDs have been dropped onto the canvas this session
   const [droppedTaskIds, setDroppedTaskIds] = React.useState<Set<string>>(
@@ -151,6 +198,56 @@ export default function TaskMapGraphView({
 
     return [...folders, ...files];
   }, [tasks]);
+
+  // Candidate root nodes for the project switcher. A node qualifies when other
+  // tasks depend on it. It is a *project* when it has no parent of its own, or
+  // a *task with subtasks* when it itself sits under a parent.
+  const rootCandidates = useMemo(() => {
+    const childIds = new Set<string>();
+    tasks.forEach((task) => {
+      task.incomingLinks.forEach((parentId) => childIds.add(parentId));
+    });
+    const allIds = new Set(tasks.map((task) => task.id));
+    const projects: RootTaskOption[] = [];
+    const subtasks: RootTaskOption[] = [];
+    tasks
+      .filter((task) => childIds.has(task.id))
+      .forEach((task) => {
+        const option: RootTaskOption = {
+          id: task.id,
+          label: task.summary || task.text || task.id,
+          // traverseGraph includes the root itself; subtract it for a pure
+          // descendant count.
+          count:
+            traverseGraph([task.id], tasks, allIds, "downstream").length - 1,
+        };
+        const hasParent = task.incomingLinks.some((pid) => allIds.has(pid));
+        (hasParent ? subtasks : projects).push(option);
+      });
+    const byLabel = (a: RootTaskOption, b: RootTaskOption) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
+    return {
+      projects: projects.sort(byLabel),
+      subtasks: subtasks.sort(byLabel),
+    };
+  }, [tasks]);
+
+  const handleSelectRootTask = useCallback(
+    (id: string | null) => {
+      setFilterState((prev) => ({ ...prev, selectedRootTask: id }));
+    },
+    [setFilterState]
+  );
+
+  // Drop a stale root scope if that task no longer exists after a reload.
+  useEffect(() => {
+    if (
+      filterState.selectedRootTask !== null &&
+      !tasks.some((task) => task.id === filterState.selectedRootTask)
+    ) {
+      setFilterState((prev) => ({ ...prev, selectedRootTask: null }));
+    }
+  }, [tasks, filterState.selectedRootTask, setFilterState]);
 
   React.useEffect(() => {
     if (containerRef.current) {
@@ -422,21 +519,21 @@ export default function TaskMapGraphView({
       return pos ? { ...n, position: pos } : n;
     });
 
-    setNodes([...layoutedLinkedNodes, ...layoutedDroppedNodes]);
+    const finalNodes = [...layoutedLinkedNodes, ...layoutedDroppedNodes];
+    setNodes(finalNodes);
     setEdges(newEdges);
 
+    // Fit the camera once the rebuilt nodes have been measured. Skipped for
+    // edits that should leave the camera where it is.
     if (skipFitViewRef.current) {
       skipFitViewRef.current = false;
     } else {
-      window.setTimeout(() => {
-        reactFlowInstance.fitView({ duration: 400 });
-      }, 1000);
+      scheduleFitView(new Set(finalNodes.map((n) => n.id)));
     }
   }, [
     graphTasks,
     filterState,
     settings,
-    reactFlowInstance,
     setNodes,
     setEdges,
     handleDeleteTask,
@@ -444,7 +541,18 @@ export default function TaskMapGraphView({
     groupByProject,
     reloadTasks,
     handleEditTaskByPath,
+    scheduleFitView,
   ]);
+
+  // Cancel any in-flight camera-fit poll when the view unmounts.
+  useEffect(
+    () => () => {
+      if (fitRafRef.current !== null) {
+        cancelAnimationFrame(fitRafRef.current);
+      }
+    },
+    []
+  );
 
   const nodeTypes = useMemo(
     () => ({ task: TaskNode, projectGroup: ProjectGroupNode }),
@@ -1072,17 +1180,81 @@ export default function TaskMapGraphView({
         onDrop={(e) => void onDrop(e)}
         onDragOver={onDragOver}
       >
-        {embed.showUnlinkedPanel && (
-          <div
-            className="tasks-map-left-sidebar"
-            ref={(el) => {
-              if (el) el.style.width = `${settings.sidebarWidth}px`;
-            }}
-          >
-            {hideUnlinkedTasks && <UnlinkedTasksPanel tasks={sidebarTasks} />}
-            <ProjectTreePanel tasks={filteredTasks} onTaskClick={focusNode} />
+        <div className="tasks-map-corner">
+          {embed.showProjectBar &&
+            rootCandidates.projects.length +
+              rootCandidates.subtasks.length >
+              0 && (
+              <ProjectSwitcherBar
+                projects={rootCandidates.projects}
+                subtasks={rootCandidates.subtasks}
+                totalCount={tasks.length}
+                selectedRootTask={filterState.selectedRootTask}
+                onSelectRootTask={handleSelectRootTask}
+              />
+            )}
+          <div className="tasks-map-rail-row">
+            <LeftRail
+              openPanel={openPanel}
+              onToggle={togglePanel}
+              showFilters={embed.showFilterPanel}
+              showPresets={embed.showPresetsPanel}
+              showUnlinked={embed.showUnlinkedPanel}
+              showTree={embed.showUnlinkedPanel}
+              unlinkedCount={sidebarTasks.length}
+            />
+            {openPanel && (
+              <div className="tasks-map-flyout">
+                {openPanel === "filters" && (
+                  <GuiOverlay
+                    allTags={allTags}
+                    filterState={filterState}
+                    setFilterState={setFilterState}
+                    allFiles={allFiles}
+                    statuses={settings.taskStatuses}
+                    onSearch={handleSearch}
+                    searchResultCount={searchResultCount}
+                    suggestionTasks={preSearchFilteredTasks}
+                  />
+                )}
+                {openPanel === "presets" && (
+                  <FilterPresetsPanel
+                    presets={settings.filterPresets}
+                    filterState={filterState}
+                    plugin={plugin}
+                    onApply={(filter) => setFilterState(filter)}
+                    onSave={handleSavePreset}
+                    onRename={handleRenamePreset}
+                    onDelete={handleDeletePreset}
+                  />
+                )}
+                {openPanel === "view" && (
+                  <ControlsPanel
+                    showTags={settings.showTags}
+                    hideTags={hideTags}
+                    setHideTags={toggleHideTags}
+                    reloadTasks={reloadTasks}
+                    showUnlinkedPanel={embed.showUnlinkedPanel}
+                    hideUnlinkedTasks={hideUnlinkedTasks}
+                    setHideUnlinkedTasks={setHideUnlinkedTasks}
+                    showGroupByProject={showGroupByProject}
+                    groupByProject={groupByProject}
+                    setGroupByProject={setGroupByProject}
+                  />
+                )}
+                {openPanel === "unlinked" && (
+                  <UnlinkedTasksPanel tasks={sidebarTasks} />
+                )}
+                {openPanel === "tree" && (
+                  <ProjectTreePanel
+                    tasks={filteredTasks}
+                    onTaskClick={focusNode}
+                  />
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
         {isLoading && (
           <div className="tasks-map-loading-container">
             <div className="tasks-map-spinner" />
@@ -1121,43 +1293,6 @@ export default function TaskMapGraphView({
           multiSelectionKeyCode="Shift"
           selectionKeyCode="Shift"
         >
-          <div className="tasks-map-panels-stack">
-            {embed.showPresetsPanel && (
-              <FilterPresetsPanel
-                presets={settings.filterPresets}
-                filterState={filterState}
-                plugin={plugin}
-                onApply={(filter) => setFilterState(filter)}
-                onSave={handleSavePreset}
-                onRename={handleRenamePreset}
-                onDelete={handleDeletePreset}
-              />
-            )}
-            {embed.showFilterPanel && (
-              <GuiOverlay
-                allTags={allTags}
-                filterState={filterState}
-                setFilterState={setFilterState}
-                allFiles={allFiles}
-                statuses={settings.taskStatuses}
-                onSearch={handleSearch}
-                searchResultCount={searchResultCount}
-                suggestionTasks={preSearchFilteredTasks}
-              />
-            )}
-            <ControlsPanel
-              showTags={settings.showTags}
-              hideTags={hideTags}
-              setHideTags={toggleHideTags}
-              reloadTasks={reloadTasks}
-              showUnlinkedPanel={embed.showUnlinkedPanel}
-              hideUnlinkedTasks={hideUnlinkedTasks}
-              setHideUnlinkedTasks={setHideUnlinkedTasks}
-              showGroupByProject={showGroupByProject}
-              groupByProject={groupByProject}
-              setGroupByProject={setGroupByProject}
-            />
-          </div>
           {embed.showMinimap && <TaskMinimap />}
           <Background />
           {settings.showStatusCounts && embed.showStatusCounts && (

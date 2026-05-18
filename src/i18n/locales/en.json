@@ -144,6 +144,14 @@
     "collapse_node": "Collapse",
     "expand_node": "Expand"
   },
+  "project_switcher": {
+    "label": "Project",
+    "all_projects": "All projects ({{count}})",
+    "include_subtasks": "Include tasks with subtasks"
+  },
+  "rail": {
+    "label": "Panels"
+  },
   "graph": {
     "no_tasks_hint": "No tasks found in your vault.",
     "all_unlinked_hint": "Drag tasks from the panel on the left onto the graph to place them here."

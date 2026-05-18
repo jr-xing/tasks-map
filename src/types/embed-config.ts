@@ -6,6 +6,7 @@ export interface EmbedConfig {
   showUnlinkedPanel: boolean;
   hideUnlinkedTasks: boolean;
   showStatusCounts: boolean;
+  showProjectBar: boolean;
 }
 
 export const DEFAULT_EMBED_CONFIG: EmbedConfig = {
@@ -16,4 +17,5 @@ export const DEFAULT_EMBED_CONFIG: EmbedConfig = {
   showUnlinkedPanel: true,
   hideUnlinkedTasks: true,
   showStatusCounts: true,
+  showProjectBar: true,
 };

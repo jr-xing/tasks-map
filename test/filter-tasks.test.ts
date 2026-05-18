@@ -391,4 +391,78 @@ describe("getFilteredNodeIds", () => {
       expect(result).toEqual(["T2", "T3"]);
     });
   });
+
+  describe("root task scope", () => {
+    // Dependency tree (incomingLinks point at parents / projects):
+    //   P ──> A ──> A1
+    //   └───> B
+    //   C is unrelated.
+    const treeTasks = [
+      makeTask({ id: "P", summary: "Project P" }),
+      makeTask({ id: "A", summary: "Alpha", incomingLinks: ["P"] }),
+      makeTask({ id: "B", summary: "Beta", incomingLinks: ["P"] }),
+      makeTask({ id: "A1", summary: "Alpha One", incomingLinks: ["A"] }),
+      makeTask({ id: "C", summary: "Gamma" }),
+    ];
+
+    it("returns all tasks when no root is selected", () => {
+      const result = getFilteredNodeIds(treeTasks, filter());
+      expect(result).toEqual(["P", "A", "B", "A1", "C"]);
+    });
+
+    it("scopes to the root task and its full subtree", () => {
+      const result = getFilteredNodeIds(
+        treeTasks,
+        filter({ selectedRootTask: "P" })
+      );
+      expect(result).toEqual(["P", "A", "B", "A1"]);
+    });
+
+    it("scopes to a deeper node's subtree", () => {
+      const result = getFilteredNodeIds(
+        treeTasks,
+        filter({ selectedRootTask: "A" })
+      );
+      expect(result).toEqual(["A", "A1"]);
+    });
+
+    it("returns just the root when it has no dependents", () => {
+      const result = getFilteredNodeIds(
+        treeTasks,
+        filter({ selectedRootTask: "C" })
+      );
+      expect(result).toEqual(["C"]);
+    });
+
+    it("returns nothing for a root task that does not exist", () => {
+      const result = getFilteredNodeIds(
+        treeTasks,
+        filter({ selectedRootTask: "Z" })
+      );
+      expect(result).toEqual([]);
+    });
+
+    it("keeps the subtree intact when an intermediate node is filtered out", () => {
+      // A is filtered out by status, but its descendant A1 still survives.
+      const statusTree = [
+        makeTask({ id: "P", status: "todo" }),
+        makeTask({ id: "A", status: "done", incomingLinks: ["P"] }),
+        makeTask({ id: "A1", status: "todo", incomingLinks: ["A"] }),
+      ];
+      const result = getFilteredNodeIds(
+        statusTree,
+        filter({ selectedRootTask: "P", selectedStatuses: ["todo"] })
+      );
+      expect(result).toEqual(["P", "A1"]);
+    });
+
+    it("constrains search matches to the scoped subtree", () => {
+      // "Gamma" (task C) is outside A's subtree, so the search finds nothing.
+      const result = getFilteredNodeIds(
+        treeTasks,
+        filter({ selectedRootTask: "A", searchQuery: "Gamma" })
+      );
+      expect(result).toEqual([]);
+    });
+  });
 });

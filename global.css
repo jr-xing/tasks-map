@@ -656,22 +656,6 @@ If your plugin does not need CSS, delete this file.
   pointer-events: auto;
 }
 
-/* Panels stack — positions both filter + presets panels top-right */
-.tasks-map-panels-stack {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 35;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 360px;
-  max-height: calc(100% - 32px);
-  /* Allow children to shrink/scroll independently */
-  align-items: stretch;
-}
-
 /* Filter Panel Styles */
 .tasks-map-filter-panel {
   pointer-events: auto;
@@ -1514,21 +1498,146 @@ If your plugin does not need CSS, delete this file.
 
 /* Unlinked Tasks Panel */
 /* Left sidebar column — stacks the unlinked-tasks and project-tree panels */
-.tasks-map-left-sidebar {
+/* Top-left corner cluster: project switcher + collapsible panel rail */
+.tasks-map-corner {
   position: absolute;
   top: 16px;
   left: 16px;
-  bottom: 70px;
-  width: 220px;
-  z-index: 35;
+  bottom: 16px;
+  z-index: 36;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: flex-start;
   pointer-events: none;
 }
 
-.tasks-map-left-sidebar > * {
+.tasks-map-rail-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.tasks-map-project-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(var(--tasks-map-color-black-rgb), 0.15);
   pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.tasks-map-project-bar__icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.tasks-map-project-bar__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tasks-map-project-bar__select {
+  min-width: 220px;
+}
+
+.tasks-map-project-bar__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Vertical icon rail — each button toggles a panel flyout */
+.tasks-map-left-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(var(--tasks-map-color-black-rgb), 0.15);
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.tasks-map-graph-container .tasks-map-left-rail__btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tasks-map-graph-container .tasks-map-left-rail__btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  box-shadow: none;
+}
+
+.tasks-map-graph-container .tasks-map-left-rail__btn--active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.tasks-map-left-rail__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Flyout hosting the panel for the active rail icon */
+.tasks-map-flyout {
+  width: 320px;
+  max-height: 100%;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+.tasks-map-flyout > * {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* The rail owns open/close, so panels hide their own collapse control */
+.tasks-map-flyout .tasks-map-filter-panel__header-icon,
+.tasks-map-flyout .tasks-map-presets-panel__header-icon,
+.tasks-map-flyout .tasks-map-unlinked-panel__header-icon,
+.tasks-map-flyout .tasks-map-tree-panel__header-icon {
+  display: none;
 }
 
 .tasks-map-unlinked-panel {
