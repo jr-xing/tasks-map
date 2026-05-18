@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { App } from "obsidian";
+import { App, Platform } from "obsidian";
 import Select, { type MultiValue, type SingleValue } from "react-select";
 import CreatableSelect from "react-select/creatable";
 import {
@@ -375,13 +375,29 @@ export default function TaskEditorPanel({
     }
   }
 
+  /** Whether the explicit Save action can run right now. */
+  const canSave = !loading && !loadError && !saving && Boolean(form.title.trim());
+
+  /** Ctrl/Cmd+S triggers an explicit save when autosave is not in effect. */
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (autosave) return;
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+    e.preventDefault();
+    if (canSave) void handleSave();
+  }
+
+  /** Save-button label with its keyboard-shortcut hint. */
+  const saveHint = `${t("task_editor.save")} (${
+    Platform.isMacOS ? "⌘S" : "Ctrl+S"
+  })`;
+
   const headerTitle =
     mode === "create"
       ? t("task_editor.create_title")
       : t("task_editor.edit_title");
 
   return (
-    <div className="tasks-map-editor-panel">
+    <div className="tasks-map-editor-panel" onKeyDown={handleKeyDown}>
       <div className="tasks-map-editor-header">
         <span className="tasks-map-editor-title">{headerTitle}</span>
         <div className="tasks-map-editor-header-actions">
@@ -740,7 +756,8 @@ export default function TaskEditorPanel({
             <button
               className="tasks-map-editor-btn tasks-map-editor-btn--primary"
               onClick={() => void handleSave()}
-              disabled={loading || loadError || saving || !form.title.trim()}
+              disabled={!canSave}
+              title={saveHint}
             >
               {saving ? t("task_editor.saving") : t("task_editor.save")}
             </button>
