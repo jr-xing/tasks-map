@@ -2721,6 +2721,36 @@ If your plugin does not need CSS, delete this file.
   background: var(--interactive-accent-hover);
 }
 
+/* Edit-mode autosave status indicator (left side of the footer) */
+.tasks-map-editor-autosave {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  min-height: var(--icon-s);
+}
+
+.tasks-map-editor-autosave--saved {
+  color: var(--text-success);
+}
+
+.tasks-map-editor-autosave--error {
+  color: var(--text-error);
+  cursor: var(--cursor, pointer);
+}
+
+.tasks-map-editor-autosave-spin {
+  animation: tasks-map-autosave-spin 0.9s linear infinite;
+}
+
+@keyframes tasks-map-autosave-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* "New task" floating action button */
 .tasks-map-new-task-button {
   position: absolute;

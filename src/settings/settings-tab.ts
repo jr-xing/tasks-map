@@ -235,6 +235,18 @@ export class TasksMapSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl)
+      .setName(t("settings.editor_autosave"))
+      .setDesc(t("settings.editor_autosave_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.editorAutosave)
+          .onChange(async (value) => {
+            this.plugin.settings.editorAutosave = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     new Setting(containerEl).setHeading().setName(t("settings.layout"));
 
     new Setting(containerEl)

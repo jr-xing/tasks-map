@@ -45,6 +45,9 @@ export interface TasksMapSettings {
   editorPanelLayout: "auto" | "stacked" | "side-by-side";
   // Font size (in pixels) of the markdown body editor.
   editorBodyFontSize: number;
+  // When true, edits in the task editor panel are written to disk
+  // automatically (debounced). When false, an explicit Save is required.
+  editorAutosave: boolean;
 
   // Tag color settings
   tagColorPalette: TagColorPalette;
@@ -87,6 +90,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   editorPanelWidth: 340,
   editorPanelLayout: "auto",
   editorBodyFontSize: 14,
+  editorAutosave: true,
 
   // Tag color defaults
   tagColorPalette: "rainbow",

@@ -1,8 +1,20 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { App } from "obsidian";
 import Select, { type MultiValue, type SingleValue } from "react-select";
 import CreatableSelect from "react-select/creatable";
-import { ALargeSmall, Columns2, Minus, Plus, Rows2, Sparkles, Wand2, X } from "lucide-react";
+import {
+  ALargeSmall,
+  Check,
+  CircleAlert,
+  Columns2,
+  Minus,
+  Plus,
+  RefreshCw,
+  Rows2,
+  Sparkles,
+  Wand2,
+  X,
+} from "lucide-react";
 import { TasksMapSettings } from "src/types/settings";
 import { BaseTask } from "src/types/task";
 import { t } from "../i18n";
@@ -44,6 +56,8 @@ interface TaskEditorPanelProps {
   bodyFontSize: number;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onBodyFontSizeChange: (size: number) => void;
+  /** When true (edit mode), changes are debounce-saved to disk automatically. */
+  autosaveEnabled: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -65,6 +79,12 @@ const MAX_BODY_FONT = 24;
 
 /** Default reltype for dependencies created through the panel. */
 const DEFAULT_RELTYPE = "FINISHTOSTART";
+
+/** Debounce delay before an edit-mode change is auto-saved, in ms. */
+const AUTOSAVE_DELAY = 800;
+
+/** Edit-mode autosave lifecycle state, surfaced in the footer indicator. */
+type SaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 /** Trim a date/datetime string down to its `YYYY-MM-DD` part. */
 function dateOnly(value?: string): string {
@@ -128,11 +148,16 @@ export default function TaskEditorPanel({
   onLayoutChange,
   bodyFontSize,
   onBodyFontSizeChange,
+  autosaveEnabled,
   onClose,
   onSaved,
 }: TaskEditorPanelProps) {
   const config = useMemo(() => getTaskNotesConfig(app), [app]);
   const selectStyles = useMemo(() => obsidianSelectStyles<Option>(), []);
+
+  // Autosave applies only when editing an existing task and the user has it
+  // enabled; otherwise the panel uses an explicit Save button.
+  const autosave = mode === "edit" && autosaveEnabled;
 
   const [form, setForm] = useState<TaskFormValues>(() => emptyTaskForm(config));
   const [originalTask, setOriginalTask] = useState<TaskNotesTaskInfo | null>(
@@ -142,6 +167,28 @@ export default function TaskEditorPanel({
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nlpInput, setNlpInput] = useState("");
+  // Edit-mode autosave state shown in the footer indicator.
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+
+  // Mirrors of state read by the (non-reactive) autosave callbacks.
+  const formRef = useRef(form);
+  const originalTaskRef = useRef(originalTask);
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+  useEffect(() => {
+    originalTaskRef.current = originalTask;
+  }, [originalTask]);
+
+  // The title is persisted on blur rather than per keystroke, so the note
+  // file is renamed at most once per edit instead of on every character.
+  // This holds the last blur-committed title (safe to write to disk).
+  const committedTitleRef = useRef("");
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Whether an autosave write is currently in flight.
+  const savingRef = useRef(false);
+  // Whether there are edits not yet written to disk.
+  const pendingRef = useRef(false);
 
   // Load the existing task when editing.
   useEffect(() => {
@@ -156,6 +203,9 @@ export default function TaskEditorPanel({
       } else {
         setOriginalTask(info);
         setForm(taskInfoToForm(info));
+        committedTitleRef.current = info.title ?? "";
+        pendingRef.current = false;
+        setSaveStatus("idle");
       }
       setLoading(false);
     });
@@ -163,6 +213,81 @@ export default function TaskEditorPanel({
       cancelled = true;
     };
   }, [app, mode, taskPath]);
+
+  /**
+   * Persist the current form to disk via TaskNotes (edit mode only).
+   *
+   * Reads all state through refs so it can be invoked from debounced timers
+   * and effect cleanups without going stale. Concurrent invocations are
+   * serialized: a call made while a save is in flight is folded into a
+   * follow-up run once the in-flight save completes.
+   */
+  async function commitChanges() {
+    if (!autosave) return;
+    const original = originalTaskRef.current;
+    if (!original) return;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    // A save is already running; it re-checks `pendingRef` when it finishes.
+    if (savingRef.current) return;
+
+    savingRef.current = true;
+    pendingRef.current = false;
+    setSaveStatus("saving");
+
+    const snapshot = formRef.current;
+    const payload = formToPayload(snapshot);
+    // Persist only the blur-committed title, never a half-typed one.
+    payload.title = committedTitleRef.current.trim() || original.title;
+
+    const updated = await updateTaskNotesTask(app, original, payload);
+    savingRef.current = false;
+
+    if (updated) {
+      // `updateTask`'s result omits the note body; keep the snapshot's copy
+      // so the next diff is computed against what is actually on disk.
+      setOriginalTask({ ...updated, details: snapshot.details });
+      committedTitleRef.current = updated.title ?? committedTitleRef.current;
+      setSaveStatus(pendingRef.current ? "unsaved" : "saved");
+      onSaved();
+      // Flush any edits made while this save was in flight.
+      if (pendingRef.current) void commitChanges();
+    } else {
+      // Keep changes pending so the user can retry from the indicator.
+      pendingRef.current = true;
+      setSaveStatus("error");
+    }
+  }
+
+  /** Schedule a debounced autosave (edit mode, autosave enabled). */
+  function scheduleAutosave() {
+    if (!autosave) return;
+    pendingRef.current = true;
+    setSaveStatus("unsaved");
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void commitChanges();
+    }, AUTOSAVE_DELAY);
+  }
+
+  // On unmount, flush a pending autosave so in-progress edits are not lost.
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      if (autosave && pendingRef.current && !savingRef.current) {
+        committedTitleRef.current = formRef.current.title;
+        void commitChanges();
+      }
+    };
+    // Runs once: the cleanup reads everything it needs through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps, @eslint-react/exhaustive-deps
+  }, []);
 
   const statusOptions = useMemo<Option[]>(
     () => config.statuses.map((s) => ({ value: s.value, label: s.label })),
@@ -191,6 +316,34 @@ export default function TaskEditorPanel({
     value: TaskFormValues[K]
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (!autosave) return;
+    if (key === "title") {
+      // The title is committed on blur; just flag the unsaved state now.
+      pendingRef.current = true;
+      setSaveStatus("unsaved");
+    } else {
+      scheduleAutosave();
+    }
+  }
+
+  /** Commit the title (as a blur would) and trigger an autosave. */
+  function commitTitle() {
+    if (!autosave) return;
+    if (form.title === committedTitleRef.current) return;
+    committedTitleRef.current = form.title;
+    scheduleAutosave();
+  }
+
+  /** Flush any pending edit-mode autosave, then close the panel. */
+  async function handleClose() {
+    if (autosave) {
+      // Closing commits the title, just like blurring the title input.
+      committedTitleRef.current = formRef.current.title;
+      if (autosaveTimerRef.current || pendingRef.current) {
+        await commitChanges();
+      }
+    }
+    onClose();
   }
 
   function handleParse() {
@@ -308,6 +461,7 @@ export default function TaskEditorPanel({
                 value={form.title}
                 placeholder={t("task_editor.title_placeholder")}
                 onChange={(e) => update("title", e.target.value)}
+                onBlur={commitTitle}
               />
             </div>
 
@@ -529,16 +683,69 @@ export default function TaskEditorPanel({
       </div>
 
       <div className="tasks-map-editor-footer">
-        <button className="tasks-map-editor-btn" onClick={onClose}>
-          {t("task_editor.cancel")}
-        </button>
-        <button
-          className="tasks-map-editor-btn tasks-map-editor-btn--primary"
-          onClick={() => void handleSave()}
-          disabled={loading || loadError || saving || !form.title.trim()}
-        >
-          {saving ? t("task_editor.saving") : t("task_editor.save")}
-        </button>
+        {autosave ? (
+          <>
+            <span
+              className={
+                "tasks-map-editor-autosave tasks-map-editor-autosave--" +
+                saveStatus
+              }
+              onClick={
+                saveStatus === "error" ? () => void commitChanges() : undefined
+              }
+              role={saveStatus === "error" ? "button" : undefined}
+              title={
+                saveStatus === "error"
+                  ? t("task_editor.autosave_error")
+                  : undefined
+              }
+            >
+              {saveStatus === "saving" && (
+                <>
+                  <RefreshCw
+                    size={13}
+                    className="tasks-map-editor-autosave-spin"
+                  />
+                  <span>{t("task_editor.saving")}</span>
+                </>
+              )}
+              {saveStatus === "saved" && (
+                <>
+                  <Check size={13} />
+                  <span>{t("task_editor.autosave_saved")}</span>
+                </>
+              )}
+              {saveStatus === "unsaved" && (
+                <span>{t("task_editor.autosave_unsaved")}</span>
+              )}
+              {saveStatus === "error" && (
+                <>
+                  <CircleAlert size={13} />
+                  <span>{t("task_editor.autosave_error")}</span>
+                </>
+              )}
+            </span>
+            <button
+              className="tasks-map-editor-btn tasks-map-editor-btn--primary"
+              onClick={() => void handleClose()}
+            >
+              {t("task_editor.done")}
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="tasks-map-editor-btn" onClick={onClose}>
+              {t("task_editor.cancel")}
+            </button>
+            <button
+              className="tasks-map-editor-btn tasks-map-editor-btn--primary"
+              onClick={() => void handleSave()}
+              disabled={loading || loadError || saving || !form.title.trim()}
+            >
+              {saving ? t("task_editor.saving") : t("task_editor.save")}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

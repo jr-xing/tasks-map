@@ -1337,6 +1337,7 @@ export default function TaskMapGraphView({
               onLayoutChange={handleEditorLayoutChange}
               bodyFontSize={editorBodyFontSize}
               onBodyFontSizeChange={handleEditorBodyFontSizeChange}
+              autosaveEnabled={settings.editorAutosave}
               onClose={() => setEditorState(null)}
               onSaved={reloadTasks}
             />
