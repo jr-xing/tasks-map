@@ -231,6 +231,11 @@ export interface MarkdownEditorProps {
     // eslint-disable-next-line no-unused-vars -- callback parameter names
     shift: boolean
   ) => void;
+  /** Handler for Ctrl/Cmd+S; return true when the key was handled. */
+  onSave?: (
+    // eslint-disable-next-line no-unused-vars -- callback parameter name
+    editor: EmbeddableMarkdownEditorInstance
+  ) => boolean;
   /** Handler for blur event */
   // eslint-disable-next-line no-unused-vars -- callback parameter name
   onBlur?: (editor: EmbeddableMarkdownEditorInstance) => void;
@@ -266,6 +271,7 @@ const defaultProperties: ResolvedMarkdownEditorProps = {
   onEscape: () => {},
   onTab: () => false,
   onSubmit: () => {},
+  onSave: () => false,
   onBlur: () => {},
   onPaste: () => {},
   onChange: () => {},
@@ -655,6 +661,10 @@ function defineEditorClass(): EditorConstructor {
                 this.options.onSubmit(this, false);
                 return true;
               },
+            },
+            {
+              key: "Mod-s",
+              run: () => this.options.onSave(this),
             },
             {
               key: "Escape",

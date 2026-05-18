@@ -14,6 +14,11 @@ interface MarkdownBodyEditorProps {
   placeholder?: string;
   /** Path of the task file being edited; improves embedded-link resolution. */
   filePath?: string;
+  /**
+   * Invoked on Ctrl/Cmd+S while the editor is focused. Return `true` when the
+   * keypress was handled (so CodeMirror suppresses its default behavior).
+   */
+  onSave?: () => boolean;
 }
 
 /**
@@ -27,14 +32,19 @@ export default function MarkdownBodyEditor({
   onChange,
   placeholder,
   filePath,
+  onSave,
 }: MarkdownBodyEditorProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<EmbeddableMarkdownEditorInstance | null>(null);
-  // Keep the latest onChange reachable without re-creating the editor.
+  // Keep the latest callbacks reachable without re-creating the editor.
   const onChangeRef = useRef(onChange);
+  const onSaveRef = useRef(onSave);
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
   const [fallback, setFallback] = useState(false);
 
   // Create the embedded editor once, on mount.
@@ -54,6 +64,7 @@ export default function MarkdownBodyEditor({
         placeholder: placeholder ?? "",
         file,
         onChange: (next) => onChangeRef.current(next),
+        onSave: () => onSaveRef.current?.() ?? false,
       });
     } catch (error) {
       console.error("Failed to create embedded markdown editor:", error);

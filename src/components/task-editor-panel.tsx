@@ -717,6 +717,7 @@ export default function TaskEditorPanel({
                   value={form.details}
                   onChange={(v) => update("details", v)}
                   filePath={mode === "edit" ? taskPath : undefined}
+                  onSave={() => saveShortcutRef.current()}
                 />
               </div>
             </div>
