@@ -152,7 +152,8 @@
     "include_subtasks": "包含有子任务的任务"
   },
   "rail": {
-    "label": "面板"
+    "label": "面板",
+    "refresh": "刷新任务"
   },
   "graph": {
     "no_tasks_hint": "在你的 vault 中未找到任何任务。",

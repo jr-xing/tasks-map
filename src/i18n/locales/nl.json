@@ -152,7 +152,8 @@
     "include_subtasks": "Taken met subtaken opnemen"
   },
   "rail": {
-    "label": "Panelen"
+    "label": "Panelen",
+    "refresh": "Taken vernieuwen"
   },
   "graph": {
     "no_tasks_hint": "Geen taken gevonden in je vault.",

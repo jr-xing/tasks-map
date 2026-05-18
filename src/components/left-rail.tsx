@@ -5,6 +5,7 @@ import {
   SlidersHorizontal,
   Inbox,
   ListTree,
+  RefreshCw,
 } from "lucide-react";
 import { t } from "../i18n";
 
@@ -15,6 +16,8 @@ interface LeftRailProps {
   openPanel: RailPanelId | null;
   // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
   onToggle: (panel: RailPanelId) => void;
+  /** Re-reads all task notes from the vault, keeping the active project view. */
+  onRefresh: () => void;
   showFilters: boolean;
   showPresets: boolean;
   showUnlinked: boolean;
@@ -39,6 +42,7 @@ interface RailItem {
 export default function LeftRail({
   openPanel,
   onToggle,
+  onRefresh,
   showFilters,
   showPresets,
   showUnlinked,
@@ -80,7 +84,6 @@ export default function LeftRail({
   ];
 
   const shown = items.filter((item) => item.visible);
-  if (shown.length === 0) return null;
 
   return (
     <div
@@ -88,6 +91,15 @@ export default function LeftRail({
       role="toolbar"
       aria-label={t("rail.label")}
     >
+      <button
+        className="tasks-map-left-rail__btn"
+        onClick={onRefresh}
+        aria-label={t("rail.refresh")}
+        title={t("rail.refresh")}
+      >
+        <RefreshCw size={16} />
+      </button>
+      {shown.length > 0 && <div className="tasks-map-left-rail__divider" />}
       {shown.map((item) => {
         const active = openPanel === item.id;
         return (

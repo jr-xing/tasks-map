@@ -152,7 +152,8 @@
     "include_subtasks": "Include tasks with subtasks"
   },
   "rail": {
-    "label": "Panels"
+    "label": "Panels",
+    "refresh": "Refresh tasks"
   },
   "graph": {
     "no_tasks_hint": "No tasks found in your vault.",

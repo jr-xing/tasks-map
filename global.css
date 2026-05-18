@@ -1602,6 +1602,13 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-on-accent);
 }
 
+/* Separates the refresh action button from the panel-toggle buttons */
+.tasks-map-left-rail__divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: var(--background-modifier-border);
+}
+
 .tasks-map-left-rail__badge {
   position: absolute;
   top: -3px;

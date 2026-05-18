@@ -1197,6 +1197,7 @@ export default function TaskMapGraphView({
             <LeftRail
               openPanel={openPanel}
               onToggle={togglePanel}
+              onRefresh={reloadTasks}
               showFilters={embed.showFilterPanel}
               showPresets={embed.showPresetsPanel}
               showUnlinked={embed.showUnlinkedPanel}

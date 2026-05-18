@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from "react";
+import React, { useState, useContext, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { setTooltip } from "obsidian";
 import { Plus } from "lucide-react";
@@ -93,6 +93,17 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const [tagError, setTagError] = useState(false);
   const app = useApp();
   const summaryRef = useSummaryRenderer(task.summary, app);
+
+  // status/starred/tags are mirrored into local state for optimistic updates.
+  // ReactFlow reuses this component instance across reloads (the node id is
+  // stable), so the useState initializers never re-run. Resync whenever the
+  // task object is replaced — i.e. after reloadTasks pulls fresh data from the
+  // vault — otherwise edits made to a note outside the map never show up.
+  useEffect(() => {
+    setStatus(task.status);
+    setStarred(task.starred);
+    setTags(task.tags || []);
+  }, [task]);
 
   const isVertical = layoutDirection === "Vertical";
   const targetPosition = isVertical ? Position.Top : Position.Left;
