@@ -180,6 +180,12 @@ export default function TaskEditorPanel({
     originalTaskRef.current = originalTask;
   }, [originalTask]);
 
+  // Panel root, used to capture the Ctrl/Cmd+S save shortcut.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  // Latest save-shortcut action; refreshed every render so the (mount-time)
+  // listener never goes stale. Returns true when the panel handled the key.
+  const saveShortcutRef = useRef<() => boolean>(() => false);
+
   // The title is persisted on blur rather than per keystroke, so the note
   // file is renamed at most once per edit instead of on every character.
   // This holds the last blur-committed title (safe to write to disk).
@@ -378,13 +384,33 @@ export default function TaskEditorPanel({
   /** Whether the explicit Save action can run right now. */
   const canSave = !loading && !loadError && !saving && Boolean(form.title.trim());
 
-  /** Ctrl/Cmd+S triggers an explicit save when autosave is not in effect. */
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (autosave) return;
-    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
-    e.preventDefault();
-    if (canSave) void handleSave();
-  }
+  // Refresh the save-shortcut action with current state on every render.
+  useEffect(() => {
+    saveShortcutRef.current = () => {
+      // In autosave mode the panel does not own Ctrl+S — let it pass through.
+      if (autosave) return false;
+      if (canSave) void handleSave();
+      return true;
+    };
+  });
+
+  // Capture Ctrl/Cmd+S on the panel root. A capture-phase listener is used
+  // (not React's bubbling onKeyDown) because the embedded CodeMirror body
+  // editor swallows keydown events before they can bubble out of the panel.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+      if (saveShortcutRef.current()) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    root.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      root.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
 
   /** Save-button label with its keyboard-shortcut hint. */
   const saveHint = `${t("task_editor.save")} (${
@@ -397,7 +423,7 @@ export default function TaskEditorPanel({
       : t("task_editor.edit_title");
 
   return (
-    <div className="tasks-map-editor-panel" onKeyDown={handleKeyDown}>
+    <div className="tasks-map-editor-panel" ref={rootRef}>
       <div className="tasks-map-editor-header">
         <span className="tasks-map-editor-title">{headerTitle}</span>
         <div className="tasks-map-editor-header-actions">
