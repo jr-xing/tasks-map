@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { App, Platform } from "obsidian";
+import { App, Platform, Scope } from "obsidian";
 import Select, { type MultiValue, type SingleValue } from "react-select";
 import CreatableSelect from "react-select/creatable";
 import {
@@ -364,7 +364,11 @@ export default function TaskEditorPanel({
     }
   }
 
-  async function handleSave() {
+  /**
+   * Persist the form via TaskNotes. `closeAfter` controls whether the panel
+   * closes on success — the Save button closes, the Ctrl+S shortcut does not.
+   */
+  async function handleSave(closeAfter = true) {
     if (!form.title.trim() || saving) return;
     setSaving(true);
     const payload = formToPayload(form);
@@ -372,12 +376,18 @@ export default function TaskEditorPanel({
     if (mode === "create") {
       ok = (await createTaskNotesTask(app, payload)) !== null;
     } else if (originalTask) {
-      ok = (await updateTaskNotesTask(app, originalTask, payload)) !== null;
+      const updated = await updateTaskNotesTask(app, originalTask, payload);
+      if (updated) {
+        // Refresh the baseline so a later save (panel still open) diffs
+        // against what is now on disk rather than the stale original.
+        setOriginalTask({ ...updated, details: form.details });
+        ok = true;
+      }
     }
     setSaving(false);
     if (ok) {
       onSaved();
-      onClose();
+      if (closeAfter) onClose();
     }
   }
 
@@ -389,28 +399,53 @@ export default function TaskEditorPanel({
     saveShortcutRef.current = () => {
       // In autosave mode the panel does not own Ctrl+S — let it pass through.
       if (autosave) return false;
-      if (canSave) void handleSave();
+      // Ctrl+S saves in place; only create mode closes (the task is done).
+      if (canSave) void handleSave(mode === "create");
       return true;
     };
   });
 
-  // Capture Ctrl/Cmd+S on the panel root. A capture-phase listener is used
-  // (not React's bubbling onKeyDown) because the embedded CodeMirror body
-  // editor swallows keydown events before they can bubble out of the panel.
+  // Register Ctrl/Cmd+S through an Obsidian keymap Scope, active while focus
+  // is anywhere inside the panel. A Scope is required because Obsidian's
+  // keymap intercepts Ctrl+S globally (capture phase) before it can reach a
+  // DOM listener; the keymap consults the active Scope first, so registering
+  // there is the only reliable way to claim the shortcut. The embedded body
+  // editor registers the same shortcut on its own Scope (see
+  // embeddable-markdown-editor.ts) for when the cursor is in the note body.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
-      if (saveShortcutRef.current()) {
-        e.preventDefault();
-        e.stopPropagation();
+    const scope = new Scope(app.scope);
+    scope.register(["Mod"], "s", () => !saveShortcutRef.current());
+
+    let pushed = false;
+    const push = () => {
+      if (!pushed) {
+        app.keymap.pushScope(scope);
+        pushed = true;
       }
     };
-    root.addEventListener("keydown", onKeyDown, { capture: true });
-    return () =>
-      root.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, []);
+    const pop = () => {
+      if (pushed) {
+        app.keymap.popScope(scope);
+        pushed = false;
+      }
+    };
+    const onFocusIn = () => push();
+    const onFocusOut = (e: FocusEvent) => {
+      // Pop only when focus has left the panel entirely.
+      if (!root.contains(e.relatedTarget as Node | null)) pop();
+    };
+    root.addEventListener("focusin", onFocusIn);
+    root.addEventListener("focusout", onFocusOut);
+    if (root.contains(root.ownerDocument.activeElement)) push();
+
+    return () => {
+      root.removeEventListener("focusin", onFocusIn);
+      root.removeEventListener("focusout", onFocusOut);
+      pop();
+    };
+  }, [app]);
 
   /** Save-button label with its keyboard-shortcut hint. */
   const saveHint = `${t("task_editor.save")} (${

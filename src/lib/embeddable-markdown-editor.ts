@@ -509,6 +509,11 @@ function defineEditorClass(): EditorConstructor {
       // Override Mod+Enter to prevent default workspace behavior.
       this.scope.register(["Mod"], "Enter", () => true);
       this.scope.register(["Mod", "Shift"], "Enter", () => true);
+      // Claim Ctrl/Cmd+S so it reaches `onSave` instead of being swallowed
+      // by Obsidian's global keymap. Returning false marks it handled
+      // (preventDefault); returning true lets it fall through when `onSave`
+      // declines to handle it.
+      this.scope.register(["Mod"], "s", () => !this.options.onSave(this));
 
       this.owner.editMode = this;
       this.owner.editor = this.editor;
@@ -541,12 +546,12 @@ function defineEditorClass(): EditorConstructor {
         }
       );
 
-      if (this.options.onBlur !== defaultProperties.onBlur) {
-        this.editor.cm.contentDOM.addEventListener("blur", () => {
-          this.app.keymap.popScope(this.scope);
-          if (this._loaded) this.options.onBlur(this);
-        });
-      }
+      // Always pop the scope on blur so it stays balanced with the
+      // focusin push below (the scope outlives a single focus otherwise).
+      this.editor.cm.contentDOM.addEventListener("blur", () => {
+        this.app.keymap.popScope(this.scope);
+        if (this._loaded) this.options.onBlur(this);
+      });
 
       this.editor.cm.contentDOM.addEventListener("focusin", () => {
         this.app.keymap.pushScope(this.scope);
@@ -661,10 +666,6 @@ function defineEditorClass(): EditorConstructor {
                 this.options.onSubmit(this, false);
                 return true;
               },
-            },
-            {
-              key: "Mod-s",
-              run: () => this.options.onSave(this),
             },
             {
               key: "Escape",
