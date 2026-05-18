@@ -139,6 +139,52 @@ function toOptions(values: string[], labelOf?: (_v: string) => string): Option[]
   return values.map((v) => ({ value: v, label: labelOf ? labelOf(v) : v }));
 }
 
+/**
+ * Save-state indicator shown in the editor footer. Used both for autosave
+ * and for explicit-save mode, where it confirms a Ctrl+S save (which keeps
+ * the panel open) and flags pending unsaved edits.
+ */
+function SaveStatusIndicator({
+  status,
+  onRetry,
+}: {
+  status: SaveStatus;
+  onRetry: () => void;
+}) {
+  return (
+    <span
+      className={
+        "tasks-map-editor-autosave tasks-map-editor-autosave--" + status
+      }
+      onClick={status === "error" ? onRetry : undefined}
+      role={status === "error" ? "button" : undefined}
+      title={status === "error" ? t("task_editor.autosave_error") : undefined}
+    >
+      {status === "saving" && (
+        <>
+          <RefreshCw size={13} className="tasks-map-editor-autosave-spin" />
+          <span>{t("task_editor.saving")}</span>
+        </>
+      )}
+      {status === "saved" && (
+        <>
+          <Check size={13} />
+          <span>{t("task_editor.autosave_saved")}</span>
+        </>
+      )}
+      {status === "unsaved" && (
+        <span>{t("task_editor.autosave_unsaved")}</span>
+      )}
+      {status === "error" && (
+        <>
+          <CircleAlert size={13} />
+          <span>{t("task_editor.autosave_error")}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
 export default function TaskEditorPanel({
   app,
   mode,
@@ -322,7 +368,12 @@ export default function TaskEditorPanel({
     value: TaskFormValues[K]
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    if (!autosave) return;
+    if (mode !== "edit") return;
+    if (!autosave) {
+      // Explicit-save mode: just reflect that there are unsaved changes.
+      setSaveStatus("unsaved");
+      return;
+    }
     if (key === "title") {
       // The title is committed on blur; just flag the unsaved state now.
       pendingRef.current = true;
@@ -371,6 +422,7 @@ export default function TaskEditorPanel({
   async function handleSave(closeAfter = true) {
     if (!form.title.trim() || saving) return;
     setSaving(true);
+    setSaveStatus("saving");
     const payload = formToPayload(form);
     let ok = false;
     if (mode === "create") {
@@ -385,6 +437,7 @@ export default function TaskEditorPanel({
       }
     }
     setSaving(false);
+    setSaveStatus(ok ? "saved" : "error");
     if (ok) {
       onSaved();
       if (closeAfter) onClose();
@@ -763,46 +816,10 @@ export default function TaskEditorPanel({
       <div className="tasks-map-editor-footer">
         {autosave ? (
           <>
-            <span
-              className={
-                "tasks-map-editor-autosave tasks-map-editor-autosave--" +
-                saveStatus
-              }
-              onClick={
-                saveStatus === "error" ? () => void commitChanges() : undefined
-              }
-              role={saveStatus === "error" ? "button" : undefined}
-              title={
-                saveStatus === "error"
-                  ? t("task_editor.autosave_error")
-                  : undefined
-              }
-            >
-              {saveStatus === "saving" && (
-                <>
-                  <RefreshCw
-                    size={13}
-                    className="tasks-map-editor-autosave-spin"
-                  />
-                  <span>{t("task_editor.saving")}</span>
-                </>
-              )}
-              {saveStatus === "saved" && (
-                <>
-                  <Check size={13} />
-                  <span>{t("task_editor.autosave_saved")}</span>
-                </>
-              )}
-              {saveStatus === "unsaved" && (
-                <span>{t("task_editor.autosave_unsaved")}</span>
-              )}
-              {saveStatus === "error" && (
-                <>
-                  <CircleAlert size={13} />
-                  <span>{t("task_editor.autosave_error")}</span>
-                </>
-              )}
-            </span>
+            <SaveStatusIndicator
+              status={saveStatus}
+              onRetry={() => void commitChanges()}
+            />
             <button
               className="tasks-map-editor-btn tasks-map-editor-btn--primary"
               onClick={() => void handleClose()}
@@ -812,6 +829,12 @@ export default function TaskEditorPanel({
           </>
         ) : (
           <>
+            {mode === "edit" && (
+              <SaveStatusIndicator
+                status={saveStatus}
+                onRetry={() => void handleSave(false)}
+              />
+            )}
             <button className="tasks-map-editor-btn" onClick={onClose}>
               {t("task_editor.cancel")}
             </button>
