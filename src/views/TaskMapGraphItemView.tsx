@@ -66,9 +66,11 @@ export const VIEW_TYPE = "tasks-map-graph-view";
 export default class TaskMapGraphItemView extends ItemView {
   root: Root | null = null;
   private filterState: FilterState = { ...DEFAULT_FILTER_STATE };
+  private plugin: TasksMapPlugin;
 
-  constructor(leaf: WorkspaceLeaf) {
+  constructor(leaf: WorkspaceLeaf, plugin: TasksMapPlugin) {
     super(leaf);
+    this.plugin = plugin;
   }
 
   getViewType() {
@@ -109,35 +111,11 @@ export default class TaskMapGraphItemView extends ItemView {
       return;
     }
 
-    // Get the plugin instance to access settings
-    const plugin = (
-      this.app as unknown as {
-        plugins: { plugins: Record<string, TasksMapPlugin> };
-      }
-    ).plugins.plugins["tasks-map"];
-
-    if (!plugin) {
-      this.root.render(
-        <div className="tasks-map-centered-message-container">
-          <div className="tasks-map-centered-message-content">
-            <div className="tasks-map-message-icon">⚠️</div>
-            <h3 className="tasks-map-message-title">
-              {t("view.plugin_not_found")}
-            </h3>
-            <p className="tasks-map-message-description">
-              {t("view.plugin_not_found_description")}
-            </p>
-          </div>
-        </div>
-      );
-      return;
-    }
-
     this.root.render(
       <AppContext.Provider value={this.app}>
         <TaskMapGraphWrapper
-          pluginSettings={plugin.settings}
-          plugin={plugin}
+          pluginSettings={this.plugin.settings}
+          plugin={this.plugin}
           onFilterStateChange={(state) => {
             this.filterState = state;
           }}

@@ -67,7 +67,7 @@ export default class TasksMapPlugin extends Plugin {
     // Always register the view - it will handle the Dataview check internally
     this.registerView(
       VIEW_TYPE,
-      (leaf: WorkspaceLeaf) => new TaskMapGraphItemView(leaf)
+      (leaf: WorkspaceLeaf) => new TaskMapGraphItemView(leaf, this)
     );
 
     this.addSettingTab(new TasksMapSettingTab(this.app, this));

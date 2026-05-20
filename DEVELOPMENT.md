@@ -38,7 +38,7 @@ A plugin folder needs three files: `main.js`, `manifest.json`, `styles.css`.
 npm run build
 
 # 2. Copy into your vault's plugin folder (adjust the path)
-$dst = "C:\Users\remus\Documents\Obsidian\ResearchKelan\.obsidian\plugins\tasks-map"
+$dst = "C:\Users\remus\Documents\Obsidian\ResearchKelan\.obsidian\plugins\tasks-map-jrxing"
 New-Item -ItemType Directory -Force $dst | Out-Null
 Copy-Item main.js, manifest.json, styles.css $dst -Force
 ```
