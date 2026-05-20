@@ -1,7 +1,7 @@
 {
     "id": "tasks-map-jrxing",
     "name": "Tasks Map (jr-xing fork)",
-    "version": "0.32.8",
+    "version": "0.32.9",
     "minAppVersion": "1.8.0",
     "description": "A graph view of your tasks. Personal fork of NicoKNL/tasks-map.",
     "author": "NicoKNL (fork maintained by jr-xing)",
