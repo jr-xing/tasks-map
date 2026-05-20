@@ -9,8 +9,10 @@ export interface RootTaskOption {
   id: string;
   /** Human-readable label (the task's summary). */
   label: string;
-  /** Number of descendant tasks in this node's subtree. */
-  count: number;
+  /** Descendants in this node's subtree whose status is not finished. */
+  notFinishedCount: number;
+  /** Descendants in this node's subtree whose status is finished (done/canceled). */
+  finishedCount: number;
 }
 
 interface ProjectSwitcherBarProps {
@@ -22,6 +24,12 @@ interface ProjectSwitcherBarProps {
   totalCount: number;
   /** ID of the currently scoped root task, or `null` for the whole map. */
   selectedRootTask: string | null;
+  /**
+   * Option for the currently selected root when an active filter would
+   * otherwise hide it from `projects`/`subtasks`. Kept reachable in the
+   * dropdown so the selection remains visible.
+   */
+  selectedRootFallback?: RootTaskOption | null;
   // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
   onSelectRootTask: (id: string | null) => void;
 }
@@ -44,6 +52,7 @@ export default function ProjectSwitcherBar({
   subtasks,
   totalCount,
   selectedRootTask,
+  selectedRootFallback,
   onSelectRootTask,
 }: ProjectSwitcherBarProps) {
   const [includeSubtasks, setIncludeSubtasks] = useState(false);
@@ -54,12 +63,18 @@ export default function ProjectSwitcherBar({
       label: t("project_switcher.all_projects", { count: totalCount }),
     };
     const shown = includeSubtasks ? [...projects, ...subtasks] : [...projects];
-    // Keep the active selection reachable even when it is a hidden subtask.
+    // Keep the active selection reachable even when it is a hidden subtask or
+    // a project that the current status/tag/file filter would otherwise hide.
     if (
       selectedRootTask &&
       !shown.some((root) => root.id === selectedRootTask)
     ) {
-      const hidden = subtasks.find((root) => root.id === selectedRootTask);
+      const hidden =
+        subtasks.find((root) => root.id === selectedRootTask) ??
+        (selectedRootFallback &&
+        selectedRootFallback.id === selectedRootTask
+          ? selectedRootFallback
+          : null);
       if (hidden) shown.push(hidden);
     }
     const sorted = [...shown].sort((a, b) =>
@@ -69,10 +84,17 @@ export default function ProjectSwitcherBar({
       allOption,
       ...sorted.map((root) => ({
         value: root.id,
-        label: `${root.label} (${root.count})`,
+        label: `${root.label} (${root.notFinishedCount} / ${root.finishedCount})`,
       })),
     ];
-  }, [projects, subtasks, includeSubtasks, selectedRootTask, totalCount]);
+  }, [
+    projects,
+    subtasks,
+    includeSubtasks,
+    selectedRootTask,
+    selectedRootFallback,
+    totalCount,
+  ]);
 
   const value = useMemo<OptionType>(() => {
     if (selectedRootTask === null) return options[0];
