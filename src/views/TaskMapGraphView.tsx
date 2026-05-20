@@ -202,25 +202,60 @@ export default function TaskMapGraphView({
   // Candidate root nodes for the project switcher. A node qualifies when other
   // tasks depend on it. It is a *project* when it has no parent of its own, or
   // a *task with subtasks* when it itself sits under a parent.
+  //
+  // Projects/subtasks are filtered against the active inclusion filters
+  // (status, tags, files, starred) so a root whose own status would hide its
+  // node from the map is also dropped from the dropdown. Search and the
+  // selected-root scope are intentionally ignored here.
   const rootCandidates = useMemo(() => {
     const childIds = new Set<string>();
     tasks.forEach((task) => {
       task.incomingLinks.forEach((parentId) => childIds.add(parentId));
     });
     const allIds = new Set(tasks.map((task) => task.id));
+    const taskById = new Map(tasks.map((task) => [task.id, task]));
+    const visibleIds = new Set(
+      getFilteredNodeIds(tasks, {
+        ...filterState,
+        searchQuery: "",
+        selectedRootTask: null,
+        traversalMode: "match",
+      })
+    );
+    const isFinished = (status: string) =>
+      status === "done" || status === "canceled";
+
     const projects: RootTaskOption[] = [];
     const subtasks: RootTaskOption[] = [];
+    const hidden = new Map<string, RootTaskOption>();
     tasks
       .filter((task) => childIds.has(task.id))
       .forEach((task) => {
+        // traverseGraph includes the root itself; drop it for pure descendants.
+        const descendantIds = traverseGraph(
+          [task.id],
+          tasks,
+          allIds,
+          "downstream"
+        ).filter((id) => id !== task.id);
+        let finishedCount = 0;
+        let notFinishedCount = 0;
+        for (const id of descendantIds) {
+          const t = taskById.get(id);
+          if (!t) continue;
+          if (isFinished(t.status)) finishedCount++;
+          else notFinishedCount++;
+        }
         const option: RootTaskOption = {
           id: task.id,
           label: task.summary || task.text || task.id,
-          // traverseGraph includes the root itself; subtract it for a pure
-          // descendant count.
-          count:
-            traverseGraph([task.id], tasks, allIds, "downstream").length - 1,
+          finishedCount,
+          notFinishedCount,
         };
+        if (!visibleIds.has(task.id)) {
+          hidden.set(task.id, option);
+          return;
+        }
         const hasParent = task.incomingLinks.some((pid) => allIds.has(pid));
         (hasParent ? subtasks : projects).push(option);
       });
@@ -229,8 +264,16 @@ export default function TaskMapGraphView({
     return {
       projects: projects.sort(byLabel),
       subtasks: subtasks.sort(byLabel),
+      hidden,
     };
-  }, [tasks]);
+  }, [tasks, filterState]);
+
+  // If the active selection got filtered out, keep it offered as a fallback so
+  // the dropdown still reflects the current scope.
+  const selectedRootFallback = useMemo(() => {
+    if (!filterState.selectedRootTask) return null;
+    return rootCandidates.hidden.get(filterState.selectedRootTask) ?? null;
+  }, [filterState.selectedRootTask, rootCandidates]);
 
   const handleSelectRootTask = useCallback(
     (id: string | null) => {
@@ -1182,14 +1225,16 @@ export default function TaskMapGraphView({
       >
         <div className="tasks-map-corner">
           {embed.showProjectBar &&
-            rootCandidates.projects.length +
+            (rootCandidates.projects.length +
               rootCandidates.subtasks.length >
-              0 && (
+              0 ||
+              selectedRootFallback !== null) && (
               <ProjectSwitcherBar
                 projects={rootCandidates.projects}
                 subtasks={rootCandidates.subtasks}
                 totalCount={tasks.length}
                 selectedRootTask={filterState.selectedRootTask}
+                selectedRootFallback={selectedRootFallback}
                 onSelectRootTask={handleSelectRootTask}
               />
             )}
