@@ -1429,8 +1429,12 @@ function parseTaskNote(
 
     // Override with frontmatter data if available
     if (frontmatter.tags) {
-      const tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : [];
-      task.tags = tags.map((t: string) => t.replace(/^#/, ""));
+      const tags: unknown[] = Array.isArray(frontmatter.tags)
+        ? frontmatter.tags
+        : [];
+      task.tags = tags
+        .filter((t: unknown): t is string => typeof t === "string")
+        .map((t) => t.replace(/^#/, ""));
     }
 
     if (frontmatter.priority) {

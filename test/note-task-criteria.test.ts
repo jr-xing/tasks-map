@@ -116,6 +116,20 @@ describe("getNoteTasks - configurable criteria", () => {
       expect(tasks).toHaveLength(1);
     });
 
+    it("does not drop matching notes with null tag entries", () => {
+      const app = makeApp({
+        "Project1.md": { type: "project", tags: [null] },
+      });
+
+      const tasks = getNoteTasks(app, {
+        noteTaskPropertyName: "type",
+        noteTaskPropertyValue: "task, project",
+      });
+
+      expect(tasks.map((t) => t.id)).toEqual(["Project1.md"]);
+      expect(tasks[0].tags).toEqual([]);
+    });
+
     it("skips notes with no frontmatter", () => {
       const app = makeApp({
         "Empty.md": undefined,
