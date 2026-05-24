@@ -1901,6 +1901,67 @@ If your plugin does not need CSS, delete this file.
   flex-shrink: 0;
 }
 
+.tasks-map-tree-panel__focus-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary-alt);
+  flex-shrink: 0;
+}
+
+.tasks-map-tree-panel__focus-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__focus-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tasks-map-tree-panel__focus-clear:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-tree-panel__level-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.tasks-map-tree-panel__level-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__level-slider {
+  flex: 1;
+  min-width: 0;
+}
+
 .tasks-map-graph-container .tasks-map-tree-panel__filter-input {
   flex: 1;
   background: var(--background-primary);
@@ -1958,6 +2019,14 @@ If your plugin does not need CSS, delete this file.
   user-select: none;
 }
 
+.tasks-map-tree-panel__row--focused {
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-tree-panel__row--project .tasks-map-tree-panel__label {
+  font-weight: 700;
+}
+
 .tasks-map-graph-container .tasks-map-tree-panel__caret {
   display: flex;
   align-items: center;
@@ -1998,6 +2067,34 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-tree-panel__label:hover {
   background: var(--background-modifier-hover);
   color: var(--interactive-accent);
+}
+
+.tasks-map-graph-container .tasks-map-tree-panel__focus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--text-faint);
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.tasks-map-tree-panel__row:hover .tasks-map-tree-panel__focus,
+.tasks-map-tree-panel__row--focused .tasks-map-tree-panel__focus,
+.tasks-map-tree-panel__focus:focus-visible {
+  opacity: 1;
+}
+
+.tasks-map-tree-panel__focus:hover {
+  color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
 }
 
 /* Transient pulse when the project tree jumps to a node on the canvas */

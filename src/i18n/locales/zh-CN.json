@@ -142,7 +142,12 @@
     "collapse": "收起面板",
     "expand": "展开面板",
     "collapse_node": "收起",
-    "expand_node": "展开"
+    "expand_node": "展开",
+    "focus_node": "聚焦地图到此任务",
+    "clear_focus": "清除聚焦",
+    "focused": "已聚焦：{{task}}",
+    "visible_level": "层级 {{level}}",
+    "visible_level_aria": "可见树层级"
   },
   "project_switcher": {
     "label": "项目",

@@ -142,7 +142,12 @@
     "collapse": "Paneel inklappen",
     "expand": "Paneel uitklappen",
     "collapse_node": "Inklappen",
-    "expand_node": "Uitklappen"
+    "expand_node": "Uitklappen",
+    "focus_node": "Kaart op deze taak focussen",
+    "clear_focus": "Focus wissen",
+    "focused": "Gefocust: {{task}}",
+    "visible_level": "Niveau {{level}}",
+    "visible_level_aria": "Zichtbare boomniveaus"
   },
   "project_switcher": {
     "label": "Project",

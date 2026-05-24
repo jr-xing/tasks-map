@@ -142,7 +142,12 @@
     "collapse": "Collapse panel",
     "expand": "Expand panel",
     "collapse_node": "Collapse",
-    "expand_node": "Expand"
+    "expand_node": "Expand",
+    "focus_node": "Focus map on this task",
+    "clear_focus": "Clear focused task",
+    "focused": "Focused: {{task}}",
+    "visible_level": "Level {{level}}",
+    "visible_level_aria": "Visible tree levels"
   },
   "project_switcher": {
     "label": "Project",

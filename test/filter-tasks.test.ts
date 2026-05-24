@@ -1,4 +1,8 @@
-import { getFilteredNodeIds, NO_TAGS_VALUE } from "../src/lib/filter-tasks";
+import {
+  getFilteredNodeIds,
+  getVisibilityFilteredNodeIds,
+  NO_TAGS_VALUE,
+} from "../src/lib/filter-tasks";
 import { NoteTask } from "../src/types/note-task";
 import { TaskStatus } from "../src/types/task";
 import { FilterState, DEFAULT_FILTER_STATE } from "../src/types/filter-state";
@@ -464,5 +468,51 @@ describe("getFilteredNodeIds", () => {
       );
       expect(result).toEqual([]);
     });
+  });
+});
+
+describe("getVisibilityFilteredNodeIds", () => {
+  const treeTasks = [
+    makeTask({ id: "P", summary: "Project", status: "todo" }),
+    makeTask({
+      id: "A",
+      summary: "Alpha",
+      status: "todo",
+      incomingLinks: ["P"],
+    }),
+    makeTask({
+      id: "B",
+      summary: "Beta",
+      status: "done",
+      incomingLinks: ["P"],
+    }),
+    makeTask({ id: "C", summary: "Gamma", status: "todo" }),
+  ];
+
+  it("omits tasks hidden by status filters", () => {
+    const result = getVisibilityFilteredNodeIds(
+      treeTasks,
+      filter({ selectedStatuses: ["todo"] })
+    );
+
+    expect(result).toEqual(["P", "A", "C"]);
+  });
+
+  it("ignores search so the project tree does not shrink with map search", () => {
+    const result = getVisibilityFilteredNodeIds(
+      treeTasks,
+      filter({ searchQuery: "Gamma" })
+    );
+
+    expect(result).toEqual(["P", "A", "B", "C"]);
+  });
+
+  it("ignores focused root scope so the project tree remains navigable", () => {
+    const result = getVisibilityFilteredNodeIds(
+      treeTasks,
+      filter({ selectedRootTask: "A" })
+    );
+
+    expect(result).toEqual(["P", "A", "B", "C"]);
   });
 });

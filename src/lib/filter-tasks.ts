@@ -104,3 +104,14 @@ export const getFilteredNodeIds = (
 
   return traverseGraph(seedIds, tasks, allowedIds, filter.traversalMode);
 };
+
+export const getVisibilityFilteredNodeIds = (
+  tasks: BaseTask[],
+  filter: FilterState
+): string[] =>
+  getFilteredNodeIds(tasks, {
+    ...filter,
+    searchQuery: "",
+    selectedRootTask: null,
+    traversalMode: "match",
+  });

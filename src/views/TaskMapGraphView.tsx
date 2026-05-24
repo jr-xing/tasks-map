@@ -5,6 +5,8 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   useReactFlow,
+  getNodesBounds,
+  getViewportForBounds,
   type NodeDragHandler,
   type NodeMouseHandler,
   type SelectionDragHandler,
@@ -38,8 +40,10 @@ import FilterPresetsPanel from "src/components/filter-presets-panel";
 import StatusCountsOverlay from "src/components/status-counts-overlay";
 import TaskNode from "src/components/task-node";
 import ProjectGroupNode from "src/components/project-group-node";
-import { getFilteredNodeIds } from "src/lib/filter-tasks";
-import { traverseGraph } from "src/lib/traverse-graph";
+import {
+  getFilteredNodeIds,
+  getVisibilityFilteredNodeIds,
+} from "src/lib/filter-tasks";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
@@ -48,9 +52,6 @@ import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
 import ProjectTreePanel from "src/components/project-tree-panel";
-import ProjectSwitcherBar, {
-  RootTaskOption,
-} from "src/components/project-switcher-bar";
 import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
@@ -87,8 +88,84 @@ export default function TaskMapGraphView({
   const [isLoading, setIsLoading] = React.useState(true);
   const reactFlowInstance = useReactFlow();
   const skipFitViewRef = React.useRef(false);
+  const pendingTreeFocusRef = React.useRef<string | null>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const cornerRef = React.useRef<HTMLDivElement>(null);
   // Holds the in-flight requestAnimationFrame id for the camera-fit poll.
   const fitRafRef = React.useRef<number | null>(null);
+
+  const connectStartRef = React.useRef<{
+    nodeId: string;
+    handleType: "source" | "target";
+  } | null>(null);
+
+  const [hideTags, setHideTags] = React.useState(false);
+  const [hideUnlinkedTasks, setHideUnlinkedTasks] = React.useState(
+    embed.hideUnlinkedTasks
+  );
+  const [groupByProject, setGroupByProject] = React.useState(true);
+
+  // Which left-rail panel is open in the flyout; `null` keeps all collapsed.
+  const [openPanel, setOpenPanel] = React.useState<RailPanelId | null>(null);
+  const togglePanel = useCallback((panel: RailPanelId) => {
+    setOpenPanel((prev) => (prev === panel ? null : panel));
+  }, []);
+
+  const getLeftOverlayInset = useCallback((): number => {
+    if (openPanel === null) return 0;
+
+    const container = containerRef.current;
+    const corner = cornerRef.current;
+    if (!container || !corner) return 0;
+
+    const containerRect = container.getBoundingClientRect();
+    const cornerRect = corner.getBoundingClientRect();
+    const rawInset = cornerRect.right - containerRect.left + 16;
+    return Math.min(
+      Math.max(0, rawInset),
+      Math.max(0, containerRect.width - 120)
+    );
+  }, [openPanel]);
+
+  const getVisibleMapCenterX = useCallback((): number => {
+    const containerWidth = containerRef.current?.clientWidth ?? 0;
+    return containerWidth / 2 + getLeftOverlayInset() / 2;
+  }, [getLeftOverlayInset]);
+
+  const fitNodesToVisibleArea = useCallback(
+    (currentNodes: ReturnType<typeof reactFlowInstance.getNodes>) => {
+      const leftInset = getLeftOverlayInset();
+      if (leftInset <= 0) {
+        reactFlowInstance.fitView({ duration: 400 });
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container || currentNodes.length === 0) {
+        reactFlowInstance.fitView({ duration: 400 });
+        return;
+      }
+
+      const visibleWidth = Math.max(120, container.clientWidth - leftInset);
+      const bounds = getNodesBounds(currentNodes);
+      const viewport = getViewportForBounds(
+        bounds,
+        visibleWidth,
+        container.clientHeight,
+        0.1,
+        2,
+        0.12
+      );
+      void reactFlowInstance.setViewport(
+        {
+          ...viewport,
+          x: viewport.x + leftInset,
+        },
+        { duration: 400 }
+      );
+    },
+    [getLeftOverlayInset, reactFlowInstance]
+  );
 
   // Fit the camera to a freshly built node set once ReactFlow has caught up.
   // `expectedIds` is the id set just handed to setNodes; the poll waits until
@@ -108,12 +185,11 @@ export default function TaskMapGraphView({
           currentNodes.length === expectedIds.size &&
           currentNodes.length > 0 &&
           currentNodes.every(
-            (n) =>
-              expectedIds.has(n.id) && n.width != null && n.height != null
+            (n) => expectedIds.has(n.id) && n.width != null && n.height != null
           );
         if (ready || frames >= 40) {
           fitRafRef.current = null;
-          reactFlowInstance.fitView({ duration: 400 });
+          fitNodesToVisibleArea(currentNodes);
           return;
         }
         frames += 1;
@@ -121,25 +197,8 @@ export default function TaskMapGraphView({
       };
       fitRafRef.current = requestAnimationFrame(tick);
     },
-    [reactFlowInstance]
+    [fitNodesToVisibleArea, reactFlowInstance]
   );
-  const connectStartRef = React.useRef<{
-    nodeId: string;
-    handleType: "source" | "target";
-  } | null>(null);
-
-  const [hideTags, setHideTags] = React.useState(false);
-  const [hideUnlinkedTasks, setHideUnlinkedTasks] = React.useState(
-    embed.hideUnlinkedTasks
-  );
-  const [groupByProject, setGroupByProject] = React.useState(true);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  // Which left-rail panel is open in the flyout; `null` keeps all collapsed.
-  const [openPanel, setOpenPanel] = React.useState<RailPanelId | null>(null);
-  const togglePanel = useCallback((panel: RailPanelId) => {
-    setOpenPanel((prev) => (prev === panel ? null : panel));
-  }, []);
 
   // Tracks which unlinked task IDs have been dropped onto the canvas this session
   const [droppedTaskIds, setDroppedTaskIds] = React.useState<Set<string>>(
@@ -198,89 +257,6 @@ export default function TaskMapGraphView({
 
     return [...folders, ...files];
   }, [tasks]);
-
-  // Candidate root nodes for the project switcher. A node qualifies when other
-  // tasks depend on it. It is a *project* when it has no parent of its own, or
-  // a *task with subtasks* when it itself sits under a parent.
-  //
-  // Projects/subtasks are filtered against the active inclusion filters
-  // (status, tags, files, starred) so a root whose own status would hide its
-  // node from the map is also dropped from the dropdown. Search and the
-  // selected-root scope are intentionally ignored here.
-  const rootCandidates = useMemo(() => {
-    const childIds = new Set<string>();
-    tasks.forEach((task) => {
-      task.incomingLinks.forEach((parentId) => childIds.add(parentId));
-    });
-    const allIds = new Set(tasks.map((task) => task.id));
-    const taskById = new Map(tasks.map((task) => [task.id, task]));
-    const visibleIds = new Set(
-      getFilteredNodeIds(tasks, {
-        ...filterState,
-        searchQuery: "",
-        selectedRootTask: null,
-        traversalMode: "match",
-      })
-    );
-    const isFinished = (status: string) =>
-      status === "done" || status === "canceled";
-
-    const projects: RootTaskOption[] = [];
-    const subtasks: RootTaskOption[] = [];
-    const hidden = new Map<string, RootTaskOption>();
-    tasks
-      .filter((task) => childIds.has(task.id))
-      .forEach((task) => {
-        // traverseGraph includes the root itself; drop it for pure descendants.
-        const descendantIds = traverseGraph(
-          [task.id],
-          tasks,
-          allIds,
-          "downstream"
-        ).filter((id) => id !== task.id);
-        let finishedCount = 0;
-        let notFinishedCount = 0;
-        for (const id of descendantIds) {
-          const t = taskById.get(id);
-          if (!t) continue;
-          if (isFinished(t.status)) finishedCount++;
-          else notFinishedCount++;
-        }
-        const option: RootTaskOption = {
-          id: task.id,
-          label: task.summary || task.text || task.id,
-          finishedCount,
-          notFinishedCount,
-        };
-        if (!visibleIds.has(task.id)) {
-          hidden.set(task.id, option);
-          return;
-        }
-        const hasParent = task.incomingLinks.some((pid) => allIds.has(pid));
-        (hasParent ? subtasks : projects).push(option);
-      });
-    const byLabel = (a: RootTaskOption, b: RootTaskOption) =>
-      a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
-    return {
-      projects: projects.sort(byLabel),
-      subtasks: subtasks.sort(byLabel),
-      hidden,
-    };
-  }, [tasks, filterState]);
-
-  // If the active selection got filtered out, keep it offered as a fallback so
-  // the dropdown still reflects the current scope.
-  const selectedRootFallback = useMemo(() => {
-    if (!filterState.selectedRootTask) return null;
-    return rootCandidates.hidden.get(filterState.selectedRootTask) ?? null;
-  }, [filterState.selectedRootTask, rootCandidates]);
-
-  const handleSelectRootTask = useCallback(
-    (id: string | null) => {
-      setFilterState((prev) => ({ ...prev, selectedRootTask: id }));
-    },
-    [setFilterState]
-  );
 
   // Drop a stale root scope if that task no longer exists after a reload.
   useEffect(() => {
@@ -659,17 +635,23 @@ export default function TaskMapGraphView({
   // Pan the canvas to center a task node and briefly pulse it. Used by the
   // project tree sidebar to jump to a node when its tree row is clicked.
   const focusNode = useCallback(
-    (taskId: string) => {
+    (taskId: string): boolean => {
       const node = reactFlowInstance.getNode(taskId);
-      if (!node) return;
+      if (!node) return false;
 
       const pos = node.positionAbsolute ?? node.position;
       const width = node.width ?? 0;
       const height = node.height ?? 0;
-      reactFlowInstance.setCenter(
-        pos.x + width / 2,
-        pos.y + height / 2,
-        { zoom: reactFlowInstance.getZoom(), duration: 500 }
+      const zoom = reactFlowInstance.getZoom();
+      const nodeCenterX = pos.x + width / 2;
+      const nodeCenterY = pos.y + height / 2;
+      void reactFlowInstance.setViewport(
+        {
+          x: getVisibleMapCenterX() - nodeCenterX * zoom,
+          y: (containerRef.current?.clientHeight ?? 0) / 2 - nodeCenterY * zoom,
+          zoom,
+        },
+        { duration: 500 }
       );
 
       const FOCUS_CLASS = "tasks-map-node--focused";
@@ -695,9 +677,44 @@ export default function TaskMapGraphView({
           )
         );
       }, 1600);
+      return true;
     },
-    [reactFlowInstance, setNodes]
+    [getVisibleMapCenterX, reactFlowInstance, setNodes]
   );
+
+  useEffect(() => {
+    const taskId = pendingTreeFocusRef.current;
+    if (!taskId) return;
+    if (focusNode(taskId)) {
+      pendingTreeFocusRef.current = null;
+    }
+  }, [nodes, focusNode]);
+
+  const handleTreeTaskClick = useCallback(
+    (taskId: string, rootTaskId: string) => {
+      if (focusNode(taskId)) return;
+      if (!filterState.selectedRootTask) return;
+
+      pendingTreeFocusRef.current = taskId;
+      skipFitViewRef.current = true;
+      setFilterState((prev) => ({
+        ...prev,
+        selectedRootTask: rootTaskId,
+      }));
+    },
+    [filterState.selectedRootTask, focusNode, setFilterState]
+  );
+
+  const handleTreeTaskFocus = useCallback(
+    (taskId: string) => {
+      setFilterState((prev) => ({ ...prev, selectedRootTask: taskId }));
+    },
+    [setFilterState]
+  );
+
+  const handleTreeClearFocus = useCallback(() => {
+    setFilterState((prev) => ({ ...prev, selectedRootTask: null }));
+  }, [setFilterState]);
 
   const onDeleteSelectedEdge = useCallback(async () => {
     if (!selectedEdge) return;
@@ -1181,6 +1198,18 @@ export default function TaskMapGraphView({
     return graphTasks.filter((t) => idSet.has(t.id));
   }, [graphTasks, filterState]);
 
+  const treeTasks = useMemo(() => {
+    const filteredIds = getVisibilityFilteredNodeIds(graphTasks, filterState);
+    const idSet = new Set(filteredIds);
+    return graphTasks.filter((t) => idSet.has(t.id));
+  }, [graphTasks, filterState]);
+
+  const selectedRootLabel = useMemo(() => {
+    if (!filterState.selectedRootTask) return null;
+    const task = graphTasks.find((t) => t.id === filterState.selectedRootTask);
+    return task ? task.summary || task.text : null;
+  }, [graphTasks, filterState.selectedRootTask]);
+
   const searchResultCount = useMemo(() => {
     if (!filterState.searchQuery.trim()) return null;
     return filteredTasks.length;
@@ -1216,181 +1245,173 @@ export default function TaskMapGraphView({
 
   return (
     <StatusConfigContext.Provider value={settings.taskStatuses}>
-    <TagsContext.Provider value={tagsContextValue}>
-      <div
-        className="tasks-map-graph-container"
-        ref={containerRef}
-        onDrop={(e) => void onDrop(e)}
-        onDragOver={onDragOver}
-      >
-        <div className="tasks-map-corner">
-          {embed.showProjectBar &&
-            (rootCandidates.projects.length +
-              rootCandidates.subtasks.length >
-              0 ||
-              selectedRootFallback !== null) && (
-              <ProjectSwitcherBar
-                projects={rootCandidates.projects}
-                subtasks={rootCandidates.subtasks}
-                totalCount={tasks.length}
-                selectedRootTask={filterState.selectedRootTask}
-                selectedRootFallback={selectedRootFallback}
-                onSelectRootTask={handleSelectRootTask}
-              />
-            )}
-          <div className="tasks-map-rail-row">
-            <LeftRail
-              openPanel={openPanel}
-              onToggle={togglePanel}
-              onRefresh={reloadTasks}
-              showFilters={embed.showFilterPanel}
-              showPresets={embed.showPresetsPanel}
-              showUnlinked={embed.showUnlinkedPanel}
-              showTree={embed.showUnlinkedPanel}
-              unlinkedCount={sidebarTasks.length}
-            />
-            {openPanel && (
-              <div className="tasks-map-flyout">
-                {openPanel === "filters" && (
-                  <GuiOverlay
-                    allTags={allTags}
-                    filterState={filterState}
-                    setFilterState={setFilterState}
-                    allFiles={allFiles}
-                    statuses={settings.taskStatuses}
-                    onSearch={handleSearch}
-                    searchResultCount={searchResultCount}
-                    suggestionTasks={preSearchFilteredTasks}
-                  />
-                )}
-                {openPanel === "presets" && (
-                  <FilterPresetsPanel
-                    presets={settings.filterPresets}
-                    filterState={filterState}
-                    plugin={plugin}
-                    onApply={(filter) => setFilterState(filter)}
-                    onSave={handleSavePreset}
-                    onRename={handleRenamePreset}
-                    onDelete={handleDeletePreset}
-                  />
-                )}
-                {openPanel === "view" && (
-                  <ControlsPanel
-                    showTags={settings.showTags}
-                    hideTags={hideTags}
-                    setHideTags={toggleHideTags}
-                    reloadTasks={reloadTasks}
-                    showUnlinkedPanel={embed.showUnlinkedPanel}
-                    hideUnlinkedTasks={hideUnlinkedTasks}
-                    setHideUnlinkedTasks={setHideUnlinkedTasks}
-                    showGroupByProject={showGroupByProject}
-                    groupByProject={groupByProject}
-                    setGroupByProject={setGroupByProject}
-                  />
-                )}
-                {openPanel === "unlinked" && (
-                  <UnlinkedTasksPanel tasks={sidebarTasks} />
-                )}
-                {openPanel === "tree" && (
-                  <ProjectTreePanel
-                    tasks={filteredTasks}
-                    onTaskClick={focusNode}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        {isLoading && (
-          <div className="tasks-map-loading-container">
-            <div className="tasks-map-spinner" />
-            <div className="tasks-map-loading-text">Loading tasks...</div>
-          </div>
-        )}
-        {!isLoading && tasks.length === 0 && (
-          <GraphEmptyState variant="no_tasks" />
-        )}
-        {!isLoading && tasks.length > 0 && graphTasks.length === 0 && (
-          <GraphEmptyState variant="all_unlinked" />
-        )}
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          proOptions={{ hideAttribution: true }}
-          minZoom={0.1}
-          fitView
-          onConnect={(params) => void onConnect(params)}
-          onConnectStart={onConnectStart}
-          onConnectEnd={(e) => void onConnectEnd(e)}
-          onEdgeClick={onEdgeClick}
-          onNodeClick={onNodeClick}
-          onNodeDoubleClick={onNodeDoubleClick}
-          onPaneClick={onPaneClick}
-          onNodeDrag={onNodeDrag}
-          onNodeDragStop={(e, node, nodes) =>
-            void onNodeDragStop(e, node, nodes)
-          }
-          onSelectionDrag={onSelectionDrag}
-          onSelectionDragStop={(e, nodes) => void onSelectionDragStop(e, nodes)}
-          multiSelectionKeyCode="Shift"
-          selectionKeyCode="Shift"
+      <TagsContext.Provider value={tagsContextValue}>
+        <div
+          className="tasks-map-graph-container"
+          ref={containerRef}
+          onDrop={(e) => void onDrop(e)}
+          onDragOver={onDragOver}
         >
-          {embed.showMinimap && <TaskMinimap />}
-          <Background />
-          {settings.showStatusCounts && embed.showStatusCounts && (
-            <StatusCountsOverlay tasks={filteredTasks} />
-          )}
-        </ReactFlow>
-        {selectedEdge && (
-          <DeleteEdgeButton onDelete={() => void onDeleteSelectedEdge()} />
-        )}
-        {taskNotesEditorAvailable && !editorState && (
-          <button
-            className="tasks-map-new-task-button"
-            onClick={() => openTaskEditor("create")}
-          >
-            <Plus size={16} />
-            <span>{t("task_editor.new_task")}</span>
-          </button>
-        )}
-        {editorState && (
-          <div
-            className="tasks-map-editor-panel-container"
-            ref={(el) => {
-              if (el) el.style.width = `${editorPanelWidth}px`;
-            }}
-          >
-            <div
-              className="tasks-map-editor-resize-handle"
-              onPointerDown={onEditorResizePointerDown}
-              onPointerMove={onEditorResizePointerMove}
-              onPointerUp={onEditorResizePointerUp}
-              role="separator"
-              aria-orientation="vertical"
-              aria-label={t("task_editor.resize")}
-            />
-            <TaskEditorPanel
-              key={`${editorState.mode}:${editorState.taskPath ?? ""}`}
-              app={app}
-              mode={editorState.mode}
-              taskPath={editorState.taskPath}
-              availableTasks={noteTasks}
-              layout={editorPanelLayout}
-              onLayoutChange={handleEditorLayoutChange}
-              bodyFontSize={editorBodyFontSize}
-              onBodyFontSizeChange={handleEditorBodyFontSizeChange}
-              autosaveEnabled={settings.editorAutosave}
-              onClose={() => setEditorState(null)}
-              onSaved={reloadTasks}
-            />
+          <div className="tasks-map-corner" ref={cornerRef}>
+            <div className="tasks-map-rail-row">
+              <LeftRail
+                openPanel={openPanel}
+                onToggle={togglePanel}
+                onRefresh={reloadTasks}
+                showFilters={embed.showFilterPanel}
+                showPresets={embed.showPresetsPanel}
+                showUnlinked={embed.showUnlinkedPanel}
+                showTree={embed.showUnlinkedPanel}
+                unlinkedCount={sidebarTasks.length}
+              />
+              {openPanel && (
+                <div className="tasks-map-flyout">
+                  {openPanel === "filters" && (
+                    <GuiOverlay
+                      allTags={allTags}
+                      filterState={filterState}
+                      setFilterState={setFilterState}
+                      allFiles={allFiles}
+                      statuses={settings.taskStatuses}
+                      onSearch={handleSearch}
+                      searchResultCount={searchResultCount}
+                      suggestionTasks={preSearchFilteredTasks}
+                    />
+                  )}
+                  {openPanel === "presets" && (
+                    <FilterPresetsPanel
+                      presets={settings.filterPresets}
+                      filterState={filterState}
+                      plugin={plugin}
+                      onApply={(filter) => setFilterState(filter)}
+                      onSave={handleSavePreset}
+                      onRename={handleRenamePreset}
+                      onDelete={handleDeletePreset}
+                    />
+                  )}
+                  {openPanel === "view" && (
+                    <ControlsPanel
+                      showTags={settings.showTags}
+                      hideTags={hideTags}
+                      setHideTags={toggleHideTags}
+                      reloadTasks={reloadTasks}
+                      showUnlinkedPanel={embed.showUnlinkedPanel}
+                      hideUnlinkedTasks={hideUnlinkedTasks}
+                      setHideUnlinkedTasks={setHideUnlinkedTasks}
+                      showGroupByProject={showGroupByProject}
+                      groupByProject={groupByProject}
+                      setGroupByProject={setGroupByProject}
+                    />
+                  )}
+                  {openPanel === "unlinked" && (
+                    <UnlinkedTasksPanel tasks={sidebarTasks} />
+                  )}
+                  {openPanel === "tree" && (
+                    <ProjectTreePanel
+                      tasks={treeTasks}
+                      selectedRootTask={filterState.selectedRootTask}
+                      selectedRootLabel={selectedRootLabel}
+                      onClearFocus={handleTreeClearFocus}
+                      onTaskClick={handleTreeTaskClick}
+                      onTaskFocus={handleTreeTaskFocus}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </TagsContext.Provider>
+          {isLoading && (
+            <div className="tasks-map-loading-container">
+              <div className="tasks-map-spinner" />
+              <div className="tasks-map-loading-text">Loading tasks...</div>
+            </div>
+          )}
+          {!isLoading && tasks.length === 0 && (
+            <GraphEmptyState variant="no_tasks" />
+          )}
+          {!isLoading && tasks.length > 0 && graphTasks.length === 0 && (
+            <GraphEmptyState variant="all_unlinked" />
+          )}
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            proOptions={{ hideAttribution: true }}
+            minZoom={0.1}
+            fitView
+            onConnect={(params) => void onConnect(params)}
+            onConnectStart={onConnectStart}
+            onConnectEnd={(e) => void onConnectEnd(e)}
+            onEdgeClick={onEdgeClick}
+            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
+            onPaneClick={onPaneClick}
+            onNodeDrag={onNodeDrag}
+            onNodeDragStop={(e, node, nodes) =>
+              void onNodeDragStop(e, node, nodes)
+            }
+            onSelectionDrag={onSelectionDrag}
+            onSelectionDragStop={(e, nodes) =>
+              void onSelectionDragStop(e, nodes)
+            }
+            multiSelectionKeyCode="Shift"
+            selectionKeyCode="Shift"
+          >
+            {embed.showMinimap && <TaskMinimap />}
+            <Background />
+            {settings.showStatusCounts && embed.showStatusCounts && (
+              <StatusCountsOverlay tasks={filteredTasks} />
+            )}
+          </ReactFlow>
+          {selectedEdge && (
+            <DeleteEdgeButton onDelete={() => void onDeleteSelectedEdge()} />
+          )}
+          {taskNotesEditorAvailable && !editorState && (
+            <button
+              className="tasks-map-new-task-button"
+              onClick={() => openTaskEditor("create")}
+            >
+              <Plus size={16} />
+              <span>{t("task_editor.new_task")}</span>
+            </button>
+          )}
+          {editorState && (
+            <div
+              className="tasks-map-editor-panel-container"
+              ref={(el) => {
+                if (el) el.style.width = `${editorPanelWidth}px`;
+              }}
+            >
+              <div
+                className="tasks-map-editor-resize-handle"
+                onPointerDown={onEditorResizePointerDown}
+                onPointerMove={onEditorResizePointerMove}
+                onPointerUp={onEditorResizePointerUp}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t("task_editor.resize")}
+              />
+              <TaskEditorPanel
+                key={`${editorState.mode}:${editorState.taskPath ?? ""}`}
+                app={app}
+                mode={editorState.mode}
+                taskPath={editorState.taskPath}
+                availableTasks={noteTasks}
+                layout={editorPanelLayout}
+                onLayoutChange={handleEditorLayoutChange}
+                bodyFontSize={editorBodyFontSize}
+                onBodyFontSizeChange={handleEditorBodyFontSizeChange}
+                autosaveEnabled={settings.editorAutosave}
+                onClose={() => setEditorState(null)}
+                onSaved={reloadTasks}
+              />
+            </div>
+          )}
+        </div>
+      </TagsContext.Provider>
     </StatusConfigContext.Provider>
   );
 }
