@@ -2,7 +2,11 @@
 import dagre from "@dagrejs/dagre";
 import { App, TFile, Vault } from "obsidian";
 import { TaskStatus, TaskNode, TaskEdge, RawTask } from "src/types/task";
-import { BaseTask, TaskInsertPosition } from "src/types/base-task";
+import {
+  BaseTask,
+  TaskAttachment,
+  TaskInsertPosition,
+} from "src/types/base-task";
 import { TasksMapSettings } from "src/types/settings";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { TaskFactory } from "./task-factory";
@@ -19,6 +23,15 @@ const validDateTypes = [
   "created",
   "canceled",
 ];
+
+const OWNED_ATTACHMENT_NOTE_TYPES = new Set([
+  "task-card",
+  "prompt-note",
+  "copilot-conversation",
+]);
+const ATTACHMENT_LIST_WIDTH = 420;
+const ATTACHMENT_ROW_HEIGHT = 20;
+const ATTACHMENT_LIST_TOP_MARGIN = 6;
 
 const dataSymbols: Record<string, Record<string, string>> = {
   due: {
@@ -83,7 +96,10 @@ export function estimateNodeDimensions(
   showTags: boolean = true
 ): { width: number; height: number } {
   // Base dimensions
-  const baseWidth = NODEWIDTH; // 250px
+  const baseWidth =
+    task.attachments.length > 0
+      ? Math.max(NODEWIDTH, ATTACHMENT_LIST_WIDTH)
+      : NODEWIDTH;
   const baseHeight = 60; // Minimum height for header (status, priority, buttons)
 
   // Estimate height based on summary length
@@ -102,12 +118,23 @@ export function estimateNodeDimensions(
     tagsHeight = tagRows * 28;
   }
 
+  const attachmentsHeight =
+    task.attachments.length > 0
+      ? ATTACHMENT_LIST_TOP_MARGIN +
+        task.attachments.length * ATTACHMENT_ROW_HEIGHT
+      : 0;
+
   // Add padding and safety margin
   const padding = 24; // 12px top + 12px bottom
   const safetyMargin = 16; // Extra buffer to prevent overlap
 
   const totalHeight =
-    baseHeight + summaryHeight + tagsHeight + padding + safetyMargin;
+    baseHeight +
+    summaryHeight +
+    tagsHeight +
+    attachmentsHeight +
+    padding +
+    safetyMargin;
 
   return {
     width: baseWidth,
@@ -1275,6 +1302,126 @@ function noteMatchesTaskCriteria(
   return candidates.some((c) => expected.includes(normalizeCriteriaValue(c)));
 }
 
+interface AttachmentLinkCache {
+  link: string;
+  displayText?: string;
+}
+
+interface AttachmentFile {
+  path: string;
+  basename?: string;
+  extension?: string;
+}
+
+interface AttachmentMetadata {
+  frontmatter?: Record<string, unknown>;
+  links?: AttachmentLinkCache[];
+  embeds?: AttachmentLinkCache[];
+}
+
+interface AttachmentApp {
+  metadataCache: {
+    getFirstLinkpathDest?(
+      _linkpath: string,
+      _sourcePath: string
+    ): AttachmentFile | null;
+    getFileCache?(_file: AttachmentFile): AttachmentMetadata | null;
+  };
+  vault: {
+    getAbstractFileByPath?(_path: string): AttachmentFile | null;
+  };
+}
+
+function stripLinkFragment(linktext: string): string {
+  return linktext.split("#")[0].trim();
+}
+
+function getFileName(path: string): string {
+  return path.split("/").pop() || path;
+}
+
+function getExtension(file: AttachmentFile): string {
+  const extension = file.extension;
+  if (extension) return extension.toLowerCase();
+
+  const fileName = getFileName(file.path);
+  const dotIndex = fileName.lastIndexOf(".");
+  return dotIndex === -1 ? "" : fileName.slice(dotIndex + 1).toLowerCase();
+}
+
+function resolveAttachmentFile(
+  app: AttachmentApp,
+  sourcePath: string,
+  linktext: string
+): AttachmentFile | null {
+  const linkpath = stripLinkFragment(linktext);
+  if (!linkpath) return null;
+
+  const resolved =
+    app.metadataCache.getFirstLinkpathDest?.(linkpath, sourcePath) ?? null;
+  if (resolved) return resolved;
+
+  return app.vault.getAbstractFileByPath?.(linkpath) ?? null;
+}
+
+function getAttachmentLabel(
+  link: AttachmentLinkCache,
+  resolvedFile: AttachmentFile
+): string {
+  const displayText = link.displayText?.trim();
+  if (displayText) return displayText;
+
+  return resolvedFile.basename || getFileName(resolvedFile.path);
+}
+
+function getAttachmentNoteType(
+  app: AttachmentApp,
+  file: AttachmentFile
+): string | undefined {
+  const type = app.metadataCache.getFileCache?.(file)?.frontmatter?.type;
+  return typeof type === "string" ? type : undefined;
+}
+
+export function extractTaskAttachments(
+  file: AttachmentFile,
+  cache: AttachmentMetadata,
+  app: AttachmentApp
+): TaskAttachment[] {
+  const links = [...(cache.links ?? []), ...(cache.embeds ?? [])];
+  const attachments: TaskAttachment[] = [];
+  const seenPaths = new Set<string>();
+
+  for (const link of links) {
+    const resolvedFile = resolveAttachmentFile(app, file.path, link.link);
+    if (!resolvedFile || seenPaths.has(resolvedFile.path)) continue;
+    if (resolvedFile.path === file.path) continue;
+
+    const extension = getExtension(resolvedFile);
+    const isMarkdown = extension === "md";
+    const noteType = isMarkdown
+      ? getAttachmentNoteType(app, resolvedFile)
+      : undefined;
+
+    if (
+      isMarkdown &&
+      (!noteType || !OWNED_ATTACHMENT_NOTE_TYPES.has(noteType))
+    ) {
+      continue;
+    }
+
+    attachments.push({
+      path: resolvedFile.path,
+      linktext: link.link,
+      label: getAttachmentLabel(link, resolvedFile),
+      kind: isMarkdown ? "markdown" : extension === "pdf" ? "pdf" : "file",
+      noteType,
+    });
+    seenPaths.add(resolvedFile.path);
+  }
+
+  return attachments;
+}
+
 // TODO: Improve typing for app parameter
 export function getAllTasks(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
@@ -1437,6 +1584,8 @@ function parseTaskNote(
     if (typeof frontmatter.starred === "boolean") {
       task.starred = frontmatter.starred;
     }
+
+    task.attachments = extractTaskAttachments(file, cache, app);
 
     // Collect incoming links (dependencies) from the configured frontmatter
     // property. Values may be wiki-link strings ("[[Other task]]") or

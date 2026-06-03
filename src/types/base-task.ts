@@ -4,6 +4,16 @@ import { TaskStatusConfig } from "../lib/status-config";
 
 export type TaskInsertPosition = "before" | "after";
 
+export type TaskAttachmentKind = "markdown" | "pdf" | "file";
+
+export interface TaskAttachment {
+  path: string;
+  linktext: string;
+  label: string;
+  kind: TaskAttachmentKind;
+  noteType?: string;
+}
+
 /**
  * Abstract base class for tasks.
  * Each task type (dataview, note) extends this class and implements its own behavior.
@@ -20,6 +30,7 @@ export abstract class BaseTask {
   incomingLinks: string[];
   starred: boolean;
   projects: string[];
+  attachments: TaskAttachment[];
 
   constructor(data: {
     id: string;
@@ -32,6 +43,7 @@ export abstract class BaseTask {
     incomingLinks: string[];
     starred: boolean;
     projects?: string[];
+    attachments?: TaskAttachment[];
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -43,6 +55,7 @@ export abstract class BaseTask {
     this.incomingLinks = data.incomingLinks;
     this.starred = data.starred;
     this.projects = data.projects ?? [];
+    this.attachments = data.attachments ?? [];
   }
 
   /**
@@ -123,6 +136,7 @@ export abstract class BaseTask {
       incomingLinks: this.incomingLinks,
       starred: this.starred,
       projects: this.projects,
+      attachments: this.attachments,
     };
   }
 }

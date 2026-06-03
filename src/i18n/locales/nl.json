@@ -191,6 +191,9 @@
     "invalid_json": "Dit Taken Kaart-blok bevat ongeldige JSON. Voeg het opnieuw in via het opdrachtenpalet om het te herstellen.",
     "legacy_format": "Dit Taken Kaart-blok gebruikt een verouderd formaat. Voeg het opnieuw in via het opdrachtenpalet om het te migreren."
   },
+  "attachments": {
+    "open": "Bijlage openen: {{attachment}}"
+  },
   "task_editor": {
     "create_title": "Nieuwe taak",
     "edit_title": "Taak bewerken",

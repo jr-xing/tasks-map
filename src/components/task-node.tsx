@@ -1,7 +1,7 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { setTooltip } from "obsidian";
-import { Plus } from "lucide-react";
+import { Paperclip, Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
 import { BaseTask } from "src/types/task";
 import { TaskDetails } from "./task-details";
@@ -22,6 +22,8 @@ import {
   removeStarFromTaskInVault,
 } from "../lib/utils";
 import { TagsContext } from "../contexts/context";
+import { t } from "../i18n";
+import { openFileInObsidian } from "../lib/open-file";
 
 export const NODEWIDTH = 250;
 
@@ -68,6 +70,48 @@ interface TaskNodeData {
   onTaskChanged?: () => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onEditTask?: (taskPath: string) => void;
+}
+
+interface TaskAttachmentsProps {
+  task: BaseTask;
+}
+
+function TaskAttachments({ task }: TaskAttachmentsProps) {
+  const app = useApp();
+
+  if (task.attachments.length === 0) return null;
+
+  const handleOpenAttachment = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    attachment: BaseTask["attachments"][number]
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void openFileInObsidian(
+      app,
+      attachment.path,
+      attachment.linktext,
+      task.link
+    );
+  };
+
+  return (
+    <div className="tasks-map-task-attachments nodrag">
+      {task.attachments.map((attachment) => (
+        <div key={attachment.path} className="tasks-map-task-attachment-row">
+          <Paperclip size={12} className="tasks-map-task-attachments-icon" />
+          <button
+            type="button"
+            className="tasks-map-task-attachment-link"
+            title={t("attachments.open", { attachment: attachment.label })}
+            onClick={(event) => handleOpenAttachment(event, attachment)}
+          >
+            {attachment.label}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
@@ -201,9 +245,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   };
 
   return (
-    <div>
-      <Handle type="target" position={targetPosition} />
-      <Handle type="source" position={sourcePosition} />
+    <div className="tasks-map-task-node-shell">
       <TaskBackground
         status={status}
         starred={starred}
@@ -211,6 +253,8 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
         debugVisualization={debugVisualization}
         selected={selected}
       >
+        <Handle type="target" position={targetPosition} />
+        <Handle type="source" position={sourcePosition} />
         <div className="tasks-map-task-node-header">
           <TaskStatusToggle
             status={status}
@@ -301,6 +345,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           </div>
         )}
       </TaskBackground>
+      <TaskAttachments task={task} />
     </div>
   );
 }

@@ -226,6 +226,10 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Task Node Styles */
+.tasks-map-task-node-shell {
+  width: 250px;
+}
+
 .tasks-map-task-node-header {
   display: flex;
   align-items: stretch;
@@ -251,6 +255,67 @@ If your plugin does not need CSS, delete this file.
   font-weight: 500;
   color: var(--text-normal);
   margin-bottom: 6px;
+}
+
+.tasks-map-task-attachments {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  width: 420px;
+  margin-top: 5px;
+  margin-left: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 18px;
+  pointer-events: auto;
+}
+
+.tasks-map-task-attachment-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.tasks-map-task-attachments-icon {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+.tasks-map-graph-container .tasks-map-task-attachment-link {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  max-width: 390px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--link-color);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  line-height: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-map-graph-container .tasks-map-task-attachment-link:hover {
+  color: var(--link-color-hover);
+  text-decoration: underline;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tasks-map-graph-container .tasks-map-task-attachment-link:focus {
+  background: transparent;
+  box-shadow: none;
 }
 
 .tasks-map-graph-container .tasks-map-task-node-header-button {

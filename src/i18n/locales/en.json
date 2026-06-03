@@ -191,6 +191,9 @@
     "invalid_json": "This Tasks Map embed contains invalid JSON. Re-insert it using the command palette to fix it.",
     "legacy_format": "This Tasks Map embed uses an outdated format. Re-insert it using the command palette to migrate it."
   },
+  "attachments": {
+    "open": "Open attachment: {{attachment}}"
+  },
   "task_editor": {
     "create_title": "New task",
     "edit_title": "Edit task",

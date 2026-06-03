@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { App, FileView, WorkspaceLeaf } from "obsidian";
+import { App } from "obsidian";
+import { openFileInObsidian } from "../lib/open-file";
 
 export function useSummaryRenderer(summary: string, app?: App) {
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -12,48 +13,6 @@ export function useSummaryRenderer(summary: string, app?: App) {
   }, [summary, app]);
 
   return containerRef;
-}
-
-/**
- * Find a leaf that already has the given file open.
- * Checks both loaded views and deferred/unactivated tabs.
- */
-function findLeafWithFile(app: App, filePath: string): WorkspaceLeaf | null {
-  const leaves = app.workspace.getLeavesOfType("markdown");
-
-  for (const leaf of leaves) {
-    // Check loaded view first
-    const fileView = leaf.view as FileView;
-    if (fileView?.file && fileView.file.path === filePath) {
-      return leaf;
-    }
-
-    // Check deferred/unactivated tabs via view state
-    const state = leaf.getViewState();
-    if (state?.state?.file === filePath) {
-      return leaf;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Open a file in Obsidian, reusing existing leaf if already open
- */
-async function openFileInObsidian(app: App, filePath: string): Promise<void> {
-  // Try to resolve the file path (handles both with and without .md extension)
-  const resolvedFile = app.metadataCache.getFirstLinkpathDest(filePath, "");
-  const targetPath = resolvedFile?.path || filePath;
-
-  const existingLeaf = findLeafWithFile(app, targetPath);
-
-  if (existingLeaf) {
-    await app.workspace.revealLeaf(existingLeaf);
-    app.workspace.setActiveLeaf(existingLeaf, { focus: true });
-  } else {
-    await app.workspace.openLinkText(filePath, "");
-  }
 }
 
 function renderSummaryWithLinks(
@@ -94,7 +53,7 @@ function renderSummaryWithLinks(
         e.preventDefault();
         e.stopPropagation();
         if (app) {
-          void openFileInObsidian(app, file);
+          void openFileInObsidian(app, file, file);
         }
       });
       return;

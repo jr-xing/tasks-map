@@ -14,6 +14,7 @@ import {
   partitionTasksByProject,
   addSignToTaskInFile,
   removeSignFromTaskInFile,
+  extractTaskAttachments,
 } from "../src/lib/utils";
 import { NoteTask } from "../src/types/note-task";
 import { Vault } from "./mocks/obsidian";
@@ -296,6 +297,165 @@ describe("getTagColor", () => {
   });
 });
 
+describe("extractTaskAttachments", () => {
+  interface FakeAttachmentFile {
+    path: string;
+    basename: string;
+    extension: string;
+  }
+
+  function makeAttachmentFile(path: string): FakeAttachmentFile {
+    const name = path.split("/").pop() || path;
+    const dotIndex = name.lastIndexOf(".");
+    return {
+      path,
+      basename: dotIndex === -1 ? name : name.slice(0, dotIndex),
+      extension: dotIndex === -1 ? "" : name.slice(dotIndex + 1),
+    };
+  }
+
+  function makeAttachmentApp(
+    files: Record<string, FakeAttachmentFile>,
+    frontmatter: Record<string, Record<string, unknown>> = {}
+  ) {
+    const fileList = Object.values(files);
+    return {
+      metadataCache: {
+        getFirstLinkpathDest: (linkpath: string) =>
+          files[linkpath] ||
+          fileList.find(
+            (file) =>
+              file.path === linkpath ||
+              file.path.split("/").pop() === linkpath ||
+              file.basename === linkpath
+          ) ||
+          null,
+        getFileCache: (file: FakeAttachmentFile) => ({
+          frontmatter: frontmatter[file.path],
+        }),
+      },
+      vault: {
+        getAbstractFileByPath: (path: string) => files[path] || null,
+      },
+    };
+  }
+
+  it("resolves PDF wikilinks and preserves page fragments", () => {
+    const taskFile = makeAttachmentFile("tasks/task.md");
+    const report = makeAttachmentFile("papers/report.pdf");
+    const app = makeAttachmentApp({ [report.path]: report });
+
+    const attachments = extractTaskAttachments(
+      taskFile,
+      {
+        links: [{ link: "report.pdf#page=2", displayText: "report p.2" }],
+      },
+      app
+    );
+
+    expect(attachments).toEqual([
+      {
+        path: "papers/report.pdf",
+        linktext: "report.pdf#page=2",
+        label: "report p.2",
+        kind: "pdf",
+        noteType: undefined,
+      },
+    ]);
+  });
+
+  it.each(["task-card", "prompt-note", "copilot-conversation"])(
+    "includes owned markdown notes of type %s",
+    (noteType) => {
+      const taskFile = makeAttachmentFile("tasks/task.md");
+      const card = makeAttachmentFile("cards/card.md");
+      const app = makeAttachmentApp(
+        { [card.path]: card },
+        { [card.path]: { type: noteType } }
+      );
+
+      const attachments = extractTaskAttachments(
+        taskFile,
+        {
+          links: [{ link: "card", displayText: "Card" }],
+        },
+        app
+      );
+
+      expect(attachments).toEqual([
+        {
+          path: "cards/card.md",
+          linktext: "card",
+          label: "Card",
+          kind: "markdown",
+          noteType,
+        },
+      ]);
+    }
+  );
+
+  it("ignores regular markdown notes", () => {
+    const taskFile = makeAttachmentFile("tasks/task.md");
+    const project = makeAttachmentFile("projects/project.md");
+    const daily = makeAttachmentFile("daily/today.md");
+    const app = makeAttachmentApp(
+      {
+        [project.path]: project,
+        [daily.path]: daily,
+      },
+      {
+        [project.path]: { type: "project" },
+        [daily.path]: {},
+      }
+    );
+
+    const attachments = extractTaskAttachments(
+      taskFile,
+      {
+        links: [{ link: "project" }, { link: "today" }],
+      },
+      app
+    );
+
+    expect(attachments).toEqual([]);
+  });
+
+  it("ignores frontmatter-only links", () => {
+    const taskFile = makeAttachmentFile("tasks/task.md");
+    const report = makeAttachmentFile("papers/report.pdf");
+    const app = makeAttachmentApp({ [report.path]: report });
+    const cache = {
+      frontmatterLinks: [{ link: "report.pdf" }],
+    };
+
+    const attachments = extractTaskAttachments(taskFile, cache, app);
+
+    expect(attachments).toEqual([]);
+  });
+
+  it("deduplicates attachments by resolved path", () => {
+    const taskFile = makeAttachmentFile("tasks/task.md");
+    const report = makeAttachmentFile("papers/report.pdf");
+    const app = makeAttachmentApp({ [report.path]: report });
+
+    const attachments = extractTaskAttachments(
+      taskFile,
+      {
+        links: [{ link: "report.pdf", displayText: "First label" }],
+        embeds: [{ link: "report.pdf#page=3", displayText: "Second label" }],
+      },
+      app
+    );
+
+    expect(attachments).toHaveLength(1);
+    expect(attachments[0]).toMatchObject({
+      path: "papers/report.pdf",
+      linktext: "report.pdf",
+      label: "First label",
+    });
+  });
+});
+
 describe("estimateNodeDimensions", () => {
   it("returns at least minimum height for short summary", () => {
     const task = makeTask({ summary: "Hi" });
@@ -327,6 +487,96 @@ describe("estimateNodeDimensions", () => {
     const withTags = estimateNodeDimensions(task, true);
     const withoutTags = estimateNodeDimensions(task, false);
     expect(withTags.height).toBe(withoutTags.height);
+  });
+
+  it("reserves layout height when attachments are present", () => {
+    const taskWithoutAttachments = makeTask({ attachments: [] });
+    const taskWithAttachments = makeTask({
+      attachments: [
+        {
+          path: "papers/report.pdf",
+          linktext: "report.pdf",
+          label: "report.pdf",
+          kind: "pdf",
+        },
+      ],
+    });
+
+    const withoutAttachments = estimateNodeDimensions(taskWithoutAttachments);
+    const withAttachments = estimateNodeDimensions(taskWithAttachments);
+
+    expect(withAttachments.height).toBeGreaterThan(withoutAttachments.height);
+    expect(withAttachments.width).toBeGreaterThan(withoutAttachments.width);
+  });
+
+  it("accounts for both tags and external attachment rows", () => {
+    const baseTask = makeTask({
+      tags: ["a", "b", "c", "d"],
+      attachments: [],
+    });
+    const taskWithAttachments = makeTask({
+      tags: ["a", "b", "c", "d"],
+      attachments: [
+        {
+          path: "cards/card.md",
+          linktext: "card",
+          label: "Card",
+          kind: "markdown",
+          noteType: "task-card",
+        },
+      ],
+    });
+
+    const baseDimensions = estimateNodeDimensions(baseTask, true);
+    const attachmentDimensions = estimateNodeDimensions(
+      taskWithAttachments,
+      true
+    );
+
+    expect(attachmentDimensions.height).toBeGreaterThan(baseDimensions.height);
+  });
+
+  it("adds one layout row per attachment", () => {
+    const taskWithOneAttachment = makeTask({
+      attachments: [
+        {
+          path: "cards/one.md",
+          linktext: "one",
+          label: "One",
+          kind: "markdown",
+          noteType: "task-card",
+        },
+      ],
+    });
+    const taskWithThreeAttachments = makeTask({
+      attachments: [
+        {
+          path: "cards/one.md",
+          linktext: "one",
+          label: "One",
+          kind: "markdown",
+          noteType: "task-card",
+        },
+        {
+          path: "cards/two.md",
+          linktext: "two",
+          label: "Two",
+          kind: "markdown",
+          noteType: "task-card",
+        },
+        {
+          path: "papers/three.pdf",
+          linktext: "three.pdf",
+          label: "Three",
+          kind: "pdf",
+        },
+      ],
+    });
+
+    const oneAttachment = estimateNodeDimensions(taskWithOneAttachment);
+    const threeAttachments = estimateNodeDimensions(taskWithThreeAttachments);
+
+    expect(threeAttachments.height).toBeGreaterThan(oneAttachment.height);
   });
 });
 

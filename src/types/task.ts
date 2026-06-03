@@ -1,5 +1,6 @@
 import { Node, Edge } from "reactflow";
 import { BaseTask } from "./base-task";
+import type { TaskAttachment } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
 
 // Status is a configured status `id` (see src/lib/status-config.ts). It is a
@@ -15,6 +16,7 @@ export interface RawTask {
 
 // Re-export BaseTask for convenience
 export { BaseTask };
+export type { TaskAttachment };
 
 export interface TaskNodeData {
   task: BaseTask;
