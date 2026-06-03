@@ -7,6 +7,13 @@ import {
   DEFAULT_TASK_STATUSES,
   getStatusById,
 } from "../lib/status-config";
+import {
+  addTaskNotesProject,
+  addTaskNotesTag,
+  deleteTaskNotesTask,
+  removeTaskNotesTag,
+  updateTaskNotesStatus,
+} from "../lib/tasknotes-bridge";
 
 interface DependencyEntry {
   uid: string;
@@ -35,6 +42,8 @@ export class NoteTask extends BaseTask {
     const statusConfig = getStatusById(newStatus, statuses);
     const firstNoteValue = statusConfig.noteValues.split(",")[0]?.trim();
     const noteStatus = firstNoteValue || statusConfig.id;
+
+    if (await updateTaskNotesStatus(app, this.link, noteStatus)) return;
 
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
@@ -99,6 +108,8 @@ export class NoteTask extends BaseTask {
     if (!vault) return;
     const file = vault.getFileByPath(this.link);
     if (!file) return;
+
+    if (await deleteTaskNotesTask(app, this.link)) return;
 
     await app.fileManager.trashFile(file);
   }
@@ -170,6 +181,8 @@ export class NoteTask extends BaseTask {
     const file = vault.getFileByPath(this.link);
     if (!file) return;
 
+    if (await addTaskNotesTag(app, this.link, tagToAdd)) return;
+
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
       const { frontmatterStart, frontmatterEnd } = this.findFrontmatter(lines);
@@ -220,6 +233,8 @@ export class NoteTask extends BaseTask {
     const file = vault.getFileByPath(this.link);
     if (!file) return;
 
+    if (await removeTaskNotesTag(app, this.link, tagToRemove)) return;
+
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
       let { frontmatterStart, frontmatterEnd } = this.findFrontmatter(lines);
@@ -260,6 +275,8 @@ export class NoteTask extends BaseTask {
     if (!vault) return;
     const file = vault.getFileByPath(this.link);
     if (!file) return;
+
+    if (await addTaskNotesProject(app, this.link, projectName)) return;
 
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
