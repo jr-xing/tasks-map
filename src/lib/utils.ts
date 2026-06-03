@@ -5,9 +5,13 @@ import { TaskStatus, TaskNode, TaskEdge, RawTask } from "src/types/task";
 import {
   BaseTask,
   TaskAttachment,
+  TaskAttachmentKind,
   TaskInsertPosition,
 } from "src/types/base-task";
-import { TasksMapSettings } from "src/types/settings";
+import {
+  DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  TasksMapSettings,
+} from "src/types/settings";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { TaskFactory } from "./task-factory";
 import { Position, Node, Edge } from "reactflow";
@@ -32,6 +36,19 @@ const OWNED_ATTACHMENT_NOTE_TYPES = new Set([
 const ATTACHMENT_LIST_WIDTH = 420;
 const ATTACHMENT_ROW_HEIGHT = 20;
 const ATTACHMENT_LIST_TOP_MARGIN = 6;
+const IMAGE_ATTACHMENT_EXTENSIONS = new Set([
+  "avif",
+  "bmp",
+  "gif",
+  "heic",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "tif",
+  "tiff",
+  "webp",
+]);
 
 const dataSymbols: Record<string, Record<string, string>> = {
   due: {
@@ -91,13 +108,29 @@ const formatPatterns: Record<string, Record<string, RegExp>> = {
  * Estimates the dimensions of a node based on its task content.
  * Takes into account summary length and number of tags.
  */
+export function getVisibleTaskAttachments(
+  task: BaseTask,
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS
+) {
+  const visibleKinds = new Set(visibleAttachmentKinds);
+  return task.attachments.filter((attachment) =>
+    visibleKinds.has(attachment.kind)
+  );
+}
+
 export function estimateNodeDimensions(
   task: BaseTask,
-  showTags: boolean = true
+  showTags: boolean = true,
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS
 ): { width: number; height: number } {
+  const visibleAttachments = getVisibleTaskAttachments(
+    task,
+    visibleAttachmentKinds
+  );
+
   // Base dimensions
   const baseWidth =
-    task.attachments.length > 0
+    visibleAttachments.length > 0
       ? Math.max(NODEWIDTH, ATTACHMENT_LIST_WIDTH)
       : NODEWIDTH;
   const baseHeight = 60; // Minimum height for header (status, priority, buttons)
@@ -119,9 +152,9 @@ export function estimateNodeDimensions(
   }
 
   const attachmentsHeight =
-    task.attachments.length > 0
+    visibleAttachments.length > 0
       ? ATTACHMENT_LIST_TOP_MARGIN +
-        task.attachments.length * ATTACHMENT_ROW_HEIGHT
+        visibleAttachments.length * ATTACHMENT_ROW_HEIGHT
       : 0;
 
   // Add padding and safety margin
@@ -140,6 +173,18 @@ export function estimateNodeDimensions(
     width: baseWidth,
     height: Math.max(NODEHEIGHT, totalHeight),
   };
+}
+
+function getTaskCardHorizontalOffset(
+  node: Node,
+  dimensions: { width: number; height: number }
+) {
+  const task = node.data?.task as BaseTask | undefined;
+  if (!task) {
+    return 0;
+  }
+
+  return Math.max(0, (dimensions.width - NODEWIDTH) / 2);
 }
 
 /**
@@ -402,7 +447,8 @@ export function getLayoutedElements(
   direction: "Horizontal" | "Vertical" = "Horizontal",
   showTags: boolean = true,
   groupByProject: boolean = true,
-  tasks: BaseTask[] = []
+  tasks: BaseTask[] = [],
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS
 ) {
   const rankdir = direction === "Horizontal" ? "LR" : "TB"; // LR = Left-to-Right, TB = Top-to-Bottom
   const nodeDimensions = new Map<string, { width: number; height: number }>();
@@ -433,7 +479,7 @@ export function getLayoutedElements(
       nodeDimensions.set(
         node.id,
         task
-          ? estimateNodeDimensions(task, showTags)
+          ? estimateNodeDimensions(task, showTags, visibleAttachmentKinds)
           : { width: NODEWIDTH, height: NODEHEIGHT }
       );
     });
@@ -724,7 +770,7 @@ export function getLayoutedElements(
     // Get task from node data to estimate dimensions
     const task = node.data?.task as BaseTask | undefined;
     const dimensions = task
-      ? estimateNodeDimensions(task, showTags)
+      ? estimateNodeDimensions(task, showTags, visibleAttachmentKinds)
       : { width: NODEWIDTH, height: NODEHEIGHT };
 
     nodeDimensions.set(node.id, dimensions);
@@ -793,6 +839,10 @@ function layoutNodesWithDagre(
       width: NODEWIDTH,
       height: NODEHEIGHT,
     };
+    const taskCardHorizontalOffset = getTaskCardHorizontalOffset(
+      node,
+      dimensions
+    );
 
     if (!nodeWithPosition) {
       return {
@@ -805,7 +855,7 @@ function layoutNodesWithDagre(
       ...node,
       position: {
         // Center the node at the position dagre calculated
-        x: nodeWithPosition.x - dimensions.width / 2,
+        x: nodeWithPosition.x - dimensions.width / 2 + taskCardHorizontalOffset,
         y: nodeWithPosition.y - dimensions.height / 2,
       },
     };
@@ -1382,6 +1432,22 @@ function getAttachmentNoteType(
   return typeof type === "string" ? type : undefined;
 }
 
+function getAttachmentKind(
+  extension: string,
+  isMarkdown: boolean
+): TaskAttachmentKind {
+  if (isMarkdown) {
+    return "markdown";
+  }
+  if (extension === "pdf") {
+    return "pdf";
+  }
+  if (IMAGE_ATTACHMENT_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+  return "file";
+}
+
 export function extractTaskAttachments(
   file: AttachmentFile,
   cache: AttachmentMetadata,
@@ -1413,7 +1479,7 @@ export function extractTaskAttachments(
       path: resolvedFile.path,
       linktext: link.link,
       label: getAttachmentLabel(link, resolvedFile),
-      kind: isMarkdown ? "markdown" : extension === "pdf" ? "pdf" : "file",
+      kind: getAttachmentKind(extension, isMarkdown),
       noteType,
     });
     seenPaths.add(resolvedFile.path);
@@ -1737,7 +1803,8 @@ export function createNodesFromTasks(
   tagColorPalette: TagColorPalette = "rainbow",
   onTaskChanged?: () => void,
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onEditTask?: (taskPath: string) => void
+  onEditTask?: (taskPath: string) => void,
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
@@ -1754,6 +1821,7 @@ export function createNodesFromTasks(
       debugVisualization,
       groupByProject,
       tagColorPalette,
+      visibleAttachmentKinds,
       onDeleteTask,
       onTaskChanged,
       onEditTask,
@@ -1845,7 +1913,8 @@ export function createProjectGroupNodes(
   tasks: BaseTask[],
   edges: TaskEdge[],
   direction: "Horizontal" | "Vertical",
-  showTags: boolean
+  showTags: boolean,
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS
 ): Node[] {
   const taskById = new Map<string, BaseTask>(tasks.map((t) => [t.id, t]));
   const { singleProjectMap, multiProjectTasks, noProjectTasks } =
@@ -1871,7 +1940,7 @@ export function createProjectGroupNodes(
       nodeDimensions.set(
         node.id,
         task
-          ? estimateNodeDimensions(task, showTags)
+          ? estimateNodeDimensions(task, showTags, visibleAttachmentKinds)
           : { width: NODEWIDTH, height: NODEHEIGHT }
       );
     });
@@ -1968,11 +2037,12 @@ function layoutNodesWithDagreInternal(
       width: NODEWIDTH,
       height: NODEHEIGHT,
     };
+    const taskCardHorizontalOffset = getTaskCardHorizontalOffset(node, dims);
     if (!nodeWithPosition) return { ...node, position: { x: 0, y: 0 } };
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - dims.width / 2,
+        x: nodeWithPosition.x - dims.width / 2 + taskCardHorizontalOffset,
         y: nodeWithPosition.y - dims.height / 2,
       },
     };

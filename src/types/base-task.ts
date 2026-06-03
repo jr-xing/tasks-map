@@ -4,7 +4,7 @@ import { TaskStatusConfig } from "../lib/status-config";
 
 export type TaskInsertPosition = "before" | "after";
 
-export type TaskAttachmentKind = "markdown" | "pdf" | "file";
+export type TaskAttachmentKind = "markdown" | "pdf" | "image" | "file";
 
 export interface TaskAttachment {
   path: string;

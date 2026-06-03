@@ -55,6 +55,7 @@ export default class TasksMapPlugin extends Plugin {
   settings: TasksMapSettings = {
     ...DEFAULT_SETTINGS,
     filterPresets: [...DEFAULT_SETTINGS.filterPresets],
+    visibleAttachmentKinds: [...DEFAULT_SETTINGS.visibleAttachmentKinds],
   };
 
   async onload() {
@@ -137,7 +138,18 @@ export default class TasksMapPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loadedSettings =
+      ((await this.loadData()) as Partial<TasksMapSettings> | null) ?? {};
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...loadedSettings,
+      filterPresets: loadedSettings.filterPresets ?? [
+        ...DEFAULT_SETTINGS.filterPresets,
+      ],
+      visibleAttachmentKinds: loadedSettings.visibleAttachmentKinds ?? [
+        ...DEFAULT_SETTINGS.visibleAttachmentKinds,
+      ],
+    };
   }
 
   async saveSettings() {

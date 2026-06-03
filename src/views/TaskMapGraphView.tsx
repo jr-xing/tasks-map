@@ -497,7 +497,8 @@ export default function TaskMapGraphView({
       groupByProject,
       settings.tagColorPalette,
       reloadTasks,
-      handleEditTaskByPath
+      handleEditTaskByPath,
+      settings.visibleAttachmentKinds
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -529,7 +530,8 @@ export default function TaskMapGraphView({
       settings.layoutDirection,
       settings.showTags,
       groupByProject,
-      filteredTasks
+      filteredTasks,
+      settings.visibleAttachmentKinds
     );
 
     // Apply stored drop positions to dropped nodes (bypass dagre)

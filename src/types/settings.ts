@@ -1,10 +1,8 @@
 import { Language } from "../i18n";
 import { FilterState } from "./filter-state";
 import { TagColorPalette } from "../lib/tag-color-manager";
-import {
-  TaskStatusConfig,
-  cloneDefaultStatuses,
-} from "../lib/status-config";
+import { TaskStatusConfig, cloneDefaultStatuses } from "../lib/status-config";
+import type { TaskAttachmentKind } from "./base-task";
 
 export interface FilterPreset {
   id: string;
@@ -16,6 +14,7 @@ export interface TasksMapSettings {
   showPriorities: boolean;
   showTags: boolean;
   showStatusCounts: boolean;
+  visibleAttachmentKinds: TaskAttachmentKind[];
 
   layoutDirection: "Horizontal" | "Vertical";
   edgeStyle: "Bezier" | "Straight" | "SmoothStep";
@@ -66,10 +65,17 @@ export interface TasksMapSettings {
   filterPresets: FilterPreset[];
 }
 
+export const DEFAULT_VISIBLE_ATTACHMENT_KINDS: TaskAttachmentKind[] = [
+  "markdown",
+  "pdf",
+  "file",
+];
+
 export const DEFAULT_SETTINGS: TasksMapSettings = {
   showPriorities: true,
   showTags: true,
   showStatusCounts: true,
+  visibleAttachmentKinds: [...DEFAULT_VISIBLE_ATTACHMENT_KINDS],
 
   layoutDirection: "Horizontal",
   edgeStyle: "Bezier",

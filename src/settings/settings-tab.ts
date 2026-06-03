@@ -2,8 +2,17 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import TasksMapPlugin from "../main";
 import { TagColorPalette, getTagColorClass } from "../lib/tag-color-manager";
 import { cloneDefaultStatuses } from "../lib/status-config";
+import { DEFAULT_VISIBLE_ATTACHMENT_KINDS } from "../types/settings";
+import { TaskAttachmentKind } from "../types/base-task";
 import { t } from "../i18n";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+
+const ATTACHMENT_KIND_OPTIONS: TaskAttachmentKind[] = [
+  "markdown",
+  "pdf",
+  "image",
+  "file",
+];
 
 export class TasksMapSettingTab extends PluginSettingTab {
   plugin: TasksMapPlugin;
@@ -32,15 +41,33 @@ export class TasksMapSettingTab extends PluginSettingTab {
     });
   }
 
+  private async setAttachmentKindVisibility(
+    kind: TaskAttachmentKind,
+    visible: boolean
+  ): Promise<void> {
+    const visibleKinds = new Set(
+      this.plugin.settings.visibleAttachmentKinds ??
+        DEFAULT_VISIBLE_ATTACHMENT_KINDS
+    );
+
+    if (visible) {
+      visibleKinds.add(kind);
+    } else {
+      visibleKinds.delete(kind);
+    }
+
+    this.plugin.settings.visibleAttachmentKinds =
+      ATTACHMENT_KIND_OPTIONS.filter((option) => visibleKinds.has(option));
+    await this.plugin.saveSettings();
+  }
+
   /**
    * Renders the configurable task-statuses section: an editable row per
    * status (label, color, checkbox character, frontmatter values) plus
    * add/reset actions and the "default visible statuses" toggles.
    */
   private renderTaskStatusesSection(containerEl: HTMLElement): void {
-    new Setting(containerEl)
-      .setHeading()
-      .setName(t("settings.task_statuses"));
+    new Setting(containerEl).setHeading().setName(t("settings.task_statuses"));
 
     const desc = containerEl.createDiv({ cls: "tasks-map-preview-desc" });
     desc.textContent = t("settings.task_statuses_desc");
@@ -236,6 +263,28 @@ export class TasksMapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setHeading()
+      .setName(t("settings.attachment_types"));
+
+    const visibleAttachmentKinds = new Set(
+      this.plugin.settings.visibleAttachmentKinds ??
+        DEFAULT_VISIBLE_ATTACHMENT_KINDS
+    );
+
+    ATTACHMENT_KIND_OPTIONS.forEach((kind) => {
+      new Setting(containerEl)
+        .setName(t(`settings.attachment_type_${kind}`))
+        .setDesc(t(`settings.attachment_type_${kind}_desc`))
+        .addToggle((toggle) =>
+          toggle
+            .setValue(visibleAttachmentKinds.has(kind))
+            .onChange(async (value) => {
+              await this.setAttachmentKindVisibility(kind, value);
+            })
+        );
+    });
+
+    new Setting(containerEl)
       .setName(t("settings.editor_autosave"))
       .setDesc(t("settings.editor_autosave_desc"))
       .addToggle((toggle) =>
@@ -428,9 +477,7 @@ export class TasksMapSettingTab extends PluginSettingTab {
     // Initialize preview
     updatePreview(this.plugin.settings.linkingStyle);
 
-    new Setting(containerEl)
-      .setHeading()
-      .setName(t("settings.note_tasks"));
+    new Setting(containerEl).setHeading().setName(t("settings.note_tasks"));
 
     new Setting(containerEl)
       .setName(t("settings.note_task_property_name"))

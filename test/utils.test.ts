@@ -15,6 +15,7 @@ import {
   addSignToTaskInFile,
   removeSignFromTaskInFile,
   extractTaskAttachments,
+  getVisibleTaskAttachments,
 } from "../src/lib/utils";
 import { NoteTask } from "../src/types/note-task";
 import { Vault } from "./mocks/obsidian";
@@ -364,6 +365,30 @@ describe("extractTaskAttachments", () => {
     ]);
   });
 
+  it("marks common image attachments as image kind", () => {
+    const taskFile = makeAttachmentFile("tasks/task.md");
+    const image = makeAttachmentFile("images/sketch.png");
+    const app = makeAttachmentApp({ [image.path]: image });
+
+    const attachments = extractTaskAttachments(
+      taskFile,
+      {
+        embeds: [{ link: "sketch.png", displayText: "Sketch" }],
+      },
+      app
+    );
+
+    expect(attachments).toEqual([
+      {
+        path: "images/sketch.png",
+        linktext: "sketch.png",
+        label: "Sketch",
+        kind: "image",
+        noteType: undefined,
+      },
+    ]);
+  });
+
   it.each(["task-card", "prompt-note", "copilot-conversation"])(
     "includes owned markdown notes of type %s",
     (noteType) => {
@@ -578,6 +603,36 @@ describe("estimateNodeDimensions", () => {
 
     expect(threeAttachments.height).toBeGreaterThan(oneAttachment.height);
   });
+
+  it("hides image attachments by default for sizing", () => {
+    const taskWithoutAttachments = makeTask({ attachments: [] });
+    const taskWithImageAttachment = makeTask({
+      attachments: [
+        {
+          path: "images/sketch.png",
+          linktext: "sketch.png",
+          label: "Sketch",
+          kind: "image",
+        },
+      ],
+    });
+
+    const withoutAttachments = estimateNodeDimensions(taskWithoutAttachments);
+    const withDefaultVisibility = estimateNodeDimensions(
+      taskWithImageAttachment
+    );
+    const withImageVisibility = estimateNodeDimensions(
+      taskWithImageAttachment,
+      true,
+      ["markdown", "pdf", "image", "file"]
+    );
+
+    expect(getVisibleTaskAttachments(taskWithImageAttachment)).toEqual([]);
+    expect(withDefaultVisibility).toEqual(withoutAttachments);
+    expect(withImageVisibility.height).toBeGreaterThan(
+      withoutAttachments.height
+    );
+  });
 });
 
 describe("createNodesFromTasks", () => {
@@ -615,6 +670,25 @@ describe("createNodesFromTasks", () => {
     expect(nodes[0].data.showPriorities).toBe(false);
     expect(nodes[0].data.showTags).toBe(false);
     expect(nodes[0].data.debugVisualization).toBe(true);
+  });
+
+  it("passes through visible attachment kinds", () => {
+    const task = makeTask();
+    const nodes = createNodesFromTasks(
+      [task],
+      "Horizontal",
+      true,
+      true,
+      false,
+      undefined,
+      true,
+      "rainbow",
+      undefined,
+      undefined,
+      ["markdown", "pdf"]
+    );
+
+    expect(nodes[0].data.visibleAttachmentKinds).toEqual(["markdown", "pdf"]);
   });
 });
 
@@ -701,8 +775,12 @@ describe("getLayoutedElements", () => {
       "y"
     );
 
-    expect(positionById.get("A")?.x).toBeLessThan(positionById.get("B")?.x || 0);
-    expect(positionById.get("C")?.x).toBeLessThan(positionById.get("D")?.x || 0);
+    expect(positionById.get("A")?.x).toBeLessThan(
+      positionById.get("B")?.x || 0
+    );
+    expect(positionById.get("C")?.x).toBeLessThan(
+      positionById.get("D")?.x || 0
+    );
     expect(Math.max(horizontalGap, verticalGap)).toBeGreaterThanOrEqual(100);
   });
 
@@ -732,8 +810,12 @@ describe("getLayoutedElements", () => {
       "y"
     );
 
-    expect(positionById.get("A")?.y).toBeLessThan(positionById.get("B")?.y || 0);
-    expect(positionById.get("C")?.y).toBeLessThan(positionById.get("D")?.y || 0);
+    expect(positionById.get("A")?.y).toBeLessThan(
+      positionById.get("B")?.y || 0
+    );
+    expect(positionById.get("C")?.y).toBeLessThan(
+      positionById.get("D")?.y || 0
+    );
     expect(Math.max(horizontalGap, verticalGap)).toBeGreaterThanOrEqual(100);
   });
 });
@@ -1010,7 +1092,9 @@ describe("removeSignFromTaskInFile", () => {
     const vault = makeVault("- [ ] Test task [id:: abc123]");
     const task = makeTask({ text: "Test task", link: "tasks/test.md" });
     await removeSignFromTaskInFile(vault as any, task, "id", "abc123");
-    expect(vault.getFileContent("tasks/test.md")).not.toContain("[id:: abc123]");
+    expect(vault.getFileContent("tasks/test.md")).not.toContain(
+      "[id:: abc123]"
+    );
   });
 
   it("removes individual stop sign", async () => {
@@ -1037,9 +1121,7 @@ describe("removeSignFromTaskInFile", () => {
   });
 
   it("removes one hash from dataview dependsOn, keeping others", async () => {
-    const vault = makeVault(
-      "- [ ] Test task [dependsOn:: abc123, def456]"
-    );
+    const vault = makeVault("- [ ] Test task [dependsOn:: abc123, def456]");
     const task = makeTask({ text: "Test task", link: "tasks/test.md" });
     await removeSignFromTaskInFile(vault as any, task, "stop", "abc123");
     const content = vault.getFileContent("tasks/test.md");
@@ -1106,6 +1188,57 @@ describe("getLayoutedElements with groupByProject=true", () => {
     );
     const taskNode = result.find((n) => n.id === "t1");
     expect(taskNode?.parentNode).toBeDefined();
+  });
+
+  it("left-aligns sibling task cards when one has attachments", () => {
+    const tasks = [
+      makeTask({ id: "parent", projects: ["Gamma"] }),
+      makeTask({
+        id: "child-with-attachments",
+        incomingLinks: ["parent"],
+        projects: ["Gamma"],
+        attachments: [
+          {
+            path: "cards/context.md",
+            linktext: "context",
+            label: "Context",
+            kind: "markdown",
+            noteType: "task-card",
+          },
+        ],
+      }),
+      makeTask({
+        id: "child-without-attachments",
+        incomingLinks: ["parent"],
+        projects: ["Gamma"],
+      }),
+    ];
+    const nodes = createNodesFromTasks(tasks);
+    const edges = createEdgesFromTasks(tasks, "Horizontal");
+    const result = getLayoutedElements(
+      nodes,
+      edges,
+      "Horizontal",
+      true,
+      true,
+      tasks
+    );
+    const withAttachments = result.find(
+      (n) => n.id === "child-with-attachments"
+    );
+    const withoutAttachments = result.find(
+      (n) => n.id === "child-without-attachments"
+    );
+
+    if (!withAttachments || !withoutAttachments) {
+      throw new Error("Expected sibling task nodes to be layouted");
+    }
+
+    expect(withAttachments.parentNode).toBe("project-group-Gamma");
+    expect(withoutAttachments.parentNode).toBe("project-group-Gamma");
+    expect(withAttachments.position.x).toBeCloseTo(
+      withoutAttachments.position.x
+    );
   });
 
   it("tasks with no project are not inside a group", () => {

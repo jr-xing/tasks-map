@@ -4,6 +4,7 @@ import { setTooltip } from "obsidian";
 import { Paperclip, Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
 import { BaseTask } from "src/types/task";
+import { TaskAttachmentKind } from "src/types/base-task";
 import { TaskDetails } from "./task-details";
 import { ExpandButton } from "./expand-button";
 import { LinkButton } from "./link-button";
@@ -20,6 +21,7 @@ import {
   addTagToTaskInVault,
   addStarToTaskInVault,
   removeStarFromTaskInVault,
+  getVisibleTaskAttachments,
 } from "../lib/utils";
 import { TagsContext } from "../contexts/context";
 import { t } from "../i18n";
@@ -64,6 +66,7 @@ interface TaskNodeData {
   showTags?: boolean;
   debugVisualization?: boolean;
   tagColorPalette?: import("src/lib/tag-color-manager").TagColorPalette;
+  visibleAttachmentKinds?: TaskAttachmentKind[];
   groupByProject?: boolean;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onDeleteTask?: (taskId: string) => void;
@@ -74,12 +77,17 @@ interface TaskNodeData {
 
 interface TaskAttachmentsProps {
   task: BaseTask;
+  visibleAttachmentKinds?: TaskAttachmentKind[];
 }
 
-function TaskAttachments({ task }: TaskAttachmentsProps) {
+function TaskAttachments({
+  task,
+  visibleAttachmentKinds,
+}: TaskAttachmentsProps) {
   const app = useApp();
+  const attachments = getVisibleTaskAttachments(task, visibleAttachmentKinds);
 
-  if (task.attachments.length === 0) return null;
+  if (attachments.length === 0) return null;
 
   const handleOpenAttachment = (
     event: React.MouseEvent<HTMLButtonElement>,
@@ -97,7 +105,7 @@ function TaskAttachments({ task }: TaskAttachmentsProps) {
 
   return (
     <div className="tasks-map-task-attachments nodrag">
-      {task.attachments.map((attachment) => (
+      {attachments.map((attachment) => (
         <div key={attachment.path} className="tasks-map-task-attachment-row">
           <Paperclip size={12} className="tasks-map-task-attachments-icon" />
           <button
@@ -122,6 +130,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     showTags = true,
     debugVisualization = false,
     tagColorPalette = "rainbow",
+    visibleAttachmentKinds,
     groupByProject = false,
     onDeleteTask,
     onTaskChanged,
@@ -273,9 +282,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             app={app}
             onTaskDeleted={() => onDeleteTask?.(task.id)}
             onTaskChanged={onTaskChanged}
-            onEditTask={
-              task.link ? () => onEditTask?.(task.link) : undefined
-            }
+            onEditTask={task.link ? () => onEditTask?.(task.link) : undefined}
           />
         </div>
 
@@ -345,7 +352,10 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           </div>
         )}
       </TaskBackground>
-      <TaskAttachments task={task} />
+      <TaskAttachments
+        task={task}
+        visibleAttachmentKinds={visibleAttachmentKinds}
+      />
     </div>
   );
 }
