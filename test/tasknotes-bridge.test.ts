@@ -22,6 +22,20 @@ function appWithTaskNotes(api: Record<string, unknown>): App {
   return app;
 }
 
+function makeNoteTask(path: string, text: string): NoteTask {
+  return new NoteTask({
+    id: path,
+    summary: text,
+    text,
+    tags: [],
+    status: "todo",
+    priority: "",
+    link: path,
+    incomingLinks: [],
+    starred: false,
+  });
+}
+
 describe("tasknotes bridge", () => {
   it("creates tasks through the official runtime API", async () => {
     const create = jest.fn().mockResolvedValue({
@@ -171,5 +185,107 @@ describe("tasknotes bridge", () => {
     expect(
       app.vault.getFileContent("TaskNotes/Tasks/Existing.md")
     ).not.toContain("urgent");
+  });
+
+  it("lets note-task dependency adds use the runtime API instead of YAML fallback", async () => {
+    const addDependency = jest.fn().mockResolvedValue({
+      path: "TaskNotes/Tasks/Existing.md",
+      title: "Existing",
+      status: "open",
+      priority: "normal",
+    });
+    const app = appWithTaskNotes({
+      apiVersion: 1,
+      hasCapability: () => true,
+      tasks: { create: jest.fn(), update: jest.fn(), addDependency },
+    });
+    app.vault.setFileContent(
+      "TaskNotes/Tasks/Existing.md",
+      "---\nstatus: open\n---\n# Existing"
+    );
+    const task = makeNoteTask("TaskNotes/Tasks/Existing.md", "Existing");
+    const dependency = makeNoteTask(
+      "TaskNotes/Tasks/Dependency.md",
+      "Dependency"
+    );
+
+    await task.addLinkMetadata(app.vault, dependency, "individual", app);
+
+    expect(addDependency).toHaveBeenCalledWith(
+      "TaskNotes/Tasks/Existing.md",
+      { uid: "[[Dependency]]", reltype: "FINISHTOSTART" },
+      { source: "tasks-map", reason: "Task Map added a dependency" }
+    );
+    expect(
+      app.vault.getFileContent("TaskNotes/Tasks/Existing.md")
+    ).not.toContain("blockedBy:");
+  });
+
+  it("lets note-task dependency removals use the runtime API instead of YAML fallback", async () => {
+    const removeDependency = jest.fn().mockResolvedValue({
+      path: "TaskNotes/Tasks/Existing.md",
+      title: "Existing",
+      status: "open",
+      priority: "normal",
+    });
+    const app = appWithTaskNotes({
+      apiVersion: 1,
+      hasCapability: () => true,
+      tasks: { create: jest.fn(), update: jest.fn(), removeDependency },
+    });
+    app.vault.setFileContent(
+      "TaskNotes/Tasks/Existing.md",
+      '---\nstatus: open\nblockedBy:\n  - uid: "[[Dependency]]"\n    reltype: FINISHTOSTART\n---\n# Existing'
+    );
+    const task = makeNoteTask("TaskNotes/Tasks/Existing.md", "Existing");
+
+    await task.removeLinkMetadata(
+      app.vault,
+      "TaskNotes/Tasks/Dependency.md",
+      app
+    );
+
+    expect(removeDependency).toHaveBeenCalledWith(
+      "TaskNotes/Tasks/Existing.md",
+      "[[Dependency]]",
+      { source: "tasks-map", reason: "Task Map removed a dependency" }
+    );
+    expect(app.vault.getFileContent("TaskNotes/Tasks/Existing.md")).toContain(
+      "blockedBy:"
+    );
+  });
+
+  it("falls back to YAML dependency writes when the runtime API fails", async () => {
+    const warn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const addDependency = jest
+      .fn()
+      .mockRejectedValue(new Error("TaskNotes API unavailable"));
+    const app = appWithTaskNotes({
+      apiVersion: 1,
+      hasCapability: () => true,
+      tasks: { create: jest.fn(), update: jest.fn(), addDependency },
+    });
+    app.vault.setFileContent(
+      "TaskNotes/Tasks/Existing.md",
+      "---\nstatus: open\n---\n# Existing"
+    );
+    const task = makeNoteTask("TaskNotes/Tasks/Existing.md", "Existing");
+    const dependency = makeNoteTask(
+      "TaskNotes/Tasks/Dependency.md",
+      "Dependency"
+    );
+
+    await task.addLinkMetadata(app.vault, dependency, "individual", app);
+
+    expect(addDependency).toHaveBeenCalled();
+    expect(app.vault.getFileContent("TaskNotes/Tasks/Existing.md")).toContain(
+      "blockedBy:"
+    );
+    expect(app.vault.getFileContent("TaskNotes/Tasks/Existing.md")).toContain(
+      '  - uid: "[[Dependency]]"'
+    );
+    warn.mockRestore();
   });
 });

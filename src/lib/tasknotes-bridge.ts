@@ -100,6 +100,16 @@ interface TaskNotesRuntimeTasksApi {
     _project: string,
     _context?: TaskNotesMutationContext
   ): Promise<TaskNotesTaskInfo>;
+  addDependency?(
+    _path: string,
+    _dependency: TaskNotesTaskDependency,
+    _context?: TaskNotesMutationContext
+  ): Promise<TaskNotesTaskInfo>;
+  removeDependency?(
+    _path: string,
+    _uid: string,
+    _context?: TaskNotesMutationContext
+  ): Promise<TaskNotesTaskInfo>;
 }
 
 interface TaskNotesRuntimeCatalogApi {
@@ -641,6 +651,50 @@ export async function addTaskNotesProject(
     return true;
   } catch (error) {
     console.warn("TaskNotes runtime project add failed:", error);
+    return false;
+  }
+}
+
+export async function addTaskNotesDependency(
+  app: App,
+  taskPath: string,
+  dependency: TaskNotesTaskDependency
+): Promise<boolean> {
+  const api = getTaskNotesApi(app);
+  if (!api || !hasTaskWrite(api)) return false;
+
+  try {
+    if (typeof api.tasks?.addDependency !== "function") return false;
+    await api.tasks.addDependency(
+      taskPath,
+      dependency,
+      mutationContext("Task Map added a dependency")
+    );
+    return true;
+  } catch (error) {
+    console.warn("TaskNotes runtime dependency add failed:", error);
+    return false;
+  }
+}
+
+export async function removeTaskNotesDependency(
+  app: App,
+  taskPath: string,
+  uid: string
+): Promise<boolean> {
+  const api = getTaskNotesApi(app);
+  if (!api || !hasTaskWrite(api)) return false;
+
+  try {
+    if (typeof api.tasks?.removeDependency !== "function") return false;
+    await api.tasks.removeDependency(
+      taskPath,
+      uid,
+      mutationContext("Task Map removed a dependency")
+    );
+    return true;
+  } catch (error) {
+    console.warn("TaskNotes runtime dependency removal failed:", error);
     return false;
   }
 }

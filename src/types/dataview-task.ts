@@ -40,8 +40,7 @@ export class DataviewTask extends BaseTask {
     const file = vault.getFileByPath(this.link);
     if (!file) return;
 
-    const checkboxChar =
-      getStatusById(newStatus, statuses).checkboxChar || " ";
+    const checkboxChar = getStatusById(newStatus, statuses).checkboxChar || " ";
 
     await vault.process(file, (fileContent) => {
       const lines = fileContent.split(/\r?\n/);
@@ -296,14 +295,19 @@ export class DataviewTask extends BaseTask {
   async addLinkMetadata(
     vault: Vault,
     fromTask: BaseTask,
-    linkingStyle: "individual" | "csv" | "dataview" = "individual"
+    linkingStyle: "individual" | "csv" | "dataview" = "individual",
+    _app?: App
   ): Promise<void> {
     const id = fromTask.id;
     await addSignToTaskInFile(vault, fromTask, "id", id, linkingStyle);
     await addSignToTaskInFile(vault, this, "stop", id, linkingStyle);
   }
 
-  async removeLinkMetadata(vault: Vault, hash: string): Promise<void> {
+  async removeLinkMetadata(
+    vault: Vault,
+    hash: string,
+    _app?: App
+  ): Promise<void> {
     await removeSignFromTaskInFile(vault, this, "stop", hash);
   }
 }

@@ -8,9 +8,11 @@ import {
   getStatusById,
 } from "../lib/status-config";
 import {
+  addTaskNotesDependency,
   addTaskNotesProject,
   addTaskNotesTag,
   deleteTaskNotesTask,
+  removeTaskNotesDependency,
   removeTaskNotesTag,
   updateTaskNotesStatus,
 } from "../lib/tasknotes-bridge";
@@ -329,11 +331,41 @@ export class NoteTask extends BaseTask {
     });
   }
 
-  async addLinkMetadata(vault: Vault, fromTask: BaseTask): Promise<void> {
+  async addLinkMetadata(
+    vault: Vault,
+    fromTask: BaseTask,
+    _linkingStyle: "individual" | "csv" | "dataview" = "individual",
+    app?: App
+  ): Promise<void> {
+    if (
+      app &&
+      (await addTaskNotesDependency(app, this.link, {
+        uid: this.dependencyUidFromTask(fromTask),
+        reltype: "FINISHTOSTART",
+      }))
+    ) {
+      return;
+    }
+
     await this.addDependencyToFrontmatter(vault, fromTask);
   }
 
-  async removeLinkMetadata(vault: Vault, fromTaskId: string): Promise<void> {
+  async removeLinkMetadata(
+    vault: Vault,
+    fromTaskId: string,
+    app?: App
+  ): Promise<void> {
+    if (
+      app &&
+      (await removeTaskNotesDependency(
+        app,
+        this.link,
+        this.dependencyUidFromTaskId(fromTaskId)
+      ))
+    ) {
+      return;
+    }
+
     await this.removeDependencyFromFrontmatter(vault, fromTaskId);
   }
 
@@ -358,6 +390,22 @@ export class NoteTask extends BaseTask {
     }
 
     return { frontmatterStart, frontmatterEnd };
+  }
+
+  private dependencyUidFromTask(fromTask: BaseTask): string {
+    const taskName =
+      fromTask.text || fromTask.id.split("/").pop()?.replace(/\.md$/, "") || "";
+    return `[[${taskName}]]`;
+  }
+
+  private dependencyUidFromTaskId(fromTaskId: string): string {
+    let taskNameToRemove = fromTaskId;
+    if (fromTaskId.includes("/") || fromTaskId.endsWith(".md")) {
+      taskNameToRemove =
+        fromTaskId.split("/").pop()?.replace(/\.md$/, "") || fromTaskId;
+    }
+
+    return `[[${taskNameToRemove}]]`;
   }
 
   /**
@@ -389,12 +437,7 @@ export class NoteTask extends BaseTask {
       // Parse YAML into an object
       const frontmatterData = parseYaml(frontmatterYaml) || {};
 
-      // Extract task name from path (e.g., "TaskNotes/Tasks/Task2.md" -> "Task2")
-      const taskName =
-        fromTask.text ||
-        fromTask.id.split("/").pop()?.replace(/\.md$/, "") ||
-        "";
-      const uidValue = `[[${taskName}]]`;
+      const uidValue = this.dependencyUidFromTask(fromTask);
 
       // Ensure blockedBy array exists
       if (!frontmatterData.blockedBy) {
@@ -450,15 +493,7 @@ export class NoteTask extends BaseTask {
       // Parse YAML into an object
       const frontmatterData = parseYaml(frontmatterYaml) || {};
 
-      // Extract task name from the path (e.g., "TaskNotes/Tasks/Task2.md" -> "Task2")
-      // The fromTaskId might be a full path or just a task name
-      let taskNameToRemove = fromTaskId;
-      if (fromTaskId.includes("/") || fromTaskId.endsWith(".md")) {
-        taskNameToRemove =
-          fromTaskId.split("/").pop()?.replace(/\.md$/, "") || fromTaskId;
-      }
-
-      const uidToRemove = `[[${taskNameToRemove}]]`;
+      const uidToRemove = this.dependencyUidFromTaskId(fromTaskId);
 
       // Remove the dependency from blockedBy array
       if (Array.isArray(frontmatterData.blockedBy)) {

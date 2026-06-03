@@ -727,11 +727,11 @@ export default function TaskMapGraphView({
     if (!sourceTask || !targetTask) return;
 
     if (vault) {
-      await removeLinkSignsBetweenTasks(vault, targetTask, sourceTask.id);
+      await removeLinkSignsBetweenTasks(vault, targetTask, sourceTask.id, app);
       setEdges((eds) => eds.filter((e) => e.id !== selectedEdge));
       setSelectedEdge(null);
     }
-  }, [selectedEdge, edges, tasks, vault, setEdges]);
+  }, [app, selectedEdge, edges, tasks, vault, setEdges]);
 
   const onConnect = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ReactFlow Connection type is not exported
@@ -754,7 +754,8 @@ export default function TaskMapGraphView({
         vault,
         sourceTask,
         targetTask,
-        settings.linkingStyle
+        settings.linkingStyle,
+        app
       );
       if (hash) {
         setEdges((eds) =>
@@ -775,6 +776,7 @@ export default function TaskMapGraphView({
     },
     [
       vault,
+      app,
       tasks,
       setEdges,
       settings.layoutDirection,
@@ -841,14 +843,16 @@ export default function TaskMapGraphView({
             vault,
             anchorTask,
             newTask,
-            settings.linkingStyle
+            settings.linkingStyle,
+            app
           );
         } else {
           await addLinkSignsBetweenTasks(
             vault,
             newTask,
             anchorTask,
-            settings.linkingStyle
+            settings.linkingStyle,
+            app
           );
         }
 

@@ -9,10 +9,7 @@ import { TaskFactory } from "./task-factory";
 import { Position, Node, Edge } from "reactflow";
 import { t } from "../i18n";
 import { TagColorPalette } from "./tag-color-manager";
-import {
-  TaskStatusConfig,
-  DEFAULT_TASK_STATUSES,
-} from "./status-config";
+import { TaskStatusConfig, DEFAULT_TASK_STATUSES } from "./status-config";
 
 const validDateTypes = [
   "due",
@@ -981,14 +978,15 @@ export async function addLinkSignsBetweenTasks(
   vault: Vault,
   fromTask: BaseTask,
   toTask: BaseTask,
-  linkingStyle: "individual" | "csv" | "dataview" = "individual"
+  linkingStyle: "individual" | "csv" | "dataview" = "individual",
+  app?: App
 ): Promise<string | undefined> {
   if (!fromTask.link || !toTask.link) return undefined;
 
   const id = fromTask.id;
 
   // Use polymorphism - each task type handles its own linking logic
-  await toTask.addLinkMetadata(vault, fromTask, linkingStyle);
+  await toTask.addLinkMetadata(vault, fromTask, linkingStyle, app);
 
   return id + "-" + toTask.id;
 }
@@ -1130,12 +1128,13 @@ export async function addSignToTaskInFile(
 export async function removeLinkSignsBetweenTasks(
   vault: Vault,
   toTask: BaseTask,
-  hash: string
+  hash: string,
+  app?: App
 ): Promise<void> {
   if (!toTask.link) return;
 
   // Use polymorphism - each task type handles its own link removal logic
-  await toTask.removeLinkMetadata(vault, hash);
+  await toTask.removeLinkMetadata(vault, hash, app);
 }
 
 export async function removeSignFromTaskInFile(
@@ -1357,13 +1356,7 @@ export function getNoteTasks(
     }
 
     // Parse the note as a task
-    const task = parseTaskNote(
-      file,
-      cache,
-      app,
-      dependencyProperty,
-      statuses
-    );
+    const task = parseTaskNote(file, cache, app, dependencyProperty, statuses);
     if (task) {
       tasks.push(task);
     }

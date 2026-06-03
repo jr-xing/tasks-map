@@ -94,13 +94,18 @@ export abstract class BaseTask {
   abstract addLinkMetadata(
     _vault: Vault,
     _fromTask: BaseTask,
-    _linkingStyle: "individual" | "csv" | "dataview"
+    _linkingStyle: "individual" | "csv" | "dataview",
+    _app?: App
   ): Promise<void>;
 
   /**
    * Remove link metadata from this task (for removing dependencies)
    */
-  abstract removeLinkMetadata(_vault: Vault, _hash: string): Promise<void>;
+  abstract removeLinkMetadata(
+    _vault: Vault,
+    _hash: string,
+    _app?: App
+  ): Promise<void>;
 
   /**
    * Convert to plain object for serialization/compatibility
