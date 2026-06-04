@@ -330,7 +330,7 @@ If your plugin does not need CSS, delete this file.
   border-left: 1px solid var(--tasks-map-node-divider);
   border-radius: 0;
   box-shadow: none;
-  background: var(--tasks-map-node-bg);
+  background: transparent;
   cursor: pointer;
   flex-shrink: 0;
   color: var(--text-muted);
@@ -2423,6 +2423,39 @@ If your plugin does not need CSS, delete this file.
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tasks-map-project-group-label-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tasks-map-graph-container .tasks-map-project-group-create {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tasks-map-graph-container .tasks-map-project-group-create:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  box-shadow: none;
 }
 
 /* ── Multi-project dots on task nodes ───────────────────────────────────── */

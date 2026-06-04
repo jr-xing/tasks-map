@@ -157,6 +157,7 @@ interface TaskNotesSettings {
   taskTag?: string;
   taskPropertyName?: string;
   taskPropertyValue?: string;
+  useFrontmatterMarkdownLinks?: boolean;
 }
 
 interface TaskNotesPluginInstance {
@@ -168,6 +169,7 @@ interface TaskNotesPluginInstance {
     _task: TaskNotesTaskInfo,
     _onTaskUpdated?: (_task: TaskNotesTaskInfo) => void
   ): Promise<void>;
+  openTaskCreationModal?(_prePopulatedValues?: TaskNotesTaskCreationData): void;
 }
 
 /** Obsidian's `App.plugins` registry is not part of the public typings. */
@@ -230,6 +232,10 @@ export function getTaskNotesApi(app: App): TaskNotesRuntimeApi | null {
 /** Whether the TaskNotes plugin is available for Task Map integration. */
 export function isTaskNotesAvailable(app: App): boolean {
   return getTaskNotesPlugin(app) !== null;
+}
+
+export function isTaskNotesCreationModalAvailable(app: App): boolean {
+  return typeof getTaskNotesPlugin(app)?.openTaskCreationModal === "function";
 }
 
 function frontmatterListIncludes(value: unknown, expected: string): boolean {
@@ -324,6 +330,85 @@ export async function openTaskNotesEditModal(
   } catch (error) {
     console.error("Failed to open TaskNotes edit modal:", error);
     new Notice("Failed to open the TaskNotes task editor.");
+    return false;
+  }
+}
+
+function getTaskNotesSettings(
+  plugin: TaskNotesPluginInstance
+): TaskNotesSettings | undefined {
+  return plugin.api?.settings?.snapshot?.() ?? plugin.settings;
+}
+
+function buildTaskNotesProjectLink(
+  app: App,
+  plugin: TaskNotesPluginInstance,
+  file: TFile,
+  sourcePath: string
+): string {
+  const settings = getTaskNotesSettings(plugin);
+  if (settings?.useFrontmatterMarkdownLinks) {
+    return app.fileManager.generateMarkdownLink(file, sourcePath);
+  }
+
+  const linktext = app.metadataCache.fileToLinktext(file, sourcePath, true);
+  return `[[${linktext}]]`;
+}
+
+/**
+ * Open TaskNotes' native task creation modal with the current task note
+ * pre-filled as the new task's project.
+ */
+export function openTaskNotesProjectTaskCreationModal(
+  app: App,
+  parentTaskPath: string
+): boolean {
+  const plugin = getTaskNotesPlugin(app);
+  if (!plugin || typeof plugin.openTaskCreationModal !== "function") {
+    new Notice("TaskNotes plugin is not available.");
+    return false;
+  }
+
+  const file = app.vault.getAbstractFileByPath(parentTaskPath);
+  if (!(file instanceof TFile)) {
+    new Notice("This note is not a TaskNotes task.");
+    return false;
+  }
+
+  try {
+    return openTaskNotesTaskCreationModalForProject(
+      app,
+      buildTaskNotesProjectLink(app, plugin, file, parentTaskPath)
+    );
+  } catch (error) {
+    console.error("Failed to open TaskNotes task creation modal:", error);
+    new Notice("Failed to open the TaskNotes task creator.");
+    return false;
+  }
+}
+
+export function openTaskNotesTaskCreationModalForProject(
+  app: App,
+  project: string
+): boolean {
+  const plugin = getTaskNotesPlugin(app);
+  if (!plugin || typeof plugin.openTaskCreationModal !== "function") {
+    new Notice("TaskNotes plugin is not available.");
+    return false;
+  }
+
+  const trimmedProject = project.trim();
+  if (!trimmedProject) {
+    new Notice("This project cannot be used to create a task.");
+    return false;
+  }
+
+  try {
+    plugin.openTaskCreationModal({ projects: [trimmedProject] });
+    return true;
+  } catch (error) {
+    console.error("Failed to open TaskNotes task creation modal:", error);
+    new Notice("Failed to open the TaskNotes task creator.");
     return false;
   }
 }

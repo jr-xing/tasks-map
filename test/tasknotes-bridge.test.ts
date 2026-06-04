@@ -2,22 +2,37 @@ import { App } from "./mocks/obsidian";
 import {
   createTaskNotesTask,
   getTaskNotesConfig,
+  openTaskNotesProjectTaskCreationModal,
+  openTaskNotesTaskCreationModalForProject,
   updateTaskNotesTask,
 } from "../src/lib/tasknotes-bridge";
 import { NoteTask } from "../src/types/note-task";
 
-function appWithTaskNotes(api: Record<string, unknown>): App {
+function appWithTaskNotes(
+  api: Record<string, unknown>,
+  pluginExtras: Record<string, unknown> = {}
+): App {
   const app = new App() as App & {
     plugins: { getPlugin: (_id: string) => unknown };
     metadataCache: {
       getFileCache: () => { frontmatter: Record<string, unknown> };
+      fileToLinktext: (_file: unknown, _sourcePath: string) => string;
+    };
+    fileManager: {
+      generateMarkdownLink: (_file: unknown, _sourcePath: string) => string;
     };
   };
   app.plugins = {
-    getPlugin: (id: string) => (id === "tasknotes" ? { api } : null),
+    getPlugin: (id: string) =>
+      id === "tasknotes" ? { api, ...pluginExtras } : null,
   };
   app.metadataCache = {
     getFileCache: () => ({ frontmatter: { tags: ["task"] } }),
+    fileToLinktext: (file: { basename?: string }) => file.basename ?? "Task",
+  };
+  app.fileManager = {
+    generateMarkdownLink: (file: { basename?: string }) =>
+      `[${file.basename ?? "Task"}](${file.basename ?? "Task"}.md)`,
   };
   return app;
 }
@@ -37,6 +52,97 @@ function makeNoteTask(path: string, text: string): NoteTask {
 }
 
 describe("tasknotes bridge", () => {
+  it("opens TaskNotes creation modal with the current note as project", () => {
+    const openTaskCreationModal = jest.fn();
+    const app = appWithTaskNotes(
+      {
+        apiVersion: 1,
+        tasks: { create: jest.fn(), update: jest.fn() },
+      },
+      { openTaskCreationModal }
+    );
+    app.vault.setFileContent("TaskNotes/Tasks/Parent.md", "");
+
+    const opened = openTaskNotesProjectTaskCreationModal(
+      app,
+      "TaskNotes/Tasks/Parent.md"
+    );
+
+    expect(opened).toBe(true);
+    expect(openTaskCreationModal).toHaveBeenCalledWith({
+      projects: ["[[Parent]]"],
+    });
+  });
+
+  it("opens TaskNotes creation modal with a raw project value", () => {
+    const openTaskCreationModal = jest.fn();
+    const app = appWithTaskNotes(
+      {
+        apiVersion: 1,
+        tasks: { create: jest.fn(), update: jest.fn() },
+      },
+      { openTaskCreationModal }
+    );
+
+    const opened = openTaskNotesTaskCreationModalForProject(app, " Alpha ");
+
+    expect(opened).toBe(true);
+    expect(openTaskCreationModal).toHaveBeenCalledWith({
+      projects: ["Alpha"],
+    });
+  });
+
+  it("uses markdown project links when TaskNotes settings request them", () => {
+    const openTaskCreationModal = jest.fn();
+    const app = appWithTaskNotes(
+      {
+        apiVersion: 1,
+        tasks: { create: jest.fn(), update: jest.fn() },
+        settings: {
+          snapshot: () => ({ useFrontmatterMarkdownLinks: true }),
+        },
+      },
+      { openTaskCreationModal }
+    );
+    app.vault.setFileContent("TaskNotes/Tasks/Parent.md", "");
+
+    openTaskNotesProjectTaskCreationModal(app, "TaskNotes/Tasks/Parent.md");
+
+    expect(openTaskCreationModal).toHaveBeenCalledWith({
+      projects: ["[Parent](Parent.md)"],
+    });
+  });
+
+  it("does not open TaskNotes creation modal for a missing parent file", () => {
+    const openTaskCreationModal = jest.fn();
+    const app = appWithTaskNotes(
+      {
+        apiVersion: 1,
+        tasks: { create: jest.fn(), update: jest.fn() },
+      },
+      { openTaskCreationModal }
+    );
+
+    const opened = openTaskNotesProjectTaskCreationModal(
+      app,
+      "TaskNotes/Tasks/Missing.md"
+    );
+
+    expect(opened).toBe(false);
+    expect(openTaskCreationModal).not.toHaveBeenCalled();
+  });
+
+  it("does not open TaskNotes creation modal when TaskNotes is unavailable", () => {
+    const app = new App();
+
+    const opened = openTaskNotesProjectTaskCreationModal(
+      app,
+      "TaskNotes/Tasks/Parent.md"
+    );
+
+    expect(opened).toBe(false);
+  });
+
   it("creates tasks through the official runtime API", async () => {
     const create = jest.fn().mockResolvedValue({
       path: "TaskNotes/Tasks/New.md",

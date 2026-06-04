@@ -33,6 +33,10 @@ function stripLinkFragment(linktext: string): string {
   return linktext.split("#")[0].trim();
 }
 
+interface OpenFileInObsidianOptions {
+  openInNewTab?: boolean;
+}
+
 /**
  * Open an Obsidian file/link, reusing an existing leaf when possible.
  */
@@ -40,13 +44,20 @@ export async function openFileInObsidian(
   app: App,
   filePath: string,
   linktext: string = filePath,
-  sourcePath: string = ""
+  sourcePath: string = "",
+  options: OpenFileInObsidianOptions = {}
 ): Promise<void> {
   const resolvedFile = app.metadataCache.getFirstLinkpathDest(
     stripLinkFragment(linktext),
     sourcePath
   );
   const targetPath = resolvedFile?.path || filePath;
+
+  if (options.openInNewTab) {
+    await app.workspace.openLinkText(linktext, sourcePath, true);
+    return;
+  }
+
   const existingLeaf = findLeafWithFile(app, targetPath);
 
   if (existingLeaf) {

@@ -4,12 +4,11 @@ import {
   Trash2,
   SquareArrowOutUpRight,
   PanelRight,
+  SquarePen,
 } from "lucide-react";
 import { App } from "obsidian";
 import { BaseTask } from "src/types/task";
-import { CirclePlus, SquarePen } from "lucide-react";
 import {
-  addTaskLineToVault,
   deleteTaskFromVault,
   findTaskLineByIdOrText,
   getTasksApi,
@@ -66,29 +65,6 @@ const TaskMenu = ({
     e.preventDefault();
     e.stopPropagation();
     setIsOpen(!isOpen);
-  };
-
-  const handleCreate = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    setIsOpen(false);
-
-    const tasksApi = getTasksApi(app);
-    if (!tasksApi) {
-      console.error("Tasks plugin not found or API not available");
-      return;
-    }
-
-    const taskLine = await tasksApi.createTaskLineModal();
-    if (!taskLine?.trim()) {
-      return;
-    }
-
-    // Do whatever you want with the returned value.
-    // It's just a string containing the Markdown for the task.
-    // console.log(taskLine);
-    await addTaskLineToVault(task, taskLine, app);
   };
 
   const handleEdit = async (e: React.MouseEvent) => {
@@ -193,13 +169,6 @@ const TaskMenu = ({
 
       {isOpen && (
         <div className="tasks-map-task-menu-dropdown">
-          <button
-            className="tasks-map-task-menu-item"
-            onClick={(e) => void handleCreate(e)}
-          >
-            <CirclePlus size={12} />
-            <span>Create task</span>
-          </button>
           <button
             className="tasks-map-task-menu-item"
             onClick={(e) => void handleEdit(e)}

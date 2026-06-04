@@ -203,6 +203,10 @@
   "attachments": {
     "open": "Open attachment: {{attachment}}"
   },
+  "task_node": {
+    "create_project_task": "Create task in this project",
+    "open_note": "Open note (Ctrl-click for new tab)"
+  },
   "task_editor": {
     "create_title": "New task",
     "edit_title": "Edit task",

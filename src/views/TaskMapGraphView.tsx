@@ -33,6 +33,7 @@ import {
   isTaskNotesTaskFile,
   isTaskNotesEditorAvailable,
 } from "src/lib/tasknotes-bridge";
+import { isTaskNodeHeaderEventTarget } from "src/lib/task-node-events";
 import TaskEditorPanel from "src/components/task-editor-panel";
 import { NoteTask } from "src/types/note-task";
 import GuiOverlay from "src/components/gui-overlay";
@@ -619,6 +620,7 @@ export default function TaskMapGraphView({
   // (ReactFlow zoom-on-double-click).
   const onNodeDoubleClick = useCallback<NodeMouseHandler>(
     (event, node) => {
+      if (isTaskNodeHeaderEventTarget(event.target)) return;
       if (node.type !== "task") return;
       const task = (node.data as TaskNodeData | undefined)?.task;
       if (!task || task.type !== "note" || !task.link) return;

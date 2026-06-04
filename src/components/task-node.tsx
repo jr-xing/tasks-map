@@ -1,7 +1,7 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import { setTooltip } from "obsidian";
-import { Paperclip, Plus } from "lucide-react";
+import { CirclePlus, Paperclip, Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
 import { BaseTask } from "src/types/task";
 import { TaskAttachmentKind } from "src/types/base-task";
@@ -26,6 +26,10 @@ import {
 import { TagsContext } from "../contexts/context";
 import { t } from "../i18n";
 import { openFileInObsidian } from "../lib/open-file";
+import {
+  isTaskNotesCreationModalAvailable,
+  openTaskNotesProjectTaskCreationModal,
+} from "../lib/tasknotes-bridge";
 
 export const NODEWIDTH = 250;
 
@@ -253,6 +257,26 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     }
   };
 
+  const canCreateTaskNotesProjectTask =
+    task.type === "note" &&
+    !!task.link &&
+    isTaskNotesCreationModalAvailable(app);
+
+  const handleCreateTask = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!task.link) return;
+      openTaskNotesProjectTaskCreationModal(app, task.link);
+    },
+    [app, task.link]
+  );
+
+  const handleHeaderDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   return (
     <div className="tasks-map-task-node-shell">
       <TaskBackground
@@ -264,7 +288,10 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       >
         <Handle type="target" position={targetPosition} />
         <Handle type="source" position={sourcePosition} />
-        <div className="tasks-map-task-node-header">
+        <div
+          className="tasks-map-task-node-header"
+          onDoubleClick={handleHeaderDoubleClick}
+        >
           <TaskStatusToggle
             status={status}
             task={task}
@@ -276,6 +303,17 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             starred={starred}
             onClick={() => void handleStarToggle()}
           />
+          {canCreateTaskNotesProjectTask && (
+            <button
+              type="button"
+              className="tasks-map-task-node-header-button nodrag"
+              title={t("task_node.create_project_task")}
+              aria-label={t("task_node.create_project_task")}
+              onClick={handleCreateTask}
+            >
+              <CirclePlus size={16} />
+            </button>
+          )}
           <LinkButton link={task.link} app={app} taskStatus={status} />
           <TaskMenu
             task={task}
