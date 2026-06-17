@@ -8,17 +8,26 @@ import { checkDataviewPlugin } from "../lib/utils";
 import TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState, DEFAULT_FILTER_STATE } from "src/types/filter-state";
+import { TaskMapFocusRequest } from "src/types/focus-request";
 import { t } from "../i18n";
 
 // Wrapper component that manages settings updates and filter state for the graph view
 function TaskMapGraphWrapper({
   pluginSettings,
   plugin,
+  initialFocusRequest,
   onFilterStateChange,
+  onFocusRequestHandled,
+  onFocusRequestHandlerChange,
 }: {
   pluginSettings: TasksMapSettings;
   plugin: TasksMapPlugin;
+  initialFocusRequest: TaskMapFocusRequest | null;
   onFilterStateChange: (_state: FilterState) => void;
+  onFocusRequestHandled: () => void;
+  onFocusRequestHandlerChange: (
+    _handler: ((_request: TaskMapFocusRequest) => void) | null
+  ) => void;
 }) {
   const [settings, setSettings] = useState<TasksMapSettings>({
     ...pluginSettings,
@@ -37,6 +46,15 @@ function TaskMapGraphWrapper({
     ...DEFAULT_FILTER_STATE,
     selectedStatuses: [...(plugin.settings.defaultStatusFilter ?? [])],
   }));
+  const [focusRequest, setFocusRequest] =
+    useState<TaskMapFocusRequest | null>(initialFocusRequest);
+
+  useEffect(() => {
+    onFocusRequestHandlerChange((request) => {
+      setFocusRequest({ ...request });
+    });
+    return () => onFocusRequestHandlerChange(null);
+  }, [onFocusRequestHandlerChange]);
 
   const handleSetFilterState = useCallback(
     (state: FilterState | ((_prev: FilterState) => FilterState)) => {
@@ -56,6 +74,11 @@ function TaskMapGraphWrapper({
         filterState={filterState}
         setFilterState={handleSetFilterState}
         plugin={plugin}
+        focusRequest={focusRequest}
+        onFocusRequestHandled={() => {
+          setFocusRequest(null);
+          onFocusRequestHandled();
+        }}
       />
     </ReactFlowProvider>
   );
@@ -67,6 +90,9 @@ export default class TaskMapGraphItemView extends ItemView {
   root: Root | null = null;
   private filterState: FilterState = { ...DEFAULT_FILTER_STATE };
   private plugin: TasksMapPlugin;
+  private focusRequest: TaskMapFocusRequest | null = null;
+  private focusRequestHandler: ((_request: TaskMapFocusRequest) => void) | null =
+    null;
 
   constructor(leaf: WorkspaceLeaf, plugin: TasksMapPlugin) {
     super(leaf);
@@ -84,6 +110,11 @@ export default class TaskMapGraphItemView extends ItemView {
   /** Returns the current filter state of the open Tasks Map view. */
   getFilterState(): FilterState {
     return structuredClone(this.filterState);
+  }
+
+  focus(request: TaskMapFocusRequest): void {
+    this.focusRequest = request;
+    this.focusRequestHandler?.(request);
   }
 
   async onOpen() {
@@ -116,8 +147,15 @@ export default class TaskMapGraphItemView extends ItemView {
         <TaskMapGraphWrapper
           pluginSettings={this.plugin.settings}
           plugin={this.plugin}
+          initialFocusRequest={this.focusRequest}
           onFilterStateChange={(state) => {
             this.filterState = state;
+          }}
+          onFocusRequestHandled={() => {
+            this.focusRequest = null;
+          }}
+          onFocusRequestHandlerChange={(handler) => {
+            this.focusRequestHandler = handler;
           }}
         />
       </AppContext.Provider>
@@ -125,6 +163,7 @@ export default class TaskMapGraphItemView extends ItemView {
   }
 
   async onClose() {
+    this.focusRequestHandler = null;
     this.root?.unmount();
   }
 }

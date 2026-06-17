@@ -227,6 +227,30 @@ describe("filterStateFromSource", () => {
       if (result.kind !== "ok") return;
       expect(result.filter.selectedStatuses).toEqual(["todo", "done"]);
     });
+
+    it("accepts a valid selectedProjects array", () => {
+      const source = JSON.stringify({
+        filter: { selectedProjects: ["Alpha", "Beta"] },
+        config: {},
+      });
+      const result = filterStateFromSource(source);
+      expect(result.kind).toBe("ok");
+      if (result.kind !== "ok") return;
+      expect(result.filter.selectedProjects).toEqual(["Alpha", "Beta"]);
+    });
+
+    it("falls back to default selectedProjects when array contains a non-string", () => {
+      const source = JSON.stringify({
+        filter: { selectedProjects: ["Alpha", 42] },
+        config: {},
+      });
+      const result = filterStateFromSource(source);
+      expect(result.kind).toBe("ok");
+      if (result.kind !== "ok") return;
+      expect(result.filter.selectedProjects).toEqual(
+        DEFAULT_FILTER_STATE.selectedProjects
+      );
+    });
   });
 
   describe("edge cases", () => {

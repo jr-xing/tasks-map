@@ -1024,6 +1024,49 @@ If your plugin does not need CSS, delete this file.
   line-height: 1.3;
 }
 
+.tasks-map-focus-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+}
+
+.tasks-map-focus-suggestion__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tasks-map-focus-suggestion__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.tasks-map-focus-suggestion__type {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+
+.tasks-map-focus-suggestion__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .tasks-map-filter-actions {
   margin-top: 12px;
   padding-top: 12px;

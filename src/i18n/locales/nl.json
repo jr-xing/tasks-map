@@ -5,6 +5,7 @@
   },
   "commands": {
     "open_map_view": "Kaartweergave openen",
+    "focus_project_or_task": "Project of taak in kaart focussen",
     "insert_filter_as_code_block": "Huidig filter invoegen als ingesloten Taken Kaart"
   },
   "ribbon": {
@@ -103,6 +104,7 @@
     "include_labels": "Labels opnemen",
     "exclude_labels": "Labels uitsluiten",
     "files_folders": "Bestanden / Mappen",
+    "projects": "Projecten",
     "hide_tags_on_nodes": "Tags op knooppunten verbergen",
     "hide_unlinked_tasks": "Niet-gekoppelde taken verbergen",
     "reload_tasks": "Taken opnieuw laden",
@@ -110,6 +112,7 @@
     "minimize_filters": "Filters minimaliseren",
     "filter_by_status": "Filteren op status...",
     "filter_by_file": "Filteren op bestand of map...",
+    "filter_by_project": "Filteren op project...",
     "status_todo": "Te doen",
     "status_in_progress": "Bezig",
     "status_done": "Klaar",
@@ -117,6 +120,13 @@
     "status_total": "Totaal",
     "only_starred": "Alleen gemarkeerd",
     "title": "Filters"
+  },
+  "focus_picker": {
+    "placeholder": "Project of taak focussen...",
+    "project": "Project",
+    "task": "Taak",
+    "project_detail": "{{count}} taak/taken",
+    "no_items": "Geen focusbare projectboomtaken gevonden."
   },
   "controls": {
     "title": "Weergave",

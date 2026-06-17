@@ -6,8 +6,24 @@ import {
   Crosshair,
   X,
 } from "lucide-react";
+import {
+  buildProjectTree,
+  filterProjectTree,
+  getProjectTreeDepth,
+  getTaskTreeLabel,
+  getTreePathRootId,
+  TreeNode,
+} from "src/lib/project-tree";
 import { BaseTask } from "src/types/task";
 import { t } from "../i18n";
+
+export {
+  buildProjectTree,
+  filterProjectTree,
+  getProjectTreeDepth,
+  getTreePathRootId,
+};
+export type { TreeNode };
 
 interface ProjectTreePanelProps {
   tasks: BaseTask[];
@@ -18,92 +34,6 @@ interface ProjectTreePanelProps {
   onTaskClick: (taskId: string, rootTaskId: string) => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onTaskFocus: (taskId: string) => void;
-}
-
-export interface TreeNode {
-  task: BaseTask;
-  children: TreeNode[];
-}
-
-const labelOf = (task: BaseTask): string => task.summary || task.text;
-
-export function getTreePathRootId(pathTaskIds: string[]): string | null {
-  return pathTaskIds[0] ?? null;
-}
-
-export function getProjectTreeDepth(nodes: TreeNode[]): number {
-  if (nodes.length === 0) return 0;
-  return Math.max(
-    ...nodes.map((node) => 1 + getProjectTreeDepth(node.children))
-  );
-}
-
-/**
- * Builds a project -> task -> subtask forest from a flat task list.
- *
- * A task's `incomingLinks` are the tasks it depends on (its parents), so the
- * children of X are the tasks whose `incomingLinks` include X. Roots are tasks
- * no visible task points at. A task may have several parents (a DAG): in that
- * case it appears under each parent. Roots with no descendants are dropped so
- * the panel shows only genuinely structured tasks, not every isolated node.
- */
-export function buildProjectTree(tasks: BaseTask[]): TreeNode[] {
-  const byId = new Map(tasks.map((task) => [task.id, task]));
-  const childrenOf = new Map<string, BaseTask[]>();
-  const hasParent = new Set<string>();
-
-  for (const task of tasks) {
-    for (const parentId of task.incomingLinks) {
-      if (!byId.has(parentId)) continue;
-      hasParent.add(task.id);
-      const list = childrenOf.get(parentId) ?? [];
-      list.push(task);
-      childrenOf.set(parentId, list);
-    }
-  }
-
-  const sortTasks = (arr: BaseTask[]): BaseTask[] =>
-    [...arr].sort((a, b) =>
-      labelOf(a).localeCompare(labelOf(b), undefined, { sensitivity: "base" })
-    );
-
-  // `path` carries the ancestors of the current node so a dependency cycle
-  // cannot make the recursion loop forever.
-  const build = (task: BaseTask, path: Set<string>): TreeNode => {
-    const children: TreeNode[] = [];
-    for (const child of sortTasks(childrenOf.get(task.id) ?? [])) {
-      if (path.has(child.id)) continue;
-      children.push(build(child, new Set(path).add(child.id)));
-    }
-    return { task, children };
-  };
-
-  return sortTasks(tasks.filter((task) => !hasParent.has(task.id)))
-    .map((root) => build(root, new Set([root.id])))
-    .filter((node) => node.children.length > 0);
-}
-
-/** Prunes the forest to branches that contain a node matching the query. */
-export function filterProjectTree(
-  nodes: TreeNode[],
-  query: string
-): TreeNode[] {
-  const lower = query.toLowerCase();
-  const matches = (task: BaseTask): boolean =>
-    labelOf(task).toLowerCase().includes(lower) ||
-    task.tags.some((tag) => tag.toLowerCase().includes(lower));
-
-  const recurse = (node: TreeNode): TreeNode | null => {
-    const children = node.children
-      .map(recurse)
-      .filter((child): child is TreeNode => child !== null);
-    if (matches(node.task) || children.length > 0) {
-      return { task: node.task, children };
-    }
-    return null;
-  };
-
-  return nodes.map(recurse).filter((node): node is TreeNode => node !== null);
 }
 
 export default function ProjectTreePanel({
@@ -203,9 +133,9 @@ export default function ProjectTreePanel({
             <span
               className="tasks-map-tree-panel__label"
               onClick={() => onTaskClick(node.task.id, branchRootTaskId)}
-              title={labelOf(node.task)}
+              title={getTaskTreeLabel(node.task)}
             >
-              {labelOf(node.task)}
+              {getTaskTreeLabel(node.task)}
             </span>
             <button
               className="tasks-map-tree-panel__focus"

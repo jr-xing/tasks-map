@@ -13,6 +13,7 @@ interface GuiOverlayProps {
   filterState: FilterState;
   setFilterState: React.Dispatch<React.SetStateAction<FilterState>>;
   allFiles: string[];
+  allProjects: string[];
   statuses: TaskStatusConfig[];
   onSearch: (_query: string) => void;
   searchResultCount: number | null;
@@ -25,6 +26,7 @@ export default function GuiOverlay(props: GuiOverlayProps) {
     filterState,
     setFilterState,
     allFiles,
+    allProjects,
     statuses,
     onSearch,
     searchResultCount,
@@ -333,6 +335,23 @@ export default function GuiOverlay(props: GuiOverlayProps) {
                     }))
                   }
                   placeholder={t("filters.filter_by_file")}
+                />
+              </div>
+
+              <div className="tasks-map-filter-item">
+                <label className="tasks-map-filter-label">
+                  {t("filters.projects")}
+                </label>
+                <MultiSelect
+                  options={allProjects}
+                  selected={filterState.selectedProjects}
+                  setSelected={(projects) =>
+                    setFilterState((prev) => ({
+                      ...prev,
+                      selectedProjects: projects,
+                    }))
+                  }
+                  placeholder={t("filters.filter_by_project")}
                 />
               </div>
 

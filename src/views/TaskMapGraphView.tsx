@@ -56,6 +56,7 @@ import ProjectTreePanel from "src/components/project-tree-panel";
 import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
+import { createTaskFocusFilter } from "src/lib/task-focus-picker";
 import { t } from "../i18n";
 import TasksMapPlugin from "../main";
 
@@ -63,6 +64,7 @@ import { TasksMapSettings } from "src/types/settings";
 import { FilterState } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
+import { TaskMapFocusRequest } from "src/types/focus-request";
 
 interface TaskMapGraphViewProps {
   settings: TasksMapSettings;
@@ -70,6 +72,8 @@ interface TaskMapGraphViewProps {
   setFilterState: React.Dispatch<React.SetStateAction<FilterState>>;
   plugin: TasksMapPlugin;
   embedConfig?: EmbedConfig;
+  focusRequest?: TaskMapFocusRequest | null;
+  onFocusRequestHandled?: () => void;
 }
 
 export default function TaskMapGraphView({
@@ -78,6 +82,8 @@ export default function TaskMapGraphView({
   setFilterState,
   plugin,
   embedConfig,
+  focusRequest,
+  onFocusRequestHandled,
 }: TaskMapGraphViewProps) {
   const embed = { ...DEFAULT_EMBED_CONFIG, ...embedConfig };
   const app = useApp();
@@ -259,15 +265,29 @@ export default function TaskMapGraphView({
     return [...folders, ...files];
   }, [tasks]);
 
+  const allProjects = useMemo(() => {
+    const projects = new Set<string>();
+    tasks.forEach((task) => {
+      task.projects.forEach((project) => {
+        const trimmed = project.trim();
+        if (trimmed) projects.add(trimmed);
+      });
+    });
+    return Array.from(projects).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+  }, [tasks]);
+
   // Drop a stale root scope if that task no longer exists after a reload.
   useEffect(() => {
+    if (isLoading) return;
     if (
       filterState.selectedRootTask !== null &&
       !tasks.some((task) => task.id === filterState.selectedRootTask)
     ) {
       setFilterState((prev) => ({ ...prev, selectedRootTask: null }));
     }
-  }, [tasks, filterState.selectedRootTask, setFilterState]);
+  }, [isLoading, tasks, filterState.selectedRootTask, setFilterState]);
 
   React.useEffect(() => {
     if (containerRef.current) {
@@ -545,12 +565,13 @@ export default function TaskMapGraphView({
     setNodes(finalNodes);
     setEdges(newEdges);
 
-    // Fit the camera once the rebuilt nodes have been measured. Skipped for
-    // edits that should leave the camera where it is.
+    const expectedIds = new Set(finalNodes.map((n) => n.id));
     if (skipFitViewRef.current) {
       skipFitViewRef.current = false;
     } else {
-      scheduleFitView(new Set(finalNodes.map((n) => n.id)));
+      // Fit the camera once the rebuilt nodes have been measured. Skipped for
+      // edits that should leave the camera where it is.
+      scheduleFitView(expectedIds);
     }
   }, [
     graphTasks,
@@ -693,6 +714,31 @@ export default function TaskMapGraphView({
       pendingTreeFocusRef.current = null;
     }
   }, [nodes, focusNode]);
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    if (isLoading) return;
+    if (!tasks.some((task) => task.id === focusRequest.taskId)) {
+      onFocusRequestHandled?.();
+      return;
+    }
+
+    skipFitViewRef.current = false;
+    setFilterState((prev) =>
+      createTaskFocusFilter(
+        focusRequest.baseFilter ?? prev,
+        focusRequest.taskId
+      )
+    );
+
+    onFocusRequestHandled?.();
+  }, [
+    isLoading,
+    tasks,
+    focusRequest,
+    onFocusRequestHandled,
+    setFilterState,
+  ]);
 
   const handleTreeTaskClick = useCallback(
     (taskId: string, rootTaskId: string) => {
@@ -1280,6 +1326,7 @@ export default function TaskMapGraphView({
                       filterState={filterState}
                       setFilterState={setFilterState}
                       allFiles={allFiles}
+                      allProjects={allProjects}
                       statuses={settings.taskStatuses}
                       onSearch={handleSearch}
                       searchResultCount={searchResultCount}

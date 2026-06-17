@@ -183,6 +183,10 @@ function coerceFilterState(raw: Record<string, unknown>): FilterState {
       raw.selectedFiles,
       DEFAULT_FILTER_STATE.selectedFiles
     ),
+    selectedProjects: coerceStringArray(
+      raw.selectedProjects,
+      DEFAULT_FILTER_STATE.selectedProjects
+    ),
     searchQuery:
       typeof raw.searchQuery === "string"
         ? raw.searchQuery

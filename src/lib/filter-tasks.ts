@@ -44,6 +44,11 @@ const applyNonSearchFilters = (
       });
     });
   }
+  if (filter.selectedProjects.length > 0) {
+    filtered = filtered.filter((task) =>
+      filter.selectedProjects.some((project) => task.projects.includes(project))
+    );
+  }
   if (filter.onlyStarred) {
     filtered = filtered.filter((task) => task.starred);
   }

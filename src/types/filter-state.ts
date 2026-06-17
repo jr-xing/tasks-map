@@ -6,6 +6,7 @@ export interface FilterState {
   excludedTags: string[];
   selectedStatuses: TaskStatus[];
   selectedFiles: string[];
+  selectedProjects: string[];
   searchQuery: string;
   traversalMode: TraversalMode;
   onlyStarred: boolean;
@@ -21,6 +22,7 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   excludedTags: [],
   selectedStatuses: [],
   selectedFiles: [],
+  selectedProjects: [],
   searchQuery: "",
   traversalMode: "match",
   onlyStarred: false,

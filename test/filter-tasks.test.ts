@@ -12,10 +12,11 @@ function makeTask(overrides: {
   summary?: string;
   tags?: string[];
   status?: TaskStatus;
-  link?: string;
-  incomingLinks?: string[];
-  starred?: boolean;
-}): NoteTask {
+    link?: string;
+    incomingLinks?: string[];
+    starred?: boolean;
+    projects?: string[];
+  }): NoteTask {
   return new NoteTask({
     id: overrides.id,
     summary: overrides.summary ?? overrides.id,
@@ -26,6 +27,7 @@ function makeTask(overrides: {
     link: overrides.link ?? `tasks/${overrides.id}.md`,
     incomingLinks: overrides.incomingLinks ?? [],
     starred: overrides.starred ?? false,
+    projects: overrides.projects ?? [],
   });
 }
 
@@ -318,6 +320,42 @@ describe("getFilteredNodeIds", () => {
         filter({ onlyStarred: true, searchQuery: "deploy" })
       );
       expect(result).toEqual(["T1"]);
+    });
+  });
+
+  describe("project filtering", () => {
+    const projectTasks = [
+      makeTask({ id: "A", projects: ["Alpha"] }),
+      makeTask({ id: "B", projects: ["Beta"] }),
+      makeTask({ id: "C", projects: ["Alpha", "Beta"] }),
+      makeTask({ id: "D", projects: [] }),
+    ];
+
+    it("filters tasks by a selected project", () => {
+      const result = getFilteredNodeIds(
+        projectTasks,
+        filter({ selectedProjects: ["Alpha"] })
+      );
+
+      expect(result).toEqual(["A", "C"]);
+    });
+
+    it("matches any selected project", () => {
+      const result = getFilteredNodeIds(
+        projectTasks,
+        filter({ selectedProjects: ["Beta", "Missing"] })
+      );
+
+      expect(result).toEqual(["B", "C"]);
+    });
+
+    it("combines project filters with other filters", () => {
+      const result = getFilteredNodeIds(
+        projectTasks,
+        filter({ selectedProjects: ["Alpha"], searchQuery: "C" })
+      );
+
+      expect(result).toEqual(["C"]);
     });
   });
 

@@ -5,6 +5,7 @@
   },
   "commands": {
     "open_map_view": "打开地图视图",
+    "focus_project_or_task": "聚焦地图中的项目或任务",
     "insert_filter_as_code_block": "将当前筛选器插入为嵌入式任务地图"
   },
   "ribbon": {
@@ -103,6 +104,7 @@
     "include_labels": "包含标签",
     "exclude_labels": "排除标签",
     "files_folders": "文件 / 文件夹",
+    "projects": "项目",
     "hide_tags_on_nodes": "隐藏节点上的标签",
     "hide_unlinked_tasks": "隐藏未链接的任务",
     "reload_tasks": "重新加载任务",
@@ -110,6 +112,7 @@
     "minimize_filters": "最小化筛选器",
     "filter_by_status": "按状态筛选...",
     "filter_by_file": "按文件或文件夹筛选...",
+    "filter_by_project": "按项目筛选...",
     "status_todo": "待办",
     "status_in_progress": "进行中",
     "status_done": "已完成",
@@ -117,6 +120,13 @@
     "status_total": "总计",
     "only_starred": "仅显示收藏",
     "title": "筛选"
+  },
+  "focus_picker": {
+    "placeholder": "聚焦项目或任务...",
+    "project": "项目",
+    "task": "任务",
+    "project_detail": "{{count}} 个任务",
+    "no_items": "未找到可聚焦的项目树任务。"
   },
   "controls": {
     "title": "视图",

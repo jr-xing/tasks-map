@@ -5,6 +5,7 @@
   },
   "commands": {
     "open_map_view": "Open map view",
+    "focus_project_or_task": "Focus project or task in map",
     "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map"
   },
   "ribbon": {
@@ -103,6 +104,7 @@
     "include_labels": "Include labels",
     "exclude_labels": "Exclude labels",
     "files_folders": "Files / Folders",
+    "projects": "Projects",
     "hide_tags_on_nodes": "Hide tags on nodes",
     "hide_unlinked_tasks": "Hide unlinked tasks",
     "reload_tasks": "Reload tasks",
@@ -110,6 +112,7 @@
     "minimize_filters": "Minimize filters",
     "filter_by_status": "Filter by status...",
     "filter_by_file": "Filter by file or folder...",
+    "filter_by_project": "Filter by project...",
     "status_todo": "Todo",
     "status_in_progress": "In Progress",
     "status_done": "Done",
@@ -117,6 +120,13 @@
     "status_total": "Total",
     "only_starred": "Starred only",
     "title": "Filters"
+  },
+  "focus_picker": {
+    "placeholder": "Focus project or task...",
+    "project": "Project",
+    "task": "Task",
+    "project_detail": "{{count}} task(s)",
+    "no_items": "No focusable project tree tasks found."
   },
   "controls": {
     "title": "View",

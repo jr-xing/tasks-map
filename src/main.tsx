@@ -5,7 +5,9 @@ import {
   TFile,
   FuzzySuggestModal,
   MarkdownRenderChild,
+  Notice,
 } from "obsidian";
+import type { FuzzyMatch } from "obsidian";
 import { createRoot } from "react-dom/client";
 
 import TaskMapGraphItemView, { VIEW_TYPE } from "./views/TaskMapGraphItemView";
@@ -22,7 +24,12 @@ import { TasksMapSettingTab } from "./settings/settings-tab";
 import { initI18n, changeLanguage, t } from "./i18n";
 import { FilterState, DEFAULT_FILTER_STATE } from "./types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "./types/embed-config";
-import { checkDataviewPlugin } from "./lib/utils";
+import { TaskMapFocusRequest } from "./types/focus-request";
+import { checkDataviewPlugin, getAllTasks } from "./lib/utils";
+import {
+  buildTaskFocusCandidates,
+  TaskFocusCandidate,
+} from "./lib/task-focus-picker";
 
 const EMBED_CODE_BLOCK = "tasks-map";
 
@@ -49,6 +56,74 @@ class NoteSuggestModal extends FuzzySuggestModal<TFile> {
   onChooseItem(file: TFile): void {
     this.onChoose(file);
   }
+}
+
+class TaskFocusSuggestModal extends FuzzySuggestModal<TaskFocusCandidate> {
+  private items: TaskFocusCandidate[];
+  private onChoose: (_item: TaskFocusCandidate) => void;
+
+  constructor(
+    app: InstanceType<typeof Plugin>["app"],
+    items: TaskFocusCandidate[],
+    onChoose: (_item: TaskFocusCandidate) => void
+  ) {
+    super(app);
+    this.items = items;
+    this.onChoose = onChoose;
+    this.setPlaceholder(t("focus_picker.placeholder"));
+  }
+
+  getItems(): TaskFocusCandidate[] {
+    return this.items;
+  }
+
+  getItemText(item: TaskFocusCandidate): string {
+    return item.searchText;
+  }
+
+  renderSuggestion(
+    match: FuzzyMatch<TaskFocusCandidate>,
+    el: HTMLElement
+  ): void {
+    const item = match.item;
+    el.classList.add("tasks-map-focus-suggestion");
+
+    const header = el.createDiv("tasks-map-focus-suggestion__header");
+    header.style.paddingLeft = `${item.depth * 14}px`;
+    header.createSpan({
+      cls: "tasks-map-focus-suggestion__label",
+      text: item.label,
+    });
+    header.createSpan({
+      cls: "tasks-map-focus-suggestion__type",
+      text: t("focus_picker.task"),
+    });
+
+    const detail = el.createDiv("tasks-map-focus-suggestion__detail");
+    detail.style.paddingLeft = `${item.depth * 14}px`;
+
+    const path = item.path.slice(0, -1).join(" / ");
+    const metadata =
+      path ||
+      (item.projects.length > 0
+        ? item.projects.join(", ")
+        : item.tags.slice(0, 3).join(", "));
+    detail.setText(metadata || item.link);
+  }
+
+  onChooseItem(item: TaskFocusCandidate): void {
+    this.onChoose(item);
+  }
+}
+
+function normalizeFilterPreset(preset: FilterPreset): FilterPreset {
+  return {
+    ...preset,
+    filter: {
+      ...DEFAULT_FILTER_STATE,
+      ...preset.filter,
+    },
+  };
 }
 
 export default class TasksMapPlugin extends Plugin {
@@ -78,6 +153,14 @@ export default class TasksMapPlugin extends Plugin {
       name: t("commands.open_map_view"),
       callback: () => {
         void this.activateViewInMainArea();
+      },
+    });
+
+    this.addCommand({
+      id: "focus-project-or-task",
+      name: t("commands.focus_project_or_task"),
+      callback: () => {
+        this.openFocusPicker();
       },
     });
 
@@ -140,12 +223,13 @@ export default class TasksMapPlugin extends Plugin {
   async loadSettings() {
     const loadedSettings =
       ((await this.loadData()) as Partial<TasksMapSettings> | null) ?? {};
+    const filterPresets = loadedSettings.filterPresets ?? [
+      ...DEFAULT_SETTINGS.filterPresets,
+    ];
     this.settings = {
       ...DEFAULT_SETTINGS,
       ...loadedSettings,
-      filterPresets: loadedSettings.filterPresets ?? [
-        ...DEFAULT_SETTINGS.filterPresets,
-      ],
+      filterPresets: filterPresets.map(normalizeFilterPreset),
       visibleAttachmentKinds: loadedSettings.visibleAttachmentKinds ?? [
         ...DEFAULT_SETTINGS.visibleAttachmentKinds,
       ],
@@ -221,13 +305,56 @@ export default class TasksMapPlugin extends Plugin {
     }
   }
 
+  private openFocusPicker(): void {
+    const baseFilter = this.getFocusBaseFilter();
+    const tasks = getAllTasks(
+      this.app,
+      {
+        noteTaskPropertyName: this.settings.noteTaskPropertyName,
+        noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
+        noteDependencyProperty: this.settings.noteDependencyProperty,
+      },
+      this.settings.taskStatuses
+    );
+    const items = buildTaskFocusCandidates(tasks, baseFilter);
+    if (items.length === 0) {
+      new Notice(t("focus_picker.no_items"));
+      return;
+    }
+
+    new TaskFocusSuggestModal(this.app, items, (item) => {
+      void this.activateViewInMainArea({
+        kind: "task",
+        taskId: item.taskId,
+        baseFilter,
+      });
+    }).open();
+  }
+
+  private getDefaultFilterState(): FilterState {
+    return {
+      ...DEFAULT_FILTER_STATE,
+      selectedStatuses: [...(this.settings.defaultStatusFilter ?? [])],
+    };
+  }
+
+  private getFocusBaseFilter(): FilterState {
+    const leaf = this.app.workspace
+      .getLeavesOfType(VIEW_TYPE)
+      .find((candidate) => candidate.view instanceof TaskMapGraphItemView);
+    if (leaf?.view instanceof TaskMapGraphItemView) {
+      return leaf.view.getFilterState();
+    }
+    return this.getDefaultFilterState();
+  }
+
   private getCurrentFilterState(): FilterState {
     const leaf = this.app.workspace.getMostRecentLeaf();
     if (leaf?.view instanceof TaskMapGraphItemView) {
       return leaf.view.getFilterState();
     }
     // Fall back to an empty filter if no active Tasks Map view is found
-    return { ...DEFAULT_FILTER_STATE };
+    return this.getDefaultFilterState();
   }
 
   private async appendCodeBlockToFile(
@@ -240,10 +367,18 @@ export default class TasksMapPlugin extends Plugin {
     await this.app.vault.process(file, (content) => content + block);
   }
 
-  async activateViewInMainArea() {
-    const leaf = this.app.workspace.getLeaf(true); // true = main area
-    await leaf.setViewState({ type: VIEW_TYPE, active: true });
+  async activateViewInMainArea(focusRequest?: TaskMapFocusRequest) {
+    const existingLeaf = focusRequest
+      ? this.app.workspace.getLeavesOfType(VIEW_TYPE)[0]
+      : null;
+    const leaf = existingLeaf ?? this.app.workspace.getLeaf(true); // true = main area
+    if (!existingLeaf) {
+      await leaf.setViewState({ type: VIEW_TYPE, active: true });
+    }
     void this.app.workspace.revealLeaf(leaf);
+    if (focusRequest && leaf.view instanceof TaskMapGraphItemView) {
+      leaf.view.focus(focusRequest);
+    }
   }
 
   onunload(): void {
