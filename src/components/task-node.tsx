@@ -5,6 +5,8 @@ import { CirclePlus, Paperclip, Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
 import { BaseTask } from "src/types/task";
 import { TaskAttachmentKind } from "src/types/base-task";
+import { TaskPriorityConfig } from "src/lib/priority-config";
+import { PriorityAccentPosition } from "src/types/settings";
 import { TaskDetails } from "./task-details";
 import { ExpandButton } from "./expand-button";
 import { LinkButton } from "./link-button";
@@ -13,7 +15,7 @@ import TaskMenu from "./task-menu";
 import { Tag } from "./tag";
 import { TaskStatusToggle } from "./task-status";
 import { TaskBackground } from "./task-background";
-import { TaskPriority } from "./task-priority";
+import { TaskPriorityToggle } from "./task-priority";
 import { TagInput } from "./tag-input";
 import { useSummaryRenderer } from "../hooks/use-summary-renderer";
 import {
@@ -67,10 +69,12 @@ interface TaskNodeData {
   task: BaseTask;
   layoutDirection?: "Horizontal" | "Vertical";
   showPriorities?: boolean;
+  priorityAccentPosition?: PriorityAccentPosition;
   showTags?: boolean;
   debugVisualization?: boolean;
   tagColorPalette?: import("src/lib/tag-color-manager").TagColorPalette;
   visibleAttachmentKinds?: TaskAttachmentKind[];
+  priorityOptions?: TaskPriorityConfig[];
   groupByProject?: boolean;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onDeleteTask?: (taskId: string) => void;
@@ -131,10 +135,12 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     task,
     layoutDirection = "Horizontal",
     showPriorities = true,
+    priorityAccentPosition = "top",
     showTags = true,
     debugVisualization = false,
     tagColorPalette = "rainbow",
     visibleAttachmentKinds,
+    priorityOptions = [],
     groupByProject = false,
     onDeleteTask,
     onTaskChanged,
@@ -144,6 +150,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const { allTags, updateTaskTags } = useContext(TagsContext);
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState(task.status);
+  const [priority, setPriority] = useState(task.priority);
   const [starred, setStarred] = useState(task.starred);
   const [tags, setTags] = useState(task.tags || []);
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -158,6 +165,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   // vault — otherwise edits made to a note outside the map never show up.
   useEffect(() => {
     setStatus(task.status);
+    setPriority(task.priority);
     setStarred(task.starred);
     setTags(task.tags || []);
   }, [task]);
@@ -281,6 +289,11 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     <div className="tasks-map-task-node-shell">
       <TaskBackground
         status={status}
+        priority={showPriorities ? priority : ""}
+        priorityAccentPosition={priorityAccentPosition}
+        priorityOptions={
+          task.type === "dataview" ? undefined : priorityOptions
+        }
         starred={starred}
         expanded={expanded}
         debugVisualization={debugVisualization}
@@ -297,7 +310,14 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             task={task}
             onStatusChange={setStatus}
           />
-          {showPriorities && <TaskPriority priority={task.priority} />}
+          {showPriorities && (
+            <TaskPriorityToggle
+              priority={priority}
+              task={task}
+              priorityOptions={priorityOptions}
+              onPriorityChange={setPriority}
+            />
+          )}
           <div className="tasks-map-task-node-header-spacer" />
           <StarButton
             starred={starred}

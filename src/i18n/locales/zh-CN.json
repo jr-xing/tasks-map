@@ -22,6 +22,10 @@
     "display_options": "显示选项",
     "show_task_priorities": "显示任务优先级",
     "show_task_priorities_desc": "在任务节点上显示优先级指示器",
+    "priority_accent_position": "优先级强调位置",
+    "priority_accent_position_desc": "选择任务节点上的优先级颜色条位置",
+    "priority_accent_top": "顶部边缘",
+    "priority_accent_right": "右侧边缘",
     "show_task_tags": "显示任务标签",
     "show_task_tags_desc": "在任务节点上显示标签",
     "show_status_counts": "显示状态计数",
@@ -215,6 +219,7 @@
   },
   "task_node": {
     "create_project_task": "在此项目中创建任务",
+    "priority": "优先级：{{priority}}",
     "open_note": "打开笔记（Ctrl 点击或中键点击新建标签页）"
   },
   "task_editor": {

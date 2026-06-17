@@ -30,6 +30,7 @@ import {
 import { Plus } from "lucide-react";
 import { BaseTask, TaskNodeData } from "src/types/task";
 import {
+  getTaskNotesConfig,
   isTaskNotesTaskFile,
   isTaskNotesEditorAvailable,
 } from "src/lib/tasknotes-bridge";
@@ -65,6 +66,7 @@ import { FilterState } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
 import { TaskMapFocusRequest } from "src/types/focus-request";
+import { TaskPriorityConfig } from "src/lib/priority-config";
 
 interface TaskMapGraphViewProps {
   settings: TasksMapSettings;
@@ -506,6 +508,10 @@ export default function TaskMapGraphView({
     () => isTaskNotesEditorAvailable(app),
     [app]
   );
+  const taskNotesPriorityOptions = useMemo<TaskPriorityConfig[]>(
+    () => getTaskNotesConfig(app).priorities,
+    [app]
+  );
 
   useEffect(() => {
     let newNodes = createNodesFromTasks(
@@ -519,7 +525,9 @@ export default function TaskMapGraphView({
       settings.tagColorPalette,
       reloadTasks,
       handleEditTaskByPath,
-      settings.visibleAttachmentKinds
+      settings.visibleAttachmentKinds,
+      taskNotesPriorityOptions,
+      settings.priorityAccentPosition
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -577,6 +585,7 @@ export default function TaskMapGraphView({
     graphTasks,
     filterState,
     settings,
+    taskNotesPriorityOptions,
     setNodes,
     setEdges,
     handleDeleteTask,

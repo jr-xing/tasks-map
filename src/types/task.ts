@@ -2,6 +2,8 @@ import { Node, Edge } from "reactflow";
 import { BaseTask } from "./base-task";
 import type { TaskAttachment } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
+import { TaskPriorityConfig } from "../lib/priority-config";
+import { PriorityAccentPosition } from "./settings";
 
 // Status is a configured status `id` (see src/lib/status-config.ts). It is a
 // plain string because the available statuses are user-configurable.
@@ -22,10 +24,12 @@ export interface TaskNodeData {
   task: BaseTask;
   layoutDirection?: "Horizontal" | "Vertical";
   showPriorities?: boolean;
+  priorityAccentPosition?: PriorityAccentPosition;
   showTags?: boolean;
   debugVisualization?: boolean;
   groupByProject?: boolean;
   tagColorPalette?: TagColorPalette;
+  priorityOptions?: TaskPriorityConfig[];
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onDeleteTask?: (taskId: string) => void;
   /** Called after an external editor (e.g. TaskNotes modal) saves changes. */

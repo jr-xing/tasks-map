@@ -68,6 +68,11 @@ export abstract class BaseTask {
   ): Promise<void>;
 
   /**
+   * Update the task's priority in the vault
+   */
+  abstract updatePriority(_newPriority: string, _app: App): Promise<void>;
+
+  /**
    * Add a new task line to the vault
    */
   abstract addTaskLine(

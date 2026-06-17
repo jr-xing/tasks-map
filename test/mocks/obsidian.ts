@@ -66,6 +66,10 @@ export class Notice {
   }
 }
 
+export function setIcon(el: HTMLElement, icon: string): void {
+  el.setAttribute("data-icon", icon);
+}
+
 /**
  * Wrapper around yaml for Obsidian's parseYaml API
  * Matches Obsidian's behavior

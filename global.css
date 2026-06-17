@@ -1160,6 +1160,56 @@ If your plugin does not need CSS, delete this file.
   flex-shrink: 0;
 }
 
+.tasks-map-graph-container .tasks-map-task-priority-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 34px;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-left: 1px solid var(--tasks-map-node-divider);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--tasks-map-priority-color, var(--text-muted));
+  height: auto;
+  outline: none;
+  margin: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.tasks-map-graph-container .tasks-map-task-priority-toggle:hover {
+  background: var(--tasks-map-node-hover);
+  color: var(--tasks-map-priority-color, var(--text-normal));
+}
+
+.tasks-map-task-priority-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--tasks-map-priority-color, var(--text-muted));
+  box-shadow: 0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--tasks-map-priority-color, var(--text-muted)) 30%,
+      transparent
+    );
+}
+
+.tasks-map-task-priority-toggle--icon svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
 /* Task Status Styles */
 .tasks-map-status-container {
   display: flex;
@@ -1299,6 +1349,30 @@ If your plugin does not need CSS, delete this file.
   gap: 4px;
   position: relative;
   transition: width 0.2s;
+}
+
+.tasks-map-task-background--priority-top::before,
+.tasks-map-task-background--priority-right::before {
+  content: "";
+  position: absolute;
+  background: var(--tasks-map-priority-color, var(--text-muted));
+  pointer-events: none;
+}
+
+.tasks-map-task-background--priority-top::before {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: var(--radius-m) var(--radius-m) 0 0;
+}
+
+.tasks-map-task-background--priority-right::before {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 0 var(--radius-m) var(--radius-m) 0;
 }
 
 .tasks-map-task-background--expanded {

@@ -4,6 +4,7 @@ import {
   getTaskNotesConfig,
   openTaskNotesProjectTaskCreationModal,
   openTaskNotesTaskCreationModalForProject,
+  updateTaskNotesPriority,
   updateTaskNotesTask,
 } from "../src/lib/tasknotes-bridge";
 import { NoteTask } from "../src/types/note-task";
@@ -201,6 +202,75 @@ describe("tasknotes bridge", () => {
       "TaskNotes/Tasks/Existing.md",
       { status: "done" },
       { source: "tasks-map", reason: "Task Map updated a task" }
+    );
+  });
+
+  it("updates priority through the official runtime setPriority API", async () => {
+    const setPriority = jest.fn().mockResolvedValue({
+      path: "TaskNotes/Tasks/Existing.md",
+      title: "Existing",
+      status: "open",
+      priority: "urgent",
+    });
+    const app = appWithTaskNotes({
+      apiVersion: 1,
+      hasCapability: () => true,
+      tasks: { create: jest.fn(), update: jest.fn(), setPriority },
+    });
+
+    const updated = await updateTaskNotesPriority(
+      app,
+      "TaskNotes/Tasks/Existing.md",
+      "urgent"
+    );
+
+    expect(updated).toBe(true);
+    expect(setPriority).toHaveBeenCalledWith(
+      "TaskNotes/Tasks/Existing.md",
+      "urgent",
+      { source: "tasks-map", reason: "Task Map changed task priority" }
+    );
+  });
+
+  it("falls back to runtime update when setPriority is unavailable", async () => {
+    const update = jest.fn().mockResolvedValue({
+      path: "TaskNotes/Tasks/Existing.md",
+      title: "Existing",
+      status: "open",
+      priority: "medium-high",
+    });
+    const app = appWithTaskNotes({
+      apiVersion: 1,
+      hasCapability: () => true,
+      tasks: { create: jest.fn(), update },
+    });
+
+    const updated = await updateTaskNotesPriority(
+      app,
+      "TaskNotes/Tasks/Existing.md",
+      "medium-high"
+    );
+
+    expect(updated).toBe(true);
+    expect(update).toHaveBeenCalledWith(
+      "TaskNotes/Tasks/Existing.md",
+      { priority: "medium-high" },
+      { source: "tasks-map", reason: "Task Map changed task priority" }
+    );
+  });
+
+  it("lets note-task priority writes fall back to YAML", async () => {
+    const app = new App();
+    app.vault.setFileContent(
+      "TaskNotes/Tasks/Existing.md",
+      "---\nstatus: open\npriority: normal\n---\n# Existing"
+    );
+    const task = makeNoteTask("TaskNotes/Tasks/Existing.md", "Existing");
+
+    await task.updatePriority("urgent", app);
+
+    expect(app.vault.getFileContent("TaskNotes/Tasks/Existing.md")).toContain(
+      "priority: urgent"
     );
   });
 

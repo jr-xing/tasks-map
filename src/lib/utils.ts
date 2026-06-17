@@ -10,6 +10,7 @@ import {
 } from "src/types/base-task";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  PriorityAccentPosition,
   TasksMapSettings,
 } from "src/types/settings";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
@@ -17,6 +18,7 @@ import { TaskFactory } from "./task-factory";
 import { Position, Node, Edge } from "reactflow";
 import { t } from "../i18n";
 import { TagColorPalette } from "./tag-color-manager";
+import { TaskPriorityConfig } from "./priority-config";
 import { TaskStatusConfig, DEFAULT_TASK_STATUSES } from "./status-config";
 
 const validDateTypes = [
@@ -223,6 +225,14 @@ export async function updateTaskStatusInVault(
   statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): Promise<void> {
   await task.updateStatus(newStatus, app, statuses);
+}
+
+export async function updateTaskPriorityInVault(
+  task: BaseTask,
+  newPriority: string,
+  app: App
+): Promise<void> {
+  await task.updatePriority(newPriority, app);
 }
 
 export async function addTaskLineToVault(
@@ -1579,27 +1589,13 @@ export function getNoteTasks(
 }
 
 /**
- * Normalize note-based task priority to emoji format
- * TaskNotes uses: "High", "Normal", "Low", "None"
- * We map to Obsidian Tasks emojis: 🔺 (highest), ⏫ (high), 🔼 (medium), 🔽 (low), ⏬ (lowest)
- * Note: "Normal" and "None" both map to empty string (no emoji), matching simple task "normal" priority
+ * Normalize note-based task priority to TaskNotes catalog value format.
+ * TaskNotes stores user-configured priority values in frontmatter.
+ * Matching is case-insensitive so older "High" style values still resolve.
  */
 function normalizeNotePriority(priority: string): string {
   if (!priority) return "";
-
-  const normalized = priority.toLowerCase();
-  switch (normalized) {
-    case "high":
-      return "⏫"; // high
-    case "normal":
-      return ""; // normal (no emoji)
-    case "low":
-      return "🔽"; // low
-    case "none":
-      return ""; // no priority
-    default:
-      return "";
-  }
+  return String(priority).trim().toLowerCase();
 }
 
 function parseTaskNote(
@@ -1804,7 +1800,9 @@ export function createNodesFromTasks(
   onTaskChanged?: () => void,
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onEditTask?: (taskPath: string) => void,
-  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  priorityOptions: TaskPriorityConfig[] = [],
+  priorityAccentPosition: PriorityAccentPosition = "top"
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
@@ -1817,11 +1815,13 @@ export function createNodesFromTasks(
       task,
       layoutDirection,
       showPriorities,
+      priorityAccentPosition,
       showTags,
       debugVisualization,
       groupByProject,
       tagColorPalette,
       visibleAttachmentKinds,
+      priorityOptions,
       onDeleteTask,
       onTaskChanged,
       onEditTask,

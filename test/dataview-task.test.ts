@@ -89,6 +89,48 @@ describe("DataviewTask", () => {
     });
   });
 
+  describe("updatePriority", () => {
+    it("adds a priority emoji to the task line", async () => {
+      const content = "- [ ] Test task 🆔 abc123 #urgent ⛔ def456";
+      vault.setFileContent("tasks/test.md", content);
+
+      const task = makeDataviewTask({ text: "Test task 🆔 abc123 #urgent" });
+      await task.updatePriority("\u{23EB}", app);
+
+      const updated = vault.getFileContent("tasks/test.md");
+      expect(updated).toContain("\u{23EB}");
+      expect(updated).toContain("🆔 abc123");
+      expect(updated).toContain("#urgent");
+      expect(updated).toContain("⛔ def456");
+    });
+
+    it("replaces an existing priority emoji", async () => {
+      const content = "- [ ] Test task 🆔 abc123 🔽 #later";
+      vault.setFileContent("tasks/test.md", content);
+
+      const task = makeDataviewTask({ text: "Test task 🆔 abc123 🔽" });
+      await task.updatePriority("\u{1F53A}", app);
+
+      const updated = vault.getFileContent("tasks/test.md");
+      expect(updated).toContain("\u{1F53A}");
+      expect(updated).not.toContain("\u{1F53D}");
+      expect(updated).toContain("#later");
+    });
+
+    it("clears an existing priority emoji", async () => {
+      const content = "- [ ] Test task 🆔 abc123 ⏫ #later";
+      vault.setFileContent("tasks/test.md", content);
+
+      const task = makeDataviewTask({ text: "Test task 🆔 abc123 ⏫" });
+      await task.updatePriority("", app);
+
+      const updated = vault.getFileContent("tasks/test.md");
+      expect(updated).not.toContain("\u{23EB}");
+      expect(updated).toContain("🆔 abc123");
+      expect(updated).toContain("#later");
+    });
+  });
+
   describe("addTaskLine", () => {
     it("inserts a new task line after the current task", async () => {
       const content = "- [ ] Test task 🆔 abc123\n- [ ] Other task";

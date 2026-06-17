@@ -80,6 +80,11 @@ interface TaskNotesRuntimeTasksApi {
     _status: string,
     _context?: TaskNotesMutationContext
   ): Promise<TaskNotesTaskInfo>;
+  setPriority?(
+    _path: string,
+    _priority: string,
+    _context?: TaskNotesMutationContext
+  ): Promise<TaskNotesTaskInfo>;
   addTag?(
     _path: string,
     _tag: string,
@@ -601,6 +606,37 @@ export async function updateTaskNotesStatus(
     }
   } catch (error) {
     console.warn("TaskNotes runtime status update failed:", error);
+  }
+  return false;
+}
+
+export async function updateTaskNotesPriority(
+  app: App,
+  taskPath: string,
+  priority: string
+): Promise<boolean> {
+  const api = getTaskNotesApi(app);
+  if (!api || !hasTaskWrite(api)) return false;
+
+  try {
+    if (typeof api.tasks?.setPriority === "function") {
+      await api.tasks.setPriority(
+        taskPath,
+        priority,
+        mutationContext("Task Map changed task priority")
+      );
+      return true;
+    }
+    if (typeof api.tasks?.update === "function") {
+      await api.tasks.update(
+        taskPath,
+        { priority },
+        mutationContext("Task Map changed task priority")
+      );
+      return true;
+    }
+  } catch (error) {
+    console.warn("TaskNotes runtime priority update failed:", error);
   }
   return false;
 }

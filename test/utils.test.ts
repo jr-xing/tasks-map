@@ -10,6 +10,7 @@ import {
   estimateNodeDimensions,
   getLayoutedElements,
   getUnlinkedTasks,
+  getNoteTasks,
   parseTaskLine,
   partitionTasksByProject,
   addSignToTaskInFile,
@@ -17,6 +18,7 @@ import {
   extractTaskAttachments,
   getVisibleTaskAttachments,
 } from "../src/lib/utils";
+import { getPriorityByValue } from "../src/lib/priority-config";
 import { NoteTask } from "../src/types/note-task";
 import { Vault } from "./mocks/obsidian";
 
@@ -689,6 +691,103 @@ describe("createNodesFromTasks", () => {
     );
 
     expect(nodes[0].data.visibleAttachmentKinds).toEqual(["markdown", "pdf"]);
+  });
+
+  it("passes through priority options", () => {
+    const task = makeTask();
+    const priorityOptions = [
+      {
+        id: "urgent",
+        value: "urgent",
+        label: "Urgent",
+        color: "#ff0000",
+        weight: 10,
+      },
+    ];
+    const nodes = createNodesFromTasks(
+      [task],
+      "Horizontal",
+      true,
+      true,
+      false,
+      undefined,
+      true,
+      "rainbow",
+      undefined,
+      undefined,
+      ["markdown", "pdf"],
+      priorityOptions,
+      "right"
+    );
+
+    expect(nodes[0].data.priorityOptions).toBe(priorityOptions);
+    expect(nodes[0].data.priorityAccentPosition).toBe("right");
+  });
+});
+
+describe("note task priority parsing", () => {
+  function makeNoteTaskApp(frontmatter: Record<string, unknown>) {
+    const file = {
+      path: "TaskNotes/Tasks/Priority.md",
+      basename: "Priority",
+      extension: "md",
+    };
+
+    return {
+      vault: {
+        getMarkdownFiles: () => [file],
+        getAbstractFileByPath: () => null,
+      },
+      metadataCache: {
+        getFileCache: () => ({ frontmatter }),
+        getFirstLinkpathDest: () => null,
+      },
+    };
+  }
+
+  it.each([
+    ["none", "none"],
+    ["normal", "normal"],
+    ["medium", "medium"],
+    ["medium-high", "medium-high"],
+    ["high", "high"],
+    ["urgent", "urgent"],
+    ["High", "high"],
+  ])("preserves TaskNotes priority value %s", (raw, expected) => {
+    const tasks = getNoteTasks(
+      makeNoteTaskApp({
+        tags: ["task"],
+        status: "open",
+        priority: raw,
+      })
+    );
+
+    expect(tasks[0].priority).toBe(expected);
+  });
+});
+
+describe("priority config resolution", () => {
+  it("resolves custom priorities by value and preserves color", () => {
+    const priority = getPriorityByValue("urgent", [
+      {
+        id: "urgent",
+        value: "urgent",
+        label: "Urgent",
+        color: "#ff1111",
+        weight: 10,
+      },
+    ]);
+
+    expect(priority.label).toBe("Urgent");
+    expect(priority.color).toBe("#ff1111");
+  });
+
+  it("falls back for unknown custom priorities", () => {
+    const priority = getPriorityByValue("blocked-now", []);
+
+    expect(priority.value).toBe("blocked-now");
+    expect(priority.label).toBe("blocked-now");
+    expect(priority.color).toBe("#8a8a8a");
   });
 });
 

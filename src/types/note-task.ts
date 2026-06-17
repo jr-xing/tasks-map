@@ -14,6 +14,7 @@ import {
   deleteTaskNotesTask,
   removeTaskNotesDependency,
   removeTaskNotesTag,
+  updateTaskNotesPriority,
   updateTaskNotesStatus,
 } from "../lib/tasknotes-bridge";
 
@@ -65,6 +66,35 @@ export class NoteTask extends BaseTask {
         }
       }
 
+      return lines.join("\n");
+    });
+  }
+
+  async updatePriority(newPriority: string, app: App): Promise<void> {
+    if (!this.link || !this.text) return;
+    const vault = app?.vault;
+    if (!vault) return;
+    const file = vault.getFileByPath(this.link);
+    if (!file) return;
+
+    if (await updateTaskNotesPriority(app, this.link, newPriority)) return;
+
+    await vault.process(file, (fileContent) => {
+      const lines = fileContent.split(/\r?\n/);
+      const { frontmatterStart, frontmatterEnd } = this.findFrontmatter(lines);
+
+      if (frontmatterStart === -1 || frontmatterEnd === -1) {
+        return fileContent;
+      }
+
+      for (let i = frontmatterStart + 1; i < frontmatterEnd; i++) {
+        if (lines[i].startsWith("priority:")) {
+          lines[i] = `priority: ${newPriority || "none"}`;
+          return lines.join("\n");
+        }
+      }
+
+      lines.splice(frontmatterEnd, 0, `priority: ${newPriority || "none"}`);
       return lines.join("\n");
     });
   }

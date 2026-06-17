@@ -22,6 +22,10 @@
     "display_options": "Weergaveopties",
     "show_task_priorities": "Taakprioriteiten tonen",
     "show_task_priorities_desc": "Toon prioriteitsindicatoren op taakknooppunten",
+    "priority_accent_position": "Positie prioriteitsaccent",
+    "priority_accent_position_desc": "Kies waar de prioriteitskleurstrook op taakknooppunten verschijnt",
+    "priority_accent_top": "Bovenrand",
+    "priority_accent_right": "Rechterrand",
     "show_task_tags": "Taak tags tonen",
     "show_task_tags_desc": "Toon tags op taakknooppunten",
     "show_status_counts": "Statustellingen tonen",
@@ -215,7 +219,8 @@
   },
   "task_node": {
     "create_project_task": "Taak in dit project maken",
-    "open_note": "Notitie openen (Ctrl-klik of middelklik voor nieuw tabblad)"
+    "open_note": "Notitie openen (Ctrl-klik of middelklik voor nieuw tabblad)",
+    "priority": "Prioriteit: {{priority}}"
   },
   "task_editor": {
     "create_title": "Nieuwe taak",

@@ -4,6 +4,8 @@ import { TagColorPalette } from "../lib/tag-color-manager";
 import { TaskStatusConfig, cloneDefaultStatuses } from "../lib/status-config";
 import type { TaskAttachmentKind } from "./base-task";
 
+export type PriorityAccentPosition = "top" | "right";
+
 export interface FilterPreset {
   id: string;
   name: string;
@@ -12,6 +14,7 @@ export interface FilterPreset {
 
 export interface TasksMapSettings {
   showPriorities: boolean;
+  priorityAccentPosition: PriorityAccentPosition;
   showTags: boolean;
   showStatusCounts: boolean;
   visibleAttachmentKinds: TaskAttachmentKind[];
@@ -73,6 +76,7 @@ export const DEFAULT_VISIBLE_ATTACHMENT_KINDS: TaskAttachmentKind[] = [
 
 export const DEFAULT_SETTINGS: TasksMapSettings = {
   showPriorities: true,
+  priorityAccentPosition: "top",
   showTags: true,
   showStatusCounts: true,
   visibleAttachmentKinds: [...DEFAULT_VISIBLE_ATTACHMENT_KINDS],

@@ -19,6 +19,7 @@ import {
   EMOJI_ID_REMOVAL,
   DATAVIEW_BRACKET_ID_REMOVAL,
   DATAVIEW_PARENTHESES_ID_REMOVAL,
+  PRIORITY_PATTERN_GLOBAL,
   TAG_REMOVAL,
   WHITESPACE_NORMALIZE,
 } from "../lib/task-regex";
@@ -77,6 +78,32 @@ export class DataviewTask extends BaseTask {
         lines[taskLineIdx] = removeDateFromTask(lines[taskLineIdx], "done");
         lines[taskLineIdx] = removeDateFromTask(lines[taskLineIdx], "start");
       }
+
+      return lines.join("\n");
+    });
+  }
+
+  async updatePriority(newPriority: string, app: App): Promise<void> {
+    if (!this.link || !this.text) return;
+    const vault = app?.vault;
+    if (!vault) return;
+    const file = vault.getFileByPath(this.link);
+    if (!file) return;
+
+    await vault.process(file, (fileContent) => {
+      const lines = fileContent.split(/\r?\n/);
+      const taskLineIdx = findTaskLineByIdOrText(lines, this.id, this.text);
+
+      if (taskLineIdx === -1) return fileContent;
+
+      const withoutPriority = lines[taskLineIdx]
+        .replace(PRIORITY_PATTERN_GLOBAL, "")
+        .replace(/\s+/g, " ")
+        .trimEnd();
+
+      lines[taskLineIdx] = newPriority
+        ? `${withoutPriority} ${newPriority}`.trimEnd()
+        : withoutPriority;
 
       return lines.join("\n");
     });

@@ -2,7 +2,10 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 import TasksMapPlugin from "../main";
 import { TagColorPalette, getTagColorClass } from "../lib/tag-color-manager";
 import { cloneDefaultStatuses } from "../lib/status-config";
-import { DEFAULT_VISIBLE_ATTACHMENT_KINDS } from "../types/settings";
+import {
+  DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  PriorityAccentPosition,
+} from "../types/settings";
 import { TaskAttachmentKind } from "../types/base-task";
 import { t } from "../i18n";
 import { SUPPORTED_LANGUAGES } from "../i18n";
@@ -234,6 +237,21 @@ export class TasksMapSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.showPriorities)
           .onChange(async (value) => {
             this.plugin.settings.showPriorities = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.priority_accent_position"))
+      .setDesc(t("settings.priority_accent_position_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("top", t("settings.priority_accent_top"))
+          .addOption("right", t("settings.priority_accent_right"))
+          .setValue(this.plugin.settings.priorityAccentPosition)
+          .onChange(async (value) => {
+            this.plugin.settings.priorityAccentPosition =
+              value as PriorityAccentPosition;
             await this.plugin.saveSettings();
           })
       );
