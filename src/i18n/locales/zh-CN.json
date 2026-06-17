@@ -205,7 +205,7 @@
   },
   "task_node": {
     "create_project_task": "在此项目中创建任务",
-    "open_note": "打开笔记（Ctrl 点击新建标签页）"
+    "open_note": "打开笔记（Ctrl 点击或中键点击新建标签页）"
   },
   "task_editor": {
     "create_title": "新建任务",

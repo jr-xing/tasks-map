@@ -205,7 +205,7 @@
   },
   "task_node": {
     "create_project_task": "Taak in dit project maken",
-    "open_note": "Notitie openen (Ctrl-klik voor nieuw tabblad)"
+    "open_note": "Notitie openen (Ctrl-klik of middelklik voor nieuw tabblad)"
   },
   "task_editor": {
     "create_title": "Nieuwe taak",
