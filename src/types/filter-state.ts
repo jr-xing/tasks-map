@@ -28,3 +28,12 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   onlyStarred: false,
   selectedRootTask: null,
 };
+
+export function createDefaultFilterState(
+  defaultStatusFilter: TaskStatus[] | undefined
+): FilterState {
+  return {
+    ...DEFAULT_FILTER_STATE,
+    selectedStatuses: [...(defaultStatusFilter ?? [])],
+  };
+}

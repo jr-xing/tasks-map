@@ -22,7 +22,11 @@ import {
 } from "./types/settings";
 import { TasksMapSettingTab } from "./settings/settings-tab";
 import { initI18n, changeLanguage, t } from "./i18n";
-import { FilterState, DEFAULT_FILTER_STATE } from "./types/filter-state";
+import {
+  FilterState,
+  DEFAULT_FILTER_STATE,
+  createDefaultFilterState,
+} from "./types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "./types/embed-config";
 import { TaskMapFocusRequest } from "./types/focus-request";
 import { checkDataviewPlugin, getAllTasks } from "./lib/utils";
@@ -332,10 +336,7 @@ export default class TasksMapPlugin extends Plugin {
   }
 
   private getDefaultFilterState(): FilterState {
-    return {
-      ...DEFAULT_FILTER_STATE,
-      selectedStatuses: [...(this.settings.defaultStatusFilter ?? [])],
-    };
+    return createDefaultFilterState(this.settings.defaultStatusFilter);
   }
 
   private getFocusBaseFilter(): FilterState {

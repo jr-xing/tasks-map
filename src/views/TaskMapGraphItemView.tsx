@@ -7,7 +7,10 @@ import TaskMapGraphView from "./TaskMapGraphView";
 import { checkDataviewPlugin } from "../lib/utils";
 import TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
-import { FilterState, DEFAULT_FILTER_STATE } from "src/types/filter-state";
+import {
+  FilterState,
+  createDefaultFilterState,
+} from "src/types/filter-state";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { t } from "../i18n";
 
@@ -42,10 +45,9 @@ function TaskMapGraphWrapper({
 
   // Seed the status filter from the configured default so the map opens with
   // the user's preferred statuses visible instead of always showing all.
-  const [filterState, setFilterState] = useState<FilterState>(() => ({
-    ...DEFAULT_FILTER_STATE,
-    selectedStatuses: [...(plugin.settings.defaultStatusFilter ?? [])],
-  }));
+  const [filterState, setFilterState] = useState<FilterState>(() =>
+    createDefaultFilterState(plugin.settings.defaultStatusFilter)
+  );
   const [focusRequest, setFocusRequest] =
     useState<TaskMapFocusRequest | null>(initialFocusRequest);
 
@@ -88,7 +90,7 @@ export const VIEW_TYPE = "tasks-map-graph-view";
 
 export default class TaskMapGraphItemView extends ItemView {
   root: Root | null = null;
-  private filterState: FilterState = { ...DEFAULT_FILTER_STATE };
+  private filterState: FilterState;
   private plugin: TasksMapPlugin;
   private focusRequest: TaskMapFocusRequest | null = null;
   private focusRequestHandler: ((_request: TaskMapFocusRequest) => void) | null =
@@ -97,6 +99,9 @@ export default class TaskMapGraphItemView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: TasksMapPlugin) {
     super(leaf);
     this.plugin = plugin;
+    this.filterState = createDefaultFilterState(
+      this.plugin.settings.defaultStatusFilter
+    );
   }
 
   getViewType() {
