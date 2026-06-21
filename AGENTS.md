@@ -28,6 +28,43 @@ npx jest -t "extracts emoji-format ID"      # by test name pattern
 npx jest test/filter-tasks.test.ts -t "tag" # file + name pattern
 ```
 
+## Release Workflow
+
+Do not spend time waiting for GitHub Actions to create a release after pushing
+a fix commit. In this repository, the Release workflow can be active but still
+show no observable run for the pushed commit. If `gh run list --workflow
+release.yaml` returns no relevant run, use the deterministic local release
+path immediately.
+
+Patch release path:
+
+1. Verify the code change first:
+   `npm.cmd test`, `npm.cmd run build`, and `git diff --check`.
+2. Commit the fix with a conventional message, for example
+   `fix: preserve status filter when focusing tasks`, and push `main`.
+3. Bump the next patch version with
+   `python .github\scripts\bump_version.py <version>`.
+4. Rebuild and retest after the bump:
+   `npm.cmd run build`, `npm.cmd test`, and `git diff --check`.
+5. Commit only the release files with
+   `chore: release version <version>`.
+   The bump updates `package.json`, `package-lock.json`, `manifest.json`, and
+   `versions.json`.
+6. Create and push the tag:
+   `git tag <version>`, `git push origin main`, and
+   `git push origin <version>`.
+7. Create the GitHub release with the plugin assets:
+   `gh release create <version> --title <version> --notes "<notes>" main.js manifest.json styles.css`.
+8. Verify the release using supported fields only:
+   `gh release view <version> --json tagName,name,url,assets,publishedAt,targetCommitish`.
+
+Known pitfalls:
+
+- `gh release view --json isLatest` fails because `isLatest` is not a
+  supported field.
+- The release assets are `main.js`, `manifest.json`, and `styles.css`.
+- Use `npm.cmd`/`npx.cmd` in PowerShell when command resolution is uncertain.
+
 ## Project Structure
 
 ```
