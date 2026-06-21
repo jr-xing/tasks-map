@@ -512,6 +512,10 @@ export default function TaskMapGraphView({
     () => getTaskNotesConfig(app).priorities,
     [app]
   );
+  const notePriorityOptions = useMemo(
+    () => plugin.getTaskPriorityOptions(taskNotesPriorityOptions),
+    [plugin, settings, taskNotesPriorityOptions]
+  );
 
   useEffect(() => {
     let newNodes = createNodesFromTasks(
@@ -526,7 +530,7 @@ export default function TaskMapGraphView({
       reloadTasks,
       handleEditTaskByPath,
       settings.visibleAttachmentKinds,
-      taskNotesPriorityOptions,
+      notePriorityOptions,
       settings.priorityAccentPosition
     );
     let newEdges = createEdgesFromTasks(
@@ -586,6 +590,7 @@ export default function TaskMapGraphView({
     filterState,
     settings,
     taskNotesPriorityOptions,
+    notePriorityOptions,
     setNodes,
     setEdges,
     handleDeleteTask,

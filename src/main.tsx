@@ -7,7 +7,7 @@ import {
   MarkdownRenderChild,
   Notice,
 } from "obsidian";
-import type { FuzzyMatch } from "obsidian";
+import type { FuzzyMatch, TAbstractFile } from "obsidian";
 import { createRoot } from "react-dom/client";
 
 import TaskMapGraphItemView, { VIEW_TYPE } from "./views/TaskMapGraphItemView";
@@ -29,6 +29,18 @@ import {
 } from "./types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "./types/embed-config";
 import { TaskMapFocusRequest } from "./types/focus-request";
+import {
+  TaskPriorityConfig,
+  cloneDefaultPriorities,
+  resolveTaskPriorities,
+} from "./lib/priority-config";
+import {
+  TaskNotesTypeSchemaReadResult,
+  normalizeTaskNotesTypeSchemaPath,
+  readTaskNotesTypeSchema,
+  taskPrioritiesFromSchemaValues,
+  writeTaskNotesTypeSchemaPriorityValues,
+} from "./lib/tasknotes-type-schema";
 import { checkDataviewPlugin, getAllTasks } from "./lib/utils";
 import {
   buildTaskFocusCandidates,
@@ -130,12 +142,27 @@ function normalizeFilterPreset(preset: FilterPreset): FilterPreset {
   };
 }
 
+export type TaskNotesTypeSchemaState =
+  | { kind: "disabled"; path: string; message: string }
+  | TaskNotesTypeSchemaReadResult
+  | { kind: "write-error"; path: string; message: string };
+
 export default class TasksMapPlugin extends Plugin {
   settings: TasksMapSettings = {
     ...DEFAULT_SETTINGS,
     filterPresets: [...DEFAULT_SETTINGS.filterPresets],
+    taskPriorities: cloneDefaultPriorities(),
+    taskPriorityColorOverrides: {
+      ...DEFAULT_SETTINGS.taskPriorityColorOverrides,
+    },
     visibleAttachmentKinds: [...DEFAULT_SETTINGS.visibleAttachmentKinds],
   };
+  private taskNotesTypeSchemaState: TaskNotesTypeSchemaState = {
+    kind: "disabled",
+    path: DEFAULT_SETTINGS.taskNotesTypeSchemaPath,
+    message: "TaskNotes type schema sync is disabled.",
+  };
+  private taskNotesTypeSchemaRefreshTimer: number | null = null;
 
   async onload() {
     // Load settings
@@ -143,6 +170,8 @@ export default class TasksMapPlugin extends Plugin {
 
     // Initialize i18n with saved language
     await initI18n(this.settings.language);
+    await this.refreshTaskNotesTypeSchema({ notify: false });
+    this.registerTaskNotesTypeSchemaEvents();
 
     // Always register the view - it will handle the Dataview check internally
     this.registerView(
@@ -234,6 +263,15 @@ export default class TasksMapPlugin extends Plugin {
       ...DEFAULT_SETTINGS,
       ...loadedSettings,
       filterPresets: filterPresets.map(normalizeFilterPreset),
+      taskPriorities: resolveTaskPriorities(loadedSettings.taskPriorities),
+      taskPriorityColorOverrides: {
+        ...DEFAULT_SETTINGS.taskPriorityColorOverrides,
+        ...(loadedSettings.taskPriorityColorOverrides ?? {}),
+      },
+      taskNotesTypeSchemaPath: normalizeTaskNotesTypeSchemaPath(
+        loadedSettings.taskNotesTypeSchemaPath ??
+          DEFAULT_SETTINGS.taskNotesTypeSchemaPath
+      ),
       visibleAttachmentKinds: loadedSettings.visibleAttachmentKinds ?? [
         ...DEFAULT_SETTINGS.visibleAttachmentKinds,
       ],
@@ -252,6 +290,134 @@ export default class TasksMapPlugin extends Plugin {
   async updateSettings(patch: Partial<TasksMapSettings>): Promise<void> {
     Object.assign(this.settings, patch);
     await this.saveSettings();
+  }
+
+  getTaskNotesTypeSchemaState(): TaskNotesTypeSchemaState {
+    return this.taskNotesTypeSchemaState;
+  }
+
+  getTaskPriorityOptions(
+    taskNotesCatalog: TaskPriorityConfig[] = []
+  ): TaskPriorityConfig[] {
+    if (
+      this.settings.useTaskNotesTypeSchema &&
+      this.taskNotesTypeSchemaState.kind === "loaded"
+    ) {
+      return taskPrioritiesFromSchemaValues(
+        this.taskNotesTypeSchemaState.priorityValues,
+        taskNotesCatalog,
+        this.settings.taskPriorityColorOverrides
+      );
+    }
+    return this.settings.taskPriorities;
+  }
+
+  async refreshTaskNotesTypeSchema({
+    notify = true,
+  }: {
+    notify?: boolean;
+  } = {}): Promise<TaskNotesTypeSchemaState> {
+    const path = normalizeTaskNotesTypeSchemaPath(
+      this.settings.taskNotesTypeSchemaPath
+    );
+    this.settings.taskNotesTypeSchemaPath = path;
+
+    if (!this.settings.useTaskNotesTypeSchema) {
+      this.taskNotesTypeSchemaState = {
+        kind: "disabled",
+        path,
+        message: "TaskNotes type schema sync is disabled.",
+      };
+    } else {
+      this.taskNotesTypeSchemaState = await readTaskNotesTypeSchema(
+        this.app.vault,
+        path
+      );
+    }
+
+    if (notify) {
+      window.dispatchEvent(new Event("tasks-map:settings-changed"));
+    }
+    return this.taskNotesTypeSchemaState;
+  }
+
+  async writeTaskNotesTypeSchemaPriorities(
+    values: string[]
+  ): Promise<boolean> {
+    const priorityValues = values
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (priorityValues.length === 0) {
+      new Notice(t("settings.tasknotes_schema_write_empty"));
+      return false;
+    }
+
+    const result = await writeTaskNotesTypeSchemaPriorityValues(
+      this.app.vault,
+      this.settings.taskNotesTypeSchemaPath,
+      priorityValues
+    );
+    if (result.kind !== "written") {
+      this.taskNotesTypeSchemaState = {
+        kind: result.kind === "error" ? "write-error" : result.kind,
+        path: result.path,
+        message: result.message,
+      };
+      new Notice(t("settings.tasknotes_schema_write_failed"));
+      window.dispatchEvent(new Event("tasks-map:settings-changed"));
+      return false;
+    }
+
+    await this.refreshTaskNotesTypeSchema({ notify: true });
+    return true;
+  }
+
+  private registerTaskNotesTypeSchemaEvents(): void {
+    const onPathChange = (path: string) => {
+      if (!this.settings.useTaskNotesTypeSchema) return;
+      if (
+        normalizeTaskNotesTypeSchemaPath(path) !==
+        normalizeTaskNotesTypeSchemaPath(this.settings.taskNotesTypeSchemaPath)
+      ) {
+        return;
+      }
+      this.scheduleTaskNotesTypeSchemaRefresh();
+    };
+
+    this.registerEvent(
+      this.app.vault.on("modify", (file: TAbstractFile) =>
+        onPathChange(file.path)
+      )
+    );
+    this.registerEvent(
+      this.app.vault.on("create", (file: TAbstractFile) =>
+        onPathChange(file.path)
+      )
+    );
+    this.registerEvent(
+      this.app.vault.on("delete", (file: TAbstractFile) =>
+        onPathChange(file.path)
+      )
+    );
+    this.registerEvent(
+      this.app.vault.on(
+        "rename",
+        (file: TAbstractFile, oldPath: string) => {
+          onPathChange(file.path);
+          onPathChange(oldPath);
+        }
+      )
+    );
+  }
+
+  private scheduleTaskNotesTypeSchemaRefresh(): void {
+    if (this.taskNotesTypeSchemaRefreshTimer !== null) {
+      window.clearTimeout(this.taskNotesTypeSchemaRefreshTimer);
+    }
+    this.taskNotesTypeSchemaRefreshTimer = window.setTimeout(() => {
+      this.taskNotesTypeSchemaRefreshTimer = null;
+      void this.refreshTaskNotesTypeSchema({ notify: true });
+    }, 250);
   }
 
   async savePreset(name: string, filter: FilterState): Promise<void> {

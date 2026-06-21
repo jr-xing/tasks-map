@@ -49,6 +49,70 @@ export const TASKS_PLUGIN_PRIORITY_OPTIONS: TaskPriorityConfig[] = [
   },
 ];
 
+export const TASKNOTES_PRIORITY_OPTIONS: TaskPriorityConfig[] = [
+  {
+    id: "none",
+    value: "none",
+    label: "None",
+    color: "#8a8a8a",
+    weight: 0,
+  },
+  {
+    id: "low",
+    value: "low",
+    label: "Low",
+    color: "#22c55e",
+    weight: 1,
+  },
+  {
+    id: "normal",
+    value: "normal",
+    label: "Normal",
+    color: "#3b82f6",
+    weight: 2,
+  },
+  {
+    id: "medium",
+    value: "medium",
+    label: "Medium",
+    color: "#f59e0b",
+    weight: 3,
+  },
+  {
+    id: "medium-high",
+    value: "medium-high",
+    label: "Medium High",
+    color: "#f97316",
+    weight: 4,
+  },
+  {
+    id: "high",
+    value: "high",
+    label: "High",
+    color: "#ef4444",
+    weight: 5,
+  },
+  {
+    id: "urgent",
+    value: "urgent",
+    label: "Urgent",
+    color: "#dc2626",
+    weight: 6,
+  },
+];
+
+/** Returns a fresh, mutable copy of the default TaskNotes priority set. */
+export function cloneDefaultPriorities(): TaskPriorityConfig[] {
+  return TASKNOTES_PRIORITY_OPTIONS.map((priority) => ({ ...priority }));
+}
+
+/** Returns saved priorities, or the default catalog for older settings data. */
+export function resolveTaskPriorities(
+  priorities: TaskPriorityConfig[] | undefined
+): TaskPriorityConfig[] {
+  return priorities ?? cloneDefaultPriorities();
+}
+
 export function isNoPriority(priority: string | undefined): boolean {
   const normalized = (priority ?? "").trim().toLowerCase();
   return normalized === "" || normalized === "none";

@@ -18,7 +18,13 @@ import {
   extractTaskAttachments,
   getVisibleTaskAttachments,
 } from "../src/lib/utils";
-import { getPriorityByValue } from "../src/lib/priority-config";
+import {
+  TASKNOTES_PRIORITY_OPTIONS,
+  cloneDefaultPriorities,
+  getPriorityByValue,
+  resolveTaskPriorities,
+} from "../src/lib/priority-config";
+import { DEFAULT_SETTINGS } from "../src/types/settings";
 import { NoteTask } from "../src/types/note-task";
 import { Vault } from "./mocks/obsidian";
 
@@ -693,7 +699,7 @@ describe("createNodesFromTasks", () => {
     expect(nodes[0].data.visibleAttachmentKinds).toEqual(["markdown", "pdf"]);
   });
 
-  it("passes through priority options", () => {
+  it("passes through TaskNotes priority options", () => {
     const task = makeTask();
     const priorityOptions = [
       {
@@ -767,6 +773,45 @@ describe("note task priority parsing", () => {
 });
 
 describe("priority config resolution", () => {
+  it("clones default Task Map priorities without sharing mutable entries", () => {
+    const cloned = cloneDefaultPriorities();
+
+    expect(cloned).toEqual(TASKNOTES_PRIORITY_OPTIONS);
+    expect(cloned).not.toBe(TASKNOTES_PRIORITY_OPTIONS);
+    expect(cloned[0]).not.toBe(TASKNOTES_PRIORITY_OPTIONS[0]);
+    expect(DEFAULT_SETTINGS.taskPriorities).toEqual(
+      TASKNOTES_PRIORITY_OPTIONS
+    );
+    expect(DEFAULT_SETTINGS.taskPriorities).not.toBe(
+      TASKNOTES_PRIORITY_OPTIONS
+    );
+    expect(DEFAULT_SETTINGS.taskPriorities[0]).not.toBe(
+      TASKNOTES_PRIORITY_OPTIONS[0]
+    );
+  });
+
+  it("falls back to default Task Map priorities for older settings data", () => {
+    const resolved = resolveTaskPriorities(undefined);
+
+    expect(resolved).toEqual(TASKNOTES_PRIORITY_OPTIONS);
+    expect(resolved).not.toBe(TASKNOTES_PRIORITY_OPTIONS);
+    expect(resolved[0]).not.toBe(TASKNOTES_PRIORITY_OPTIONS[0]);
+  });
+
+  it("preserves saved Task Map priorities when present", () => {
+    const saved = [
+      {
+        id: "urgent",
+        value: "urgent",
+        label: "Urgent",
+        color: "#ff1111",
+        weight: 10,
+      },
+    ];
+
+    expect(resolveTaskPriorities(saved)).toBe(saved);
+  });
+
   it("resolves custom priorities by value and preserves color", () => {
     const priority = getPriorityByValue("urgent", [
       {

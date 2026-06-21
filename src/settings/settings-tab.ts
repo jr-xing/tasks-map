@@ -1,6 +1,12 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import TasksMapPlugin from "../main";
 import { TagColorPalette, getTagColorClass } from "../lib/tag-color-manager";
+import {
+  cloneDefaultPriorities,
+  isNoPriority,
+} from "../lib/priority-config";
+import { taskPrioritiesFromSchemaValues } from "../lib/tasknotes-type-schema";
+import { getTaskNotesConfig } from "../lib/tasknotes-bridge";
 import { cloneDefaultStatuses } from "../lib/status-config";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
@@ -19,10 +25,25 @@ const ATTACHMENT_KIND_OPTIONS: TaskAttachmentKind[] = [
 
 export class TasksMapSettingTab extends PluginSettingTab {
   plugin: TasksMapPlugin;
+  private prioritySchemaDraft: string[] | null = null;
+  private prioritySchemaDraftPath = "";
 
   constructor(app: App, plugin: TasksMapPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  private getPrioritySchemaDraft(path: string, values: string[]): string[] {
+    if (!this.prioritySchemaDraft || this.prioritySchemaDraftPath !== path) {
+      this.prioritySchemaDraft = [...values];
+      this.prioritySchemaDraftPath = path;
+    }
+    return this.prioritySchemaDraft;
+  }
+
+  private clearPrioritySchemaDraft(): void {
+    this.prioritySchemaDraft = null;
+    this.prioritySchemaDraftPath = "";
   }
 
   private createTagPreview(
@@ -201,6 +222,280 @@ export class TasksMapSettingTab extends PluginSettingTab {
           });
         });
     });
+  }
+
+  private renderTaskPrioritiesSection(containerEl: HTMLElement): void {
+    new Setting(containerEl).setHeading().setName(t("settings.task_priorities"));
+
+    const desc = containerEl.createDiv({ cls: "tasks-map-preview-desc" });
+    desc.textContent = t("settings.task_priorities_desc");
+
+    new Setting(containerEl)
+      .setName(t("settings.tasknotes_schema_use"))
+      .setDesc(t("settings.tasknotes_schema_use_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useTaskNotesTypeSchema)
+          .onChange(async (value) => {
+            this.plugin.settings.useTaskNotesTypeSchema = value;
+            await this.plugin.saveSettings();
+            this.clearPrioritySchemaDraft();
+            await this.plugin.refreshTaskNotesTypeSchema();
+            this.display();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.tasknotes_schema_path"))
+      .setDesc(t("settings.tasknotes_schema_path_desc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("_types/task.md")
+          .setValue(this.plugin.settings.taskNotesTypeSchemaPath)
+          .onChange(async (value) => {
+            this.plugin.settings.taskNotesTypeSchemaPath = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    const schemaState = this.plugin.getTaskNotesTypeSchemaState();
+    const schemaEnabled = this.plugin.settings.useTaskNotesTypeSchema;
+
+    new Setting(containerEl).addButton((btn) =>
+      btn
+        .setButtonText(t("settings.tasknotes_schema_refresh"))
+        .onClick(async () => {
+          this.clearPrioritySchemaDraft();
+          await this.plugin.refreshTaskNotesTypeSchema();
+          this.display();
+        })
+    );
+
+    if (schemaEnabled && schemaState.kind !== "loaded") {
+      const warning = containerEl.createDiv({
+        cls: "tasks-map-preview-desc",
+      });
+      warning.textContent = t("settings.tasknotes_schema_warning", {
+        message: schemaState.message,
+      });
+    }
+
+    if (schemaEnabled && schemaState.kind === "loaded") {
+      this.renderTaskNotesSchemaPriorities(containerEl, schemaState);
+      return;
+    }
+
+    this.renderFallbackTaskPriorities(containerEl);
+  }
+
+  private renderTaskNotesSchemaPriorities(
+    containerEl: HTMLElement,
+    schemaState: Extract<
+      ReturnType<TasksMapPlugin["getTaskNotesTypeSchemaState"]>,
+      { kind: "loaded" }
+    >
+  ): void {
+    const draftValues = this.getPrioritySchemaDraft(
+      schemaState.path,
+      schemaState.priorityValues
+    );
+    const catalog = getTaskNotesConfig(this.app).priorities;
+    const priorities = taskPrioritiesFromSchemaValues(
+      draftValues,
+      catalog,
+      this.plugin.settings.taskPriorityColorOverrides
+    );
+    const hasDraftChanges =
+      draftValues.join("\n") !== schemaState.priorityValues.join("\n");
+
+    if (hasDraftChanges) {
+      const draftNotice = containerEl.createDiv({
+        cls: "tasks-map-preview-desc",
+      });
+      draftNotice.textContent = t("settings.tasknotes_schema_unsaved");
+    }
+
+    priorities.forEach((priority, index) => {
+      const setting = new Setting(containerEl).setName(
+        priority.label || t("settings.priority_unnamed")
+      );
+
+      setting.addText((text) =>
+        text
+          .setPlaceholder(t("settings.priority_value_placeholder"))
+          .setValue(priority.value)
+          .onChange((value) => {
+            draftValues[index] = value;
+          })
+      );
+
+      setting.addColorPicker((picker) =>
+        picker.setValue(priority.color).onChange(async (value) => {
+          this.plugin.settings.taskPriorityColorOverrides = {
+            ...this.plugin.settings.taskPriorityColorOverrides,
+            [priority.value]: value,
+          };
+          await this.plugin.saveSettings();
+        })
+      );
+
+      setting
+        .addExtraButton((btn) =>
+          btn
+            .setIcon("arrow-up")
+            .setTooltip(t("settings.priority_move_up"))
+            .setDisabled(index === 0)
+            .onClick(() => {
+              const previous = draftValues[index - 1];
+              draftValues[index - 1] = draftValues[index];
+              draftValues[index] = previous;
+              this.display();
+            })
+        )
+        .addExtraButton((btn) =>
+          btn
+            .setIcon("arrow-down")
+            .setTooltip(t("settings.priority_move_down"))
+            .setDisabled(index === draftValues.length - 1)
+            .onClick(() => {
+              const next = draftValues[index + 1];
+              draftValues[index + 1] = draftValues[index];
+              draftValues[index] = next;
+              this.display();
+            })
+        )
+        .addExtraButton((btn) =>
+          btn
+            .setIcon("trash")
+            .setTooltip(t("settings.priority_remove"))
+            .onClick(() => {
+              draftValues.splice(index, 1);
+              this.display();
+            })
+        );
+    });
+
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn.setButtonText(t("settings.priority_add")).onClick(() => {
+          draftValues.push(t("settings.priority_new_value"));
+          this.display();
+        })
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t("settings.tasknotes_schema_apply"))
+          .setCta()
+          .onClick(async () => {
+            const written =
+              await this.plugin.writeTaskNotesTypeSchemaPriorities(draftValues);
+            if (written) {
+              this.clearPrioritySchemaDraft();
+            }
+            this.display();
+          })
+      )
+      .addButton((btn) =>
+        btn.setButtonText(t("settings.tasknotes_schema_discard")).onClick(() => {
+          this.clearPrioritySchemaDraft();
+          this.display();
+        })
+      );
+  }
+
+  private renderFallbackTaskPriorities(containerEl: HTMLElement): void {
+    const priorities = this.plugin.settings.taskPriorities;
+
+    priorities.forEach((priority, index) => {
+      const isNonePriority =
+        priority.id === "none" || isNoPriority(priority.value);
+      const setting = new Setting(containerEl).setName(
+        priority.label || t("settings.priority_unnamed")
+      );
+
+      setting.addText((text) =>
+        text
+          .setPlaceholder(t("settings.priority_label_placeholder"))
+          .setValue(priority.label)
+          .onChange(async (value) => {
+            priority.label = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+      setting.addText((text) => {
+        text
+          .setPlaceholder(t("settings.priority_value_placeholder"))
+          .setValue(priority.value)
+          .onChange(async (value) => {
+            priority.value = isNonePriority ? "" : value;
+            await this.plugin.saveSettings();
+          });
+        if (isNonePriority) text.setDisabled(true);
+      });
+
+      setting.addColorPicker((picker) =>
+        picker.setValue(priority.color).onChange(async (value) => {
+          priority.color = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+      setting.addText((text) =>
+        text
+          .setPlaceholder(t("settings.priority_weight_placeholder"))
+          .setValue(String(priority.weight))
+          .onChange(async (value) => {
+            priority.weight = parseInt(value, 10) || 0;
+            await this.plugin.saveSettings();
+          })
+      );
+
+      if (!isNonePriority) {
+        setting.addExtraButton((btn) =>
+          btn
+            .setIcon("trash")
+            .setTooltip(t("settings.priority_remove"))
+            .onClick(async () => {
+              priorities.splice(index, 1);
+              await this.plugin.saveSettings();
+              this.display();
+            })
+        );
+      }
+    });
+
+    new Setting(containerEl)
+      .addButton((btn) =>
+        btn.setButtonText(t("settings.priority_add")).onClick(async () => {
+          const nextWeight =
+            priorities.reduce(
+              (max, priority) => Math.max(max, priority.weight),
+              0
+            ) + 1;
+          priorities.push({
+            id: `priority-${Date.now().toString(36)}-${Math.floor(
+              Math.random() * 1296
+            ).toString(36)}`,
+            value: t("settings.priority_new_value"),
+            label: t("settings.priority_new"),
+            color: "#8a8a8a",
+            weight: nextWeight,
+          });
+          await this.plugin.saveSettings();
+          this.display();
+        })
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t("settings.priority_reset"))
+          .setWarning()
+          .onClick(async () => {
+            this.plugin.settings.taskPriorities = cloneDefaultPriorities();
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
   }
 
   display(): void {
@@ -413,6 +708,7 @@ export class TasksMapSettingTab extends PluginSettingTab {
     );
 
     this.renderTaskStatusesSection(containerEl);
+    this.renderTaskPrioritiesSection(containerEl);
 
     new Setting(containerEl)
       .setHeading()
