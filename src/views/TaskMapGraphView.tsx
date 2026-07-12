@@ -313,6 +313,11 @@ export default function TaskMapGraphView({
         {
           noteTaskPropertyName: settings.noteTaskPropertyName,
           noteTaskPropertyValue: settings.noteTaskPropertyValue,
+          noteTaskTitleSource: settings.noteTaskTitleSource,
+          noteTaskTitleProperty: settings.noteTaskTitleProperty,
+          noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
+          noteTaskCreatedDateProperty:
+            settings.noteTaskCreatedDateProperty,
           noteDependencyProperty: settings.noteDependencyProperty,
         },
         settings.taskStatuses
@@ -330,6 +335,10 @@ export default function TaskMapGraphView({
     app,
     settings.noteTaskPropertyName,
     settings.noteTaskPropertyValue,
+    settings.noteTaskTitleSource,
+    settings.noteTaskTitleProperty,
+    settings.noteTaskDatePrefixEnabled,
+    settings.noteTaskCreatedDateProperty,
     settings.noteDependencyProperty,
     settings.taskStatuses,
   ]);

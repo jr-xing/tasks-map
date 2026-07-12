@@ -1,4 +1,6 @@
 import { getNoteTasks } from "../src/lib/utils";
+import { getFilteredNodeIds } from "../src/lib/filter-tasks";
+import { DEFAULT_FILTER_STATE } from "../src/types/filter-state";
 
 /**
  * Tests for the configurable note-based task detection:
@@ -145,12 +147,186 @@ describe("getNoteTasks - configurable criteria", () => {
     });
   });
 
+  describe("display title", () => {
+    it("uses the filename by default even when frontmatter has a title", () => {
+      const tasks = getNoteTasks(
+        makeApp({
+          "Short.md": { tags: ["task"], title: "Readable title" },
+        })
+      );
+
+      expect(tasks[0]).toMatchObject({
+        id: "Short.md",
+        link: "Short.md",
+        text: "Short",
+        summary: "Short",
+      });
+    });
+
+    it("uses a frontmatter title only for the presentation summary", () => {
+      const tasks = getNoteTasks(
+        makeApp({
+          "Short.md": { tags: ["task"], title: "Readable title" },
+        }),
+        { noteTaskTitleSource: "frontmatter" }
+      );
+
+      expect(tasks[0]).toMatchObject({
+        id: "Short.md",
+        link: "Short.md",
+        text: "Short",
+        summary: "Readable title",
+      });
+    });
+
+    it("supports an arbitrary configured frontmatter title property", () => {
+      const tasks = getNoteTasks(
+        makeApp({
+          "Short.md": {
+            tags: ["task"],
+            displayName: "Custom readable title",
+          },
+        }),
+        {
+          noteTaskTitleSource: "frontmatter",
+          noteTaskTitleProperty: "displayName",
+        }
+      );
+
+      expect(tasks[0].summary).toBe("Custom readable title");
+    });
+
+    it.each([undefined, null, "", "   ", [], { nested: "title" }])(
+      "falls back to the filename for unsupported title value %p",
+      (title) => {
+        const tasks = getNoteTasks(
+          makeApp({ "Short.md": { tags: ["task"], title } }),
+          { noteTaskTitleSource: "frontmatter" }
+        );
+
+        expect(tasks[0].summary).toBe("Short");
+      }
+    );
+
+    it.each([
+      "2025-11-12",
+      "2025-11-12T20:54:39.012+01:00",
+      "2025-11-12 20:54:39",
+    ])("prefixes the display title from creation date %s", (dateCreated) => {
+      const tasks = getNoteTasks(
+        makeApp({
+          "Short.md": {
+            tags: ["task"],
+            title: "Readable title",
+            dateCreated,
+          },
+        }),
+        {
+          noteTaskTitleSource: "frontmatter",
+          noteTaskDatePrefixEnabled: true,
+        }
+      );
+
+      expect(tasks[0].summary).toBe("2025-11-12 Readable title");
+    });
+
+    it("supports a custom creation-date property", () => {
+      const tasks = getNoteTasks(
+        makeApp({
+          "Short.md": {
+            tags: ["task"],
+            title: "Readable title",
+            createdAt: "2024-03-05T09:30:00Z",
+          },
+        }),
+        {
+          noteTaskTitleSource: "frontmatter",
+          noteTaskDatePrefixEnabled: true,
+          noteTaskCreatedDateProperty: "createdAt",
+        }
+      );
+
+      expect(tasks[0].summary).toBe("2024-03-05 Readable title");
+    });
+
+    it.each([undefined, "not-a-date", "2025-02-30", "2025-13-01"])(
+      "omits an invalid creation date %p",
+      (dateCreated) => {
+        const tasks = getNoteTasks(
+          makeApp({
+            "Short.md": {
+              tags: ["task"],
+              title: "Readable title",
+              dateCreated,
+            },
+          }),
+          {
+            noteTaskTitleSource: "frontmatter",
+            noteTaskDatePrefixEnabled: true,
+          }
+        );
+
+        expect(tasks[0].summary).toBe("Readable title");
+      }
+    );
+
+    it("prefixes the filename fallback and avoids duplicate date prefixes", () => {
+      const fallback = getNoteTasks(
+        makeApp({
+          "Short.md": { tags: ["task"], dateCreated: "2025-11-12" },
+        }),
+        {
+          noteTaskTitleSource: "frontmatter",
+          noteTaskDatePrefixEnabled: true,
+        }
+      );
+      const alreadyPrefixed = getNoteTasks(
+        makeApp({
+          "Short.md": {
+            tags: ["task"],
+            title: "2025-11-12 Readable title",
+            dateCreated: "2025-11-12",
+          },
+        }),
+        {
+          noteTaskTitleSource: "frontmatter",
+          noteTaskDatePrefixEnabled: true,
+        }
+      );
+
+      expect(fallback[0].summary).toBe("2025-11-12 Short");
+      expect(alreadyPrefixed[0].summary).toBe("2025-11-12 Readable title");
+    });
+
+    it("is searchable by both the presentation title and filename identity", () => {
+      const tasks = getNoteTasks(
+        makeApp({
+          "ShortCode.md": { tags: ["task"], title: "Readable title" },
+        }),
+        { noteTaskTitleSource: "frontmatter" }
+      );
+
+      expect(
+        getFilteredNodeIds(tasks, {
+          ...DEFAULT_FILTER_STATE,
+          searchQuery: "readable",
+        })
+      ).toEqual(["ShortCode.md"]);
+      expect(
+        getFilteredNodeIds(tasks, {
+          ...DEFAULT_FILTER_STATE,
+          searchQuery: "shortcode",
+        })
+      ).toEqual(["ShortCode.md"]);
+    });
+  });
+
   describe("dependency property", () => {
     it("resolves dependencies from the default blockedBy property", () => {
       const app = makeApp({
         "Task1.md": {
           type: "task",
-          blockedBy: ['[[Task2]]'],
+          blockedBy: ["[[Task2]]"],
         },
         "Task2.md": { type: "task" },
       });

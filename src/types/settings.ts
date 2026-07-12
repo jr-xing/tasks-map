@@ -10,6 +10,7 @@ import { TaskStatusConfig, cloneDefaultStatuses } from "../lib/status-config";
 import type { TaskAttachmentKind } from "./base-task";
 
 export type PriorityAccentPosition = "top" | "right";
+export type NoteTaskTitleSource = "filename" | "frontmatter";
 
 export interface FilterPreset {
   id: string;
@@ -36,6 +37,12 @@ export interface TasksMapSettings {
   // Example: property "tags" + value "task", or property "type" + value "task".
   noteTaskPropertyName: string;
   noteTaskPropertyValue: string;
+  // Controls the presentation label used for note-based tasks. Task identity
+  // and link targets remain filename/path based.
+  noteTaskTitleSource: NoteTaskTitleSource;
+  noteTaskTitleProperty: string;
+  noteTaskDatePrefixEnabled: boolean;
+  noteTaskCreatedDateProperty: string;
   // Which frontmatter property holds this note's dependencies (a list of note
   // links or { uid } objects). Example: "blockedBy" or "projects".
   noteDependencyProperty: string;
@@ -106,6 +113,10 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   // Note-based task detection defaults (backward-compatible: #task tag)
   noteTaskPropertyName: "tags",
   noteTaskPropertyValue: "task",
+  noteTaskTitleSource: "filename",
+  noteTaskTitleProperty: "title",
+  noteTaskDatePrefixEnabled: false,
+  noteTaskCreatedDateProperty: "dateCreated",
   noteDependencyProperty: "blockedBy",
 
   // Left sidebar width default

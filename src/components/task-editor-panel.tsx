@@ -355,7 +355,10 @@ export default function TaskEditorPanel({
     () =>
       availableTasks
         .filter((task) => task.link && task.link !== taskPath)
-        .map((task) => ({ value: task.link, label: task.text || task.link })),
+        .map((task) => ({
+          value: task.link,
+          label: task.summary || task.text || task.link,
+        })),
     [availableTasks, taskPath]
   );
   const dependencyLabel = useMemo(() => {

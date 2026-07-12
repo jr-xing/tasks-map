@@ -10,6 +10,7 @@ import { getTaskNotesConfig } from "../lib/tasknotes-bridge";
 import { cloneDefaultStatuses } from "../lib/status-config";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  NoteTaskTitleSource,
   PriorityAccentPosition,
 } from "../types/settings";
 import { TaskAttachmentKind } from "../types/base-task";
@@ -818,6 +819,71 @@ export class TasksMapSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(containerEl)
+      .setName(t("settings.note_task_title_source"))
+      .setDesc(t("settings.note_task_title_source_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption(
+            "filename",
+            t("settings.note_task_title_source_filename")
+          )
+          .addOption(
+            "frontmatter",
+            t("settings.note_task_title_source_frontmatter")
+          )
+          .setValue(this.plugin.settings.noteTaskTitleSource)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTaskTitleSource =
+              value as NoteTaskTitleSource;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.plugin.settings.noteTaskTitleSource === "frontmatter") {
+      new Setting(containerEl)
+        .setName(t("settings.note_task_title_property"))
+        .setDesc(t("settings.note_task_title_property_desc"))
+        .addText((text) =>
+          text
+            .setPlaceholder("title")
+            .setValue(this.plugin.settings.noteTaskTitleProperty)
+            .onChange(async (value) => {
+              this.plugin.settings.noteTaskTitleProperty = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }
+
+    new Setting(containerEl)
+      .setName(t("settings.note_task_date_prefix"))
+      .setDesc(t("settings.note_task_date_prefix_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.noteTaskDatePrefixEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTaskDatePrefixEnabled = value;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.plugin.settings.noteTaskDatePrefixEnabled) {
+      new Setting(containerEl)
+        .setName(t("settings.note_task_created_date_property"))
+        .setDesc(t("settings.note_task_created_date_property_desc"))
+        .addText((text) =>
+          text
+            .setPlaceholder("dateCreated")
+            .setValue(this.plugin.settings.noteTaskCreatedDateProperty)
+            .onChange(async (value) => {
+              this.plugin.settings.noteTaskCreatedDateProperty = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+    }
 
     new Setting(containerEl)
       .setName(t("settings.note_dependency_property"))

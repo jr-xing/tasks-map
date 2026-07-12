@@ -482,6 +482,11 @@ export default class TasksMapPlugin extends Plugin {
       {
         noteTaskPropertyName: this.settings.noteTaskPropertyName,
         noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
+        noteTaskTitleSource: this.settings.noteTaskTitleSource,
+        noteTaskTitleProperty: this.settings.noteTaskTitleProperty,
+        noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
+        noteTaskCreatedDateProperty:
+          this.settings.noteTaskCreatedDateProperty,
         noteDependencyProperty: this.settings.noteDependencyProperty,
       },
       this.settings.taskStatuses

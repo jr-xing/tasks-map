@@ -1322,12 +1322,88 @@ export async function removeSignFromTaskInFile(
 const DEFAULT_NOTE_TASK_PROPERTY_NAME = "tags";
 const DEFAULT_NOTE_TASK_PROPERTY_VALUE = "task";
 const DEFAULT_NOTE_DEPENDENCY_PROPERTY = "blockedBy";
+const DEFAULT_NOTE_TASK_TITLE_SOURCE = "filename";
+const DEFAULT_NOTE_TASK_TITLE_PROPERTY = "title";
+const DEFAULT_NOTE_TASK_CREATED_DATE_PROPERTY = "dateCreated";
 
 /** Subset of settings that controls how note-based tasks are detected. */
 export type NoteTaskConfig = Pick<
   TasksMapSettings,
-  "noteTaskPropertyName" | "noteTaskPropertyValue" | "noteDependencyProperty"
+  | "noteTaskPropertyName"
+  | "noteTaskPropertyValue"
+  | "noteTaskTitleSource"
+  | "noteTaskTitleProperty"
+  | "noteTaskDatePrefixEnabled"
+  | "noteTaskCreatedDateProperty"
+  | "noteDependencyProperty"
 >;
+
+function displayTitleValue(value: unknown): string | null {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "boolean"
+  ) {
+    return null;
+  }
+
+  const title = String(value).trim();
+  return title.length > 0 ? title : null;
+}
+
+function createdDatePrefix(value: unknown): string {
+  let raw: string;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "";
+    raw = value.toISOString();
+  } else if (typeof value === "string") {
+    raw = value.trim();
+  } else {
+    return "";
+  }
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/);
+  if (!match) return "";
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) return "";
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day < 1 || day > daysInMonth) return "";
+
+  return `${match[1]}-${match[2]}-${match[3]} `;
+}
+
+function getNoteTaskDisplayTitle(
+  filename: string,
+  frontmatter: Record<string, unknown>,
+  settings?: Partial<NoteTaskConfig>
+): string {
+  const titleSource =
+    settings?.noteTaskTitleSource ?? DEFAULT_NOTE_TASK_TITLE_SOURCE;
+  const titleProperty =
+    settings?.noteTaskTitleProperty === undefined
+      ? DEFAULT_NOTE_TASK_TITLE_PROPERTY
+      : settings.noteTaskTitleProperty.trim();
+  const frontmatterTitle =
+    titleSource === "frontmatter" && titleProperty
+      ? displayTitleValue(frontmatter[titleProperty])
+      : null;
+  const title = frontmatterTitle ?? filename;
+
+  if (!settings?.noteTaskDatePrefixEnabled) return title;
+
+  const createdDateProperty =
+    settings.noteTaskCreatedDateProperty === undefined
+      ? DEFAULT_NOTE_TASK_CREATED_DATE_PROPERTY
+      : settings.noteTaskCreatedDateProperty.trim();
+  const prefix = createdDateProperty
+    ? createdDatePrefix(frontmatter[createdDateProperty])
+    : "";
+  if (!prefix || title.startsWith(prefix)) return title;
+  return `${prefix}${title}`;
+}
 
 /**
  * Normalize a criteria value for comparison: coerce to string, trim, and
@@ -1579,7 +1655,14 @@ export function getNoteTasks(
     }
 
     // Parse the note as a task
-    const task = parseTaskNote(file, cache, app, dependencyProperty, statuses);
+    const task = parseTaskNote(
+      file,
+      cache,
+      app,
+      settings,
+      dependencyProperty,
+      statuses
+    );
     if (task) {
       tasks.push(task);
     }
@@ -1605,6 +1688,7 @@ function parseTaskNote(
   cache: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
   app: any,
+  displaySettings: Partial<NoteTaskConfig> | undefined,
   dependencyProperty: string = DEFAULT_NOTE_DEPENDENCY_PROPERTY,
   statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
 ): BaseTask | null {
@@ -1628,6 +1712,11 @@ function parseTaskNote(
 
     // For note-based tasks, use the file path as the ID
     task.id = file.path;
+    task.summary = getNoteTaskDisplayTitle(
+      file.basename,
+      frontmatter,
+      displaySettings
+    );
 
     // Override with frontmatter data if available
     if (frontmatter.tags) {
