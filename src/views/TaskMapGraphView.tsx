@@ -318,6 +318,7 @@ export default function TaskMapGraphView({
           noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
           noteTaskCreatedDateProperty:
             settings.noteTaskCreatedDateProperty,
+          quickCommentsPropertyName: settings.quickCommentsPropertyName,
           noteDependencyProperty: settings.noteDependencyProperty,
         },
         settings.taskStatuses
@@ -339,6 +340,7 @@ export default function TaskMapGraphView({
     settings.noteTaskTitleProperty,
     settings.noteTaskDatePrefixEnabled,
     settings.noteTaskCreatedDateProperty,
+    settings.quickCommentsPropertyName,
     settings.noteDependencyProperty,
     settings.taskStatuses,
   ]);
@@ -360,6 +362,23 @@ export default function TaskMapGraphView({
       return newRegistry;
     });
   }, []);
+
+  const handleQuickCommentsChanged = useCallback(
+    (taskId: string, value: string) => {
+      setTasks((previousTasks) =>
+        previousTasks.map((task) => {
+          if (task.id === taskId && task instanceof NoteTask) {
+            return new NoteTask({
+              ...task.toPlainObject(),
+              quickComments: value,
+            });
+          }
+          return task;
+        })
+      );
+    },
+    []
+  );
 
   useEffect(() => {
     // Get the Dataview plugin to check index status
@@ -540,7 +559,9 @@ export default function TaskMapGraphView({
       handleEditTaskByPath,
       settings.visibleAttachmentKinds,
       notePriorityOptions,
-      settings.priorityAccentPosition
+      settings.priorityAccentPosition,
+      settings.quickCommentsPropertyName,
+      handleQuickCommentsChanged
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -607,6 +628,7 @@ export default function TaskMapGraphView({
     groupByProject,
     reloadTasks,
     handleEditTaskByPath,
+    handleQuickCommentsChanged,
     scheduleFitView,
   ]);
 

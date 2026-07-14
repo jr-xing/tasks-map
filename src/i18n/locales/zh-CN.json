@@ -131,6 +131,8 @@
     "note_task_created_date_property_desc": "包含创建日期的 frontmatter 属性。缺失或无效的日期将被忽略。",
     "note_dependency_property": "依赖属性",
     "note_dependency_property_desc": "存放依赖笔记链接的 frontmatter 属性（例如 \"blockedBy\" 或 \"projects\"）。接受 [[wiki 链接]] 列表。",
+    "quick_comments_property": "快速更新属性",
+    "quick_comments_property_desc": "用于在任务和项目节点上显示快速更新的 frontmatter 属性。",
     "advanced_options": "高级选项",
     "debug_visualization": "调试可视化",
     "debug_visualization_desc": "在图形视图中显示附加调试信息",
@@ -255,6 +257,17 @@
     "create_project_task": "在此项目中创建任务",
     "priority": "优先级：{{priority}}",
     "open_note": "打开笔记（Ctrl 点击或中键点击新建标签页）"
+  },
+  "quick_update": {
+    "label": "快速更新",
+    "add": "添加更新",
+    "edit": "编辑快速更新",
+    "placeholder": "当前情况或下一步…",
+    "clear": "清除",
+    "cancel": "取消",
+    "save": "保存",
+    "saving": "正在保存…",
+    "save_error": "无法保存快速更新，请重试。"
   },
   "task_editor": {
     "create_title": "新建任务",

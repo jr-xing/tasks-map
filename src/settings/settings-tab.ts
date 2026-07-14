@@ -899,6 +899,19 @@ export class TasksMapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName(t("settings.quick_comments_property"))
+      .setDesc(t("settings.quick_comments_property_desc"))
+      .addText((text) =>
+        text
+          .setPlaceholder("quick-comments")
+          .setValue(this.plugin.settings.quickCommentsPropertyName)
+          .onChange(async (value) => {
+            this.plugin.settings.quickCommentsPropertyName = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setHeading()
       .setName(t("settings.advanced_options"));
 

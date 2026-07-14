@@ -37,6 +37,9 @@ export interface TaskNodeData {
   /** Open the in-app task editor panel for the given task file path. */
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onEditTask?: (taskPath: string) => void;
+  quickCommentsPropertyName?: string;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onQuickCommentsChanged?: (taskId: string, value: string) => void;
 }
 
 export interface TaskEdgeData {

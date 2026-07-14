@@ -12,6 +12,8 @@ import type { TaskAttachmentKind } from "./base-task";
 export type PriorityAccentPosition = "top" | "right";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
 
+export const DEFAULT_QUICK_COMMENTS_PROPERTY_NAME = "quick-comments";
+
 export interface FilterPreset {
   id: string;
   name: string;
@@ -43,6 +45,7 @@ export interface TasksMapSettings {
   noteTaskTitleProperty: string;
   noteTaskDatePrefixEnabled: boolean;
   noteTaskCreatedDateProperty: string;
+  quickCommentsPropertyName: string;
   // Which frontmatter property holds this note's dependencies (a list of note
   // links or { uid } objects). Example: "blockedBy" or "projects".
   noteDependencyProperty: string;
@@ -117,6 +120,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   noteTaskTitleProperty: "title",
   noteTaskDatePrefixEnabled: false,
   noteTaskCreatedDateProperty: "dateCreated",
+  quickCommentsPropertyName: DEFAULT_QUICK_COMMENTS_PROPERTY_NAME,
   noteDependencyProperty: "blockedBy",
 
   // Left sidebar width default

@@ -34,6 +34,51 @@ function makeApp(notes: Record<string, any>) {
   };
 }
 
+describe("getNoteTasks - quick updates", () => {
+  it("reads and normalizes the default quick-comments property", () => {
+    const app = makeApp({
+      "Task1.md": {
+        tags: ["task"],
+        "quick-comments": "  Waiting for review.\r\nNext: revise.  ",
+      },
+    });
+
+    const [task] = getNoteTasks(app);
+
+    expect(task.quickComments).toBe("Waiting for review.\nNext: revise.");
+  });
+
+  it("reads a configured quick update property", () => {
+    const app = makeApp({
+      "Project.md": {
+        type: "project",
+        update: "Choose the next milestone",
+      },
+    });
+
+    const [task] = getNoteTasks(app, {
+      noteTaskPropertyName: "type",
+      noteTaskPropertyValue: "project",
+      quickCommentsPropertyName: "update",
+    });
+
+    expect(task.quickComments).toBe("Choose the next milestone");
+  });
+
+  it.each([undefined, null, "   ", ["not", "text"]])(
+    "treats %p as an empty quick update",
+    (value) => {
+      const app = makeApp({
+        "Task1.md": { tags: ["task"], "quick-comments": value },
+      });
+
+      const [task] = getNoteTasks(app);
+
+      expect(task.quickComments).toBe("");
+    }
+  );
+});
+
 describe("getNoteTasks - configurable criteria", () => {
   describe("task detection property", () => {
     it("detects notes by the default tags/task criteria", () => {

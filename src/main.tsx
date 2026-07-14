@@ -487,6 +487,7 @@ export default class TasksMapPlugin extends Plugin {
         noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
         noteTaskCreatedDateProperty:
           this.settings.noteTaskCreatedDateProperty,
+        quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
         noteDependencyProperty: this.settings.noteDependencyProperty,
       },
       this.settings.taskStatuses

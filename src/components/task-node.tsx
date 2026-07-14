@@ -7,6 +7,7 @@ import { BaseTask } from "src/types/task";
 import { TaskAttachmentKind } from "src/types/base-task";
 import { TaskPriorityConfig } from "src/lib/priority-config";
 import { PriorityAccentPosition } from "src/types/settings";
+import { NoteTask } from "src/types/note-task";
 import { TaskDetails } from "./task-details";
 import { ExpandButton } from "./expand-button";
 import { LinkButton } from "./link-button";
@@ -17,6 +18,7 @@ import { TaskStatusToggle } from "./task-status";
 import { TaskBackground } from "./task-background";
 import { TaskPriorityToggle } from "./task-priority";
 import { TagInput } from "./tag-input";
+import { QuickUpdate } from "./quick-update";
 import { useSummaryRenderer } from "../hooks/use-summary-renderer";
 import {
   removeTagFromTaskInVault,
@@ -81,6 +83,9 @@ interface TaskNodeData {
   onTaskChanged?: () => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onEditTask?: (taskPath: string) => void;
+  quickCommentsPropertyName?: string;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onQuickCommentsChanged?: (taskId: string, value: string) => void;
 }
 
 interface TaskAttachmentsProps {
@@ -145,6 +150,8 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     onDeleteTask,
     onTaskChanged,
     onEditTask,
+    quickCommentsPropertyName = "quick-comments",
+    onQuickCommentsChanged,
   } = data;
 
   const { allTags, updateTaskTags } = useContext(TagsContext);
@@ -347,6 +354,14 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
         <div className="tasks-map-task-node-content">
           <span ref={summaryRef} className="tasks-map-task-node-summary" />
         </div>
+
+        {task instanceof NoteTask && (
+          <QuickUpdate
+            task={task}
+            propertyName={quickCommentsPropertyName}
+            onChanged={onQuickCommentsChanged}
+          />
+        )}
 
         {showTags && (
           <div className="tasks-map-task-node-footer">

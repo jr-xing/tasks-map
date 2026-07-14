@@ -31,6 +31,7 @@ export abstract class BaseTask {
   starred: boolean;
   projects: string[];
   attachments: TaskAttachment[];
+  quickComments: string;
 
   constructor(data: {
     id: string;
@@ -44,6 +45,7 @@ export abstract class BaseTask {
     starred: boolean;
     projects?: string[];
     attachments?: TaskAttachment[];
+    quickComments?: string;
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -56,6 +58,7 @@ export abstract class BaseTask {
     this.starred = data.starred;
     this.projects = data.projects ?? [];
     this.attachments = data.attachments ?? [];
+    this.quickComments = data.quickComments ?? "";
   }
 
   /**
@@ -142,6 +145,7 @@ export abstract class BaseTask {
       starred: this.starred,
       projects: this.projects,
       attachments: this.attachments,
+      quickComments: this.quickComments,
     };
   }
 }

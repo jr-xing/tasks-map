@@ -12,6 +12,7 @@ import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   PriorityAccentPosition,
   TasksMapSettings,
+  DEFAULT_QUICK_COMMENTS_PROPERTY_NAME,
 } from "src/types/settings";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { TaskFactory } from "./task-factory";
@@ -158,6 +159,8 @@ export function estimateNodeDimensions(
       ? ATTACHMENT_LIST_TOP_MARGIN +
         visibleAttachments.length * ATTACHMENT_ROW_HEIGHT
       : 0;
+  const quickCommentsHeight =
+    task.type === "note" ? (task.quickComments ? 66 : 32) : 0;
 
   // Add padding and safety margin
   const padding = 24; // 12px top + 12px bottom
@@ -167,6 +170,7 @@ export function estimateNodeDimensions(
     baseHeight +
     summaryHeight +
     tagsHeight +
+    quickCommentsHeight +
     attachmentsHeight +
     padding +
     safetyMargin;
@@ -1335,6 +1339,7 @@ export type NoteTaskConfig = Pick<
   | "noteTaskTitleProperty"
   | "noteTaskDatePrefixEnabled"
   | "noteTaskCreatedDateProperty"
+  | "quickCommentsPropertyName"
   | "noteDependencyProperty"
 >;
 
@@ -1736,6 +1741,15 @@ function parseTaskNote(
       task.starred = frontmatter.starred;
     }
 
+    const quickCommentsProperty =
+      displaySettings?.quickCommentsPropertyName?.trim() ||
+      DEFAULT_QUICK_COMMENTS_PROPERTY_NAME;
+    const quickComments = frontmatter[quickCommentsProperty];
+    task.quickComments =
+      typeof quickComments === "string"
+        ? quickComments.replace(/\r\n?/g, "\n").trim()
+        : "";
+
     task.attachments = extractTaskAttachments(file, cache, app);
 
     // Collect incoming links (dependencies) from the configured frontmatter
@@ -1891,7 +1905,10 @@ export function createNodesFromTasks(
   onEditTask?: (taskPath: string) => void,
   visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   priorityOptions: TaskPriorityConfig[] = [],
-  priorityAccentPosition: PriorityAccentPosition = "top"
+  priorityAccentPosition: PriorityAccentPosition = "top",
+  quickCommentsPropertyName: string = DEFAULT_QUICK_COMMENTS_PROPERTY_NAME,
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onQuickCommentsChanged?: (taskId: string, value: string) => void
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
@@ -1914,6 +1931,8 @@ export function createNodesFromTasks(
       onDeleteTask,
       onTaskChanged,
       onEditTask,
+      quickCommentsPropertyName,
+      onQuickCommentsChanged,
     },
     type: "task" as const,
     sourcePosition,

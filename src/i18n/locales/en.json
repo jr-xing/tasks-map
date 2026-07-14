@@ -131,6 +131,8 @@
     "note_task_created_date_property_desc": "Frontmatter property containing the creation date. Missing or invalid dates are omitted.",
     "note_dependency_property": "Dependency property",
     "note_dependency_property_desc": "The frontmatter property holding dependency note links (e.g. \"blockedBy\" or \"projects\"). Accepts a list of [[wiki links]].",
+    "quick_comments_property": "Quick update property",
+    "quick_comments_property_desc": "The frontmatter property used for quick updates shown on note task and project nodes.",
     "advanced_options": "Advanced Options",
     "debug_visualization": "Debug visualization",
     "debug_visualization_desc": "Show additional debug information in the graph view",
@@ -255,6 +257,17 @@
     "create_project_task": "Create task in this project",
     "open_note": "Open note (Ctrl-click or middle-click for new tab)",
     "priority": "Priority: {{priority}}"
+  },
+  "quick_update": {
+    "label": "Quick update",
+    "add": "Add update",
+    "edit": "Edit quick update",
+    "placeholder": "Current situation or next step…",
+    "clear": "Clear",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "save_error": "Could not save the quick update. Try again."
   },
   "task_editor": {
     "create_title": "New task",

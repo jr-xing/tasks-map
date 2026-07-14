@@ -522,6 +522,17 @@ describe("estimateNodeDimensions", () => {
     expect(withTags.height).toBe(withoutTags.height);
   });
 
+  it("reserves additional height for a populated quick update", () => {
+    const emptyUpdate = makeTask({ quickComments: "" });
+    const populatedUpdate = makeTask({
+      quickComments: "Waiting for review.\nNext: revise the proposal.",
+    });
+
+    expect(estimateNodeDimensions(populatedUpdate).height).toBeGreaterThan(
+      estimateNodeDimensions(emptyUpdate).height
+    );
+  });
+
   it("reserves layout height when attachments are present", () => {
     const taskWithoutAttachments = makeTask({ attachments: [] });
     const taskWithAttachments = makeTask({

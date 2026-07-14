@@ -380,6 +380,152 @@ If your plugin does not need CSS, delete this file.
   padding-bottom: 4px;
 }
 
+.tasks-map-quick-update {
+  width: 100%;
+  margin: 2px 0 7px;
+  pointer-events: auto;
+}
+
+.tasks-map-quick-update-preview {
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--text-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary-alt);
+  cursor: pointer;
+  outline: none;
+}
+
+.tasks-map-quick-update-preview:hover,
+.tasks-map-quick-update-preview:focus-visible {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-quick-update-content {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-normal);
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.tasks-map-graph-container .tasks-map-quick-update-add {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  margin: 0;
+  padding: 3px 7px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tasks-map-graph-container .tasks-map-quick-update-add:hover,
+.tasks-map-graph-container .tasks-map-quick-update-add:focus-visible {
+  border-color: var(--interactive-accent);
+  box-shadow: none;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-quick-update-popover {
+  position: fixed;
+  z-index: 1000;
+  top: var(--tm-quick-update-top);
+  left: var(--tm-quick-update-left);
+  width: var(--tm-quick-update-width);
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-l);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.tasks-map-quick-update-popover-header {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tasks-map-quick-update-popover-header > span {
+  flex: 1;
+}
+
+.tasks-map-quick-update-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.tasks-map-quick-update-icon-button:hover {
+  box-shadow: none;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-quick-update-textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 112px;
+  max-height: 240px;
+  padding: 8px;
+  resize: vertical;
+  font-family: var(--font-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tasks-map-quick-update-error {
+  margin-top: 6px;
+  color: var(--text-error);
+  font-size: 11px;
+}
+
+.tasks-map-quick-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tasks-map-quick-update-actions-spacer {
+  flex: 1;
+}
+
+.tasks-map-quick-update-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+.tasks-map-quick-update-clear {
+  color: var(--text-muted);
+}
+
 .tasks-map-task-node-footer {
   border-top: 1px solid var(--tasks-map-node-divider);
   width: calc(100% + 24px);

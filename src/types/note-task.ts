@@ -29,6 +29,24 @@ interface DependencyEntry {
 export class NoteTask extends BaseTask {
   readonly type = "note" as const;
 
+  async updateQuickComments(
+    newValue: string,
+    propertyName: string,
+    app: App
+  ): Promise<void> {
+    if (!this.link) return;
+    const file = app.vault.getFileByPath(this.link);
+    if (!file) {
+      throw new Error("Quick update note could not be found.");
+    }
+
+    const normalizedValue = newValue.replace(/\r\n?/g, "\n").trim();
+    const normalizedProperty = propertyName.trim() || "quick-comments";
+    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+      frontmatter[normalizedProperty] = normalizedValue;
+    });
+  }
+
   async updateStatus(
     newStatus: TaskStatus,
     app: App,

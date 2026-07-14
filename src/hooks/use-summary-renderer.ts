@@ -2,8 +2,11 @@ import { useEffect, useRef } from "react";
 import { App } from "obsidian";
 import { openFileInObsidian } from "../lib/open-file";
 
-export function useSummaryRenderer(summary: string, app?: App) {
-  const containerRef = useRef<HTMLSpanElement>(null);
+export function useSummaryRenderer<T extends HTMLElement = HTMLSpanElement>(
+  summary: string,
+  app?: App
+) {
+  const containerRef = useRef<T>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;

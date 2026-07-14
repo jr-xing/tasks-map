@@ -131,6 +131,8 @@
     "note_task_created_date_property_desc": "Frontmatter-eigenschap met de aanmaakdatum. Ontbrekende of ongeldige datums worden weggelaten.",
     "note_dependency_property": "Afhankelijkheidseigenschap",
     "note_dependency_property_desc": "De frontmatter-eigenschap met afhankelijkheidskoppelingen (bijv. \"blockedBy\" of \"projects\"). Accepteert een lijst van [[wikilinks]].",
+    "quick_comments_property": "Eigenschap voor snelle update",
+    "quick_comments_property_desc": "De frontmatter-eigenschap voor snelle updates die op taak- en projectknooppunten worden getoond.",
     "advanced_options": "Geavanceerde Opties",
     "debug_visualization": "Debug visualisatie",
     "debug_visualization_desc": "Toon aanvullende debug-informatie in de grafiekweergave",
@@ -255,6 +257,17 @@
     "create_project_task": "Taak in dit project maken",
     "open_note": "Notitie openen (Ctrl-klik of middelklik voor nieuw tabblad)",
     "priority": "Prioriteit: {{priority}}"
+  },
+  "quick_update": {
+    "label": "Snelle update",
+    "add": "Update toevoegen",
+    "edit": "Snelle update bewerken",
+    "placeholder": "Huidige situatie of volgende stap…",
+    "clear": "Wissen",
+    "cancel": "Annuleren",
+    "save": "Opslaan",
+    "saving": "Opslaan…",
+    "save_error": "De snelle update kon niet worden opgeslagen. Probeer het opnieuw."
   },
   "task_editor": {
     "create_title": "Nieuwe taak",
