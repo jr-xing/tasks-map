@@ -1505,14 +1505,8 @@ function resolveAttachmentFile(
   return app.vault.getAbstractFileByPath?.(linkpath) ?? null;
 }
 
-function getAttachmentLabel(
-  link: AttachmentLinkCache,
-  resolvedFile: AttachmentFile
-): string {
-  const displayText = link.displayText?.trim();
-  if (displayText) return displayText;
-
-  return resolvedFile.basename || getFileName(resolvedFile.path);
+function getAttachmentLabel(resolvedFile: AttachmentFile): string {
+  return getFileName(resolvedFile.path);
 }
 
 function getAttachmentNoteType(
@@ -1569,7 +1563,7 @@ export function extractTaskAttachments(
     attachments.push({
       path: resolvedFile.path,
       linktext: link.link,
-      label: getAttachmentLabel(link, resolvedFile),
+      label: getAttachmentLabel(resolvedFile),
       kind: getAttachmentKind(extension, isMarkdown),
       noteType,
     });

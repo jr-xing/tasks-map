@@ -366,7 +366,7 @@ describe("extractTaskAttachments", () => {
       {
         path: "papers/report.pdf",
         linktext: "report.pdf#page=2",
-        label: "report p.2",
+        label: "report.pdf",
         kind: "pdf",
         noteType: undefined,
       },
@@ -390,7 +390,7 @@ describe("extractTaskAttachments", () => {
       {
         path: "images/sketch.png",
         linktext: "sketch.png",
-        label: "Sketch",
+        label: "sketch.png",
         kind: "image",
         noteType: undefined,
       },
@@ -419,7 +419,7 @@ describe("extractTaskAttachments", () => {
         {
           path: "cards/card.md",
           linktext: "card",
-          label: "Card",
+          label: "card.md",
           kind: "markdown",
           noteType,
         },
@@ -484,7 +484,7 @@ describe("extractTaskAttachments", () => {
     expect(attachments[0]).toMatchObject({
       path: "papers/report.pdf",
       linktext: "report.pdf",
-      label: "First label",
+      label: "report.pdf",
     });
   });
 });
