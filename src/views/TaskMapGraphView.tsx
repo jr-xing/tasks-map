@@ -7,6 +7,7 @@ import ReactFlow, {
   useReactFlow,
   getNodesBounds,
   getViewportForBounds,
+  PanOnScrollMode,
   type NodeDragHandler,
   type NodeMouseHandler,
   type SelectionDragHandler,
@@ -1441,6 +1442,11 @@ export default function TaskMapGraphView({
             edgeTypes={edgeTypes}
             proOptions={{ hideAttribution: true }}
             minZoom={0.1}
+            zoomOnScroll={false}
+            zoomOnPinch
+            zoomActivationKeyCode="Control"
+            panOnScroll
+            panOnScrollMode={PanOnScrollMode.Free}
             fitView
             onConnect={(params) => void onConnect(params)}
             onConnectStart={onConnectStart}
