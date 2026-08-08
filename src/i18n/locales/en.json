@@ -6,7 +6,8 @@
   "commands": {
     "open_map_view": "Open map view",
     "focus_project_or_task": "Focus project or task in map",
-    "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map"
+    "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map",
+    "organize_task_notes": "Organize task notes"
   },
   "ribbon": {
     "open_tasks_map": "Open tasks map view"
@@ -133,6 +134,28 @@
     "note_dependency_property_desc": "The frontmatter property holding dependency note links (e.g. \"blockedBy\" or \"projects\"). Accepts a list of [[wiki links]].",
     "quick_comments_property": "Quick update property",
     "quick_comments_property_desc": "The frontmatter property used for quick updates shown on note task and project nodes.",
+    "task_organizer": "Task Notes Organization",
+    "task_organizer_excluded_folders": "Excluded folders",
+    "task_organizer_excluded_folders_desc": "Vault-relative folders ignored by the organizer. Separate multiple folders with commas or new lines.",
+    "task_organizer_rename_project_folders": "Rename project folders",
+    "task_organizer_rename_project_folders_desc": "When off, existing folders under projects/<project> are preserved so date-prefixed project folders keep their sort order.",
+    "task_organizer_rename_task_folders": "Rename task folders",
+    "task_organizer_rename_task_folders_desc": "When off, existing folders under projects/<project>/<task> are preserved. New task folders still use a deterministic fallback name.",
+    "task_organizer_orphans": "Orphan tasks",
+    "task_organizer_orphans_desc": "Choose how task notes with no project link are handled during organization.",
+    "task_organizer_orphans_skip": "Skip them",
+    "task_organizer_orphans_unassigned": "Move to projects/_unassigned",
+    "task_organizer_ai_names": "Use AI task folder names",
+    "task_organizer_ai_names_desc": "Generate short semantic names only when task folder renaming is enabled. Project folders and note filenames are not AI-renamed.",
+    "task_organizer_ai_provider": "AI provider",
+    "task_organizer_ai_provider_desc": "Provider used only for task folder naming.",
+    "task_organizer_ai_model": "AI model",
+    "task_organizer_ai_model_desc": "Model name used for task folder naming.",
+    "task_organizer_ai_api_key": "AI API key",
+    "task_organizer_ai_api_key_desc": "Stored in this plugin's local settings and used only for task folder naming.",
+    "task_organizer_preview": "Preview organization",
+    "task_organizer_preview_desc": "Show the planned note, folder, and attachment changes before applying them.",
+    "task_organizer_preview_button": "Preview changes",
     "advanced_options": "Advanced Options",
     "debug_visualization": "Debug visualization",
     "debug_visualization_desc": "Show additional debug information in the graph view",
@@ -252,6 +275,28 @@
   },
   "attachments": {
     "open": "Open attachment: {{attachment}}"
+  },
+  "organizer": {
+    "preview_title": "Task note organization preview",
+    "summary_note_moves": "{{count}} note move(s)",
+    "summary_attachment_moves": "{{count}} attachment move(s)",
+    "summary_metadata_updates": "{{count}} metadata update(s)",
+    "summary_skipped_orphans": "{{count}} orphan task(s) skipped",
+    "summary_skipped_shared": "{{count}} shared attachment(s) skipped",
+    "no_changes": "Everything is already organized.",
+    "warnings": "Warnings",
+    "planned_moves": "Planned moves",
+    "project_group": "{{project}} ({{count}})",
+    "metadata_updates": "Metadata updates",
+    "metadata_update_item": "{{path}} -> {{slug}}",
+    "cancel": "Cancel",
+    "apply": "Apply changes",
+    "applying": "Applying...",
+    "preview_building": "Building task organization preview...",
+    "preview_building_progress": "Building task organization preview... {{completed}}/{{total}} AI folder names",
+    "preview_failed": "Could not build the task organization preview.",
+    "notice_complete": "Task organization complete: {{count}} change(s) applied.",
+    "notice_partial": "Task organization finished with {{failed}} failure(s); {{succeeded}} change(s) applied."
   },
   "task_node": {
     "create_project_task": "Create task in this project",

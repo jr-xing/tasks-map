@@ -46,6 +46,8 @@ import {
   buildTaskFocusCandidates,
   TaskFocusCandidate,
 } from "./lib/task-focus-picker";
+import { buildTaskOrganizerPlan } from "./lib/tasknotes-organizer";
+import { TaskOrganizerPreviewModal } from "./lib/tasknotes-organizer-modal";
 
 const EMBED_CODE_BLOCK = "tasks-map";
 
@@ -205,6 +207,14 @@ export default class TasksMapPlugin extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: "organize-task-notes",
+      name: t("commands.organize_task_notes"),
+      callback: () => {
+        void this.openTaskOrganizerPreview();
+      },
+    });
+
     this.addRibbonIcon("map", t("ribbon.open_tasks_map"), () => {
       void this.activateViewInMainArea();
     });
@@ -341,9 +351,7 @@ export default class TasksMapPlugin extends Plugin {
     return this.taskNotesTypeSchemaState;
   }
 
-  async writeTaskNotesTypeSchemaPriorities(
-    values: string[]
-  ): Promise<boolean> {
+  async writeTaskNotesTypeSchemaPriorities(values: string[]): Promise<boolean> {
     const priorityValues = values
       .map((value) => value.trim())
       .filter((value) => value.length > 0);
@@ -400,13 +408,10 @@ export default class TasksMapPlugin extends Plugin {
       )
     );
     this.registerEvent(
-      this.app.vault.on(
-        "rename",
-        (file: TAbstractFile, oldPath: string) => {
-          onPathChange(file.path);
-          onPathChange(oldPath);
-        }
-      )
+      this.app.vault.on("rename", (file: TAbstractFile, oldPath: string) => {
+        onPathChange(file.path);
+        onPathChange(oldPath);
+      })
     );
   }
 
@@ -475,6 +480,31 @@ export default class TasksMapPlugin extends Plugin {
     }
   }
 
+  async openTaskOrganizerPreview(): Promise<void> {
+    const loadingNotice = new Notice(t("organizer.preview_building"), 0);
+    try {
+      const plan = await buildTaskOrganizerPlan(this.app, this.settings, {
+        onProgress: (progress) => {
+          if (progress.phase !== "ai-folder-names") return;
+          loadingNotice.setMessage(
+            t("organizer.preview_building_progress", {
+              completed: progress.completed,
+              total: progress.total,
+            })
+          );
+        },
+      });
+      loadingNotice.hide();
+      new TaskOrganizerPreviewModal(this.app, plan, () => {
+        window.dispatchEvent(new Event("tasks-map:settings-changed"));
+      }).open();
+    } catch (error) {
+      loadingNotice.hide();
+      console.error("Failed to build task organization preview:", error);
+      new Notice(t("organizer.preview_failed"));
+    }
+  }
+
   private openFocusPicker(): void {
     const baseFilter = this.getFocusBaseFilter();
     const tasks = getAllTasks(
@@ -485,8 +515,7 @@ export default class TasksMapPlugin extends Plugin {
         noteTaskTitleSource: this.settings.noteTaskTitleSource,
         noteTaskTitleProperty: this.settings.noteTaskTitleProperty,
         noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
-        noteTaskCreatedDateProperty:
-          this.settings.noteTaskCreatedDateProperty,
+        noteTaskCreatedDateProperty: this.settings.noteTaskCreatedDateProperty,
         quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
         noteDependencyProperty: this.settings.noteDependencyProperty,
       },

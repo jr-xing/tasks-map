@@ -1,10 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import TasksMapPlugin from "../main";
 import { TagColorPalette, getTagColorClass } from "../lib/tag-color-manager";
-import {
-  cloneDefaultPriorities,
-  isNoPriority,
-} from "../lib/priority-config";
+import { cloneDefaultPriorities, isNoPriority } from "../lib/priority-config";
 import { taskPrioritiesFromSchemaValues } from "../lib/tasknotes-type-schema";
 import { getTaskNotesConfig } from "../lib/tasknotes-bridge";
 import { cloneDefaultStatuses } from "../lib/status-config";
@@ -12,6 +9,8 @@ import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   NoteTaskTitleSource,
   PriorityAccentPosition,
+  TaskOrganizerAiProvider,
+  TaskOrganizerOrphans,
 } from "../types/settings";
 import { TaskAttachmentKind } from "../types/base-task";
 import { t } from "../i18n";
@@ -226,7 +225,9 @@ export class TasksMapSettingTab extends PluginSettingTab {
   }
 
   private renderTaskPrioritiesSection(containerEl: HTMLElement): void {
-    new Setting(containerEl).setHeading().setName(t("settings.task_priorities"));
+    new Setting(containerEl)
+      .setHeading()
+      .setName(t("settings.task_priorities"));
 
     const desc = containerEl.createDiv({ cls: "tasks-map-preview-desc" });
     desc.textContent = t("settings.task_priorities_desc");
@@ -397,10 +398,12 @@ export class TasksMapSettingTab extends PluginSettingTab {
           })
       )
       .addButton((btn) =>
-        btn.setButtonText(t("settings.tasknotes_schema_discard")).onClick(() => {
-          this.clearPrioritySchemaDraft();
-          this.display();
-        })
+        btn
+          .setButtonText(t("settings.tasknotes_schema_discard"))
+          .onClick(() => {
+            this.clearPrioritySchemaDraft();
+            this.display();
+          })
       );
   }
 
@@ -825,10 +828,7 @@ export class TasksMapSettingTab extends PluginSettingTab {
       .setDesc(t("settings.note_task_title_source_desc"))
       .addDropdown((dropdown) =>
         dropdown
-          .addOption(
-            "filename",
-            t("settings.note_task_title_source_filename")
-          )
+          .addOption("filename", t("settings.note_task_title_source_filename"))
           .addOption(
             "frontmatter",
             t("settings.note_task_title_source_frontmatter")
@@ -908,6 +908,140 @@ export class TasksMapSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.quickCommentsPropertyName = value.trim();
             await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl).setHeading().setName(t("settings.task_organizer"));
+
+    new Setting(containerEl)
+      .setName(t("settings.task_organizer_excluded_folders"))
+      .setDesc(t("settings.task_organizer_excluded_folders_desc"))
+      .addTextArea((text) => {
+        text
+          .setPlaceholder("Templates")
+          .setValue(this.plugin.settings.taskOrganizerExcludedFolders)
+          .onChange(async (value) => {
+            this.plugin.settings.taskOrganizerExcludedFolders = value;
+            await this.plugin.saveSettings();
+          });
+        text.inputEl.rows = 2;
+      });
+
+    new Setting(containerEl)
+      .setName(t("settings.task_organizer_rename_project_folders"))
+      .setDesc(t("settings.task_organizer_rename_project_folders_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.taskOrganizerRenameProjectFolders)
+          .onChange(async (value) => {
+            this.plugin.settings.taskOrganizerRenameProjectFolders = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.task_organizer_rename_task_folders"))
+      .setDesc(t("settings.task_organizer_rename_task_folders_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.taskOrganizerRenameTaskFolders)
+          .onChange(async (value) => {
+            this.plugin.settings.taskOrganizerRenameTaskFolders = value;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.task_organizer_orphans"))
+      .setDesc(t("settings.task_organizer_orphans_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("skip", t("settings.task_organizer_orphans_skip"))
+          .addOption(
+            "unassigned",
+            t("settings.task_organizer_orphans_unassigned")
+          )
+          .setValue(this.plugin.settings.taskOrganizerOrphans)
+          .onChange(async (value) => {
+            this.plugin.settings.taskOrganizerOrphans =
+              value as TaskOrganizerOrphans;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    if (this.plugin.settings.taskOrganizerRenameTaskFolders) {
+      new Setting(containerEl)
+        .setName(t("settings.task_organizer_ai_names"))
+        .setDesc(t("settings.task_organizer_ai_names_desc"))
+        .addToggle((toggle) =>
+          toggle
+            .setValue(this.plugin.settings.taskOrganizerUseAiFolderNames)
+            .onChange(async (value) => {
+              this.plugin.settings.taskOrganizerUseAiFolderNames = value;
+              await this.plugin.saveSettings();
+              this.display();
+            })
+        );
+    }
+
+    if (
+      this.plugin.settings.taskOrganizerRenameTaskFolders &&
+      this.plugin.settings.taskOrganizerUseAiFolderNames
+    ) {
+      new Setting(containerEl)
+        .setName(t("settings.task_organizer_ai_provider"))
+        .setDesc(t("settings.task_organizer_ai_provider_desc"))
+        .addDropdown((dropdown) =>
+          dropdown
+            .addOption("openai", "OpenAI")
+            .addOption("anthropic", "Anthropic")
+            .addOption("google", "Google Gemini")
+            .setValue(this.plugin.settings.taskOrganizerAiProvider)
+            .onChange(async (value) => {
+              this.plugin.settings.taskOrganizerAiProvider =
+                value as TaskOrganizerAiProvider;
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName(t("settings.task_organizer_ai_model"))
+        .setDesc(t("settings.task_organizer_ai_model_desc"))
+        .addText((text) =>
+          text
+            .setPlaceholder("gpt-5-mini")
+            .setValue(this.plugin.settings.taskOrganizerAiModel)
+            .onChange(async (value) => {
+              this.plugin.settings.taskOrganizerAiModel = value.trim();
+              await this.plugin.saveSettings();
+            })
+        );
+
+      new Setting(containerEl)
+        .setName(t("settings.task_organizer_ai_api_key"))
+        .setDesc(t("settings.task_organizer_ai_api_key_desc"))
+        .addText((text) => {
+          text
+            .setPlaceholder("sk-...")
+            .setValue(this.plugin.settings.taskOrganizerAiApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.taskOrganizerAiApiKey = value.trim();
+              await this.plugin.saveSettings();
+            });
+          text.inputEl.type = "password";
+        });
+    }
+
+    new Setting(containerEl)
+      .setName(t("settings.task_organizer_preview"))
+      .setDesc(t("settings.task_organizer_preview_desc"))
+      .addButton((button) =>
+        button
+          .setButtonText(t("settings.task_organizer_preview_button"))
+          .setCta()
+          .onClick(() => {
+            void this.plugin.openTaskOrganizerPreview();
           })
       );
 

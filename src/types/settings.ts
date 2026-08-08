@@ -11,6 +11,8 @@ import type { TaskAttachmentKind } from "./base-task";
 
 export type PriorityAccentPosition = "top" | "right";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
+export type TaskOrganizerAiProvider = "openai" | "anthropic" | "google";
+export type TaskOrganizerOrphans = "skip" | "unassigned";
 
 export const DEFAULT_QUICK_COMMENTS_PROPERTY_NAME = "quick-comments";
 
@@ -82,6 +84,14 @@ export interface TasksMapSettings {
   // task type definition file instead of this plugin's fallback data.
   useTaskNotesTypeSchema: boolean;
   taskNotesTypeSchemaPath: string;
+  taskOrganizerRenameProjectFolders: boolean;
+  taskOrganizerRenameTaskFolders: boolean;
+  taskOrganizerUseAiFolderNames: boolean;
+  taskOrganizerAiProvider: TaskOrganizerAiProvider;
+  taskOrganizerAiModel: string;
+  taskOrganizerAiApiKey: string;
+  taskOrganizerOrphans: TaskOrganizerOrphans;
+  taskOrganizerExcludedFolders: string;
   // Status ids that are visible by default when the map is opened. An empty
   // list means "show all statuses".
   defaultStatusFilter: string[];
@@ -141,6 +151,14 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   taskPriorityColorOverrides: {},
   useTaskNotesTypeSchema: true,
   taskNotesTypeSchemaPath: DEFAULT_TASKNOTES_TYPE_SCHEMA_PATH,
+  taskOrganizerRenameProjectFolders: false,
+  taskOrganizerRenameTaskFolders: true,
+  taskOrganizerUseAiFolderNames: false,
+  taskOrganizerAiProvider: "openai",
+  taskOrganizerAiModel: "",
+  taskOrganizerAiApiKey: "",
+  taskOrganizerOrphans: "skip",
+  taskOrganizerExcludedFolders: "Templates",
   defaultStatusFilter: [],
 
   // Language default

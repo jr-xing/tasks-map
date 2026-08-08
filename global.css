@@ -3239,3 +3239,56 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-new-task-button:hover {
   background: var(--interactive-accent-hover);
 }
+.tasks-map-organizer-modal {
+  max-width: 760px;
+}
+
+.tasks-map-organizer-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.tasks-map-organizer-summary > div,
+.tasks-map-organizer-empty,
+.tasks-map-organizer-warnings,
+.tasks-map-organizer-group {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.tasks-map-organizer-section {
+  margin-top: 16px;
+}
+
+.tasks-map-organizer-section ul,
+.tasks-map-organizer-warnings ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.tasks-map-organizer-group {
+  margin-top: 8px;
+}
+
+.tasks-map-organizer-group h4 {
+  margin: 0 0 8px;
+}
+
+.tasks-map-organizer-from {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.tasks-map-organizer-to {
+  color: var(--text-normal);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.tasks-map-organizer-warnings {
+  margin-top: 16px;
+  border-color: var(--text-warning);
+}
