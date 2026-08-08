@@ -1430,17 +1430,38 @@ function noteMatchesTaskCriteria(
   propertyName: string,
   propertyValue: string
 ): boolean {
-  const raw = frontmatter?.[propertyName];
-  if (raw === undefined || raw === null) return false;
-
   const expected = propertyValue
     .split(",")
     .map((v) => normalizeCriteriaValue(v))
     .filter((v) => v.length > 0);
   if (expected.length === 0) return false;
 
-  const candidates = Array.isArray(raw) ? raw : [raw];
+  const candidates = getNoteCriteriaCandidates(frontmatter, propertyName);
   return candidates.some((c) => expected.includes(normalizeCriteriaValue(c)));
+}
+
+function noteHasTaskCriteriaValue(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- frontmatter shape is dynamic
+  frontmatter: any,
+  propertyName: string,
+  expectedValue: string
+): boolean {
+  const expected = normalizeCriteriaValue(expectedValue);
+  if (!expected) return false;
+
+  return getNoteCriteriaCandidates(frontmatter, propertyName).some(
+    (candidate) => normalizeCriteriaValue(candidate) === expected
+  );
+}
+
+function getNoteCriteriaCandidates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- frontmatter shape is dynamic
+  frontmatter: any,
+  propertyName: string
+): unknown[] {
+  const raw = frontmatter?.[propertyName];
+  if (raw === undefined || raw === null) return [];
+  return Array.isArray(raw) ? raw : [raw];
 }
 
 interface AttachmentLinkCache {
@@ -1711,6 +1732,11 @@ function parseTaskNote(
 
     // For note-based tasks, use the file path as the ID
     task.id = file.path;
+    task.isProject = noteHasTaskCriteriaValue(
+      frontmatter,
+      displaySettings?.noteTaskPropertyName || DEFAULT_NOTE_TASK_PROPERTY_NAME,
+      "project"
+    );
     task.summary = getNoteTaskDisplayTitle(
       file.basename,
       frontmatter,
@@ -1880,7 +1906,8 @@ export function getUnlinkedTasks(tasks: BaseTask[]): BaseTask[] {
     }
   }
   return tasks.filter(
-    (t) => t.incomingLinks.length === 0 && !referencedIds.has(t.id)
+    (t) =>
+      !t.isProject && t.incomingLinks.length === 0 && !referencedIds.has(t.id)
   );
 }
 

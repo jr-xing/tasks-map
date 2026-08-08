@@ -790,9 +790,7 @@ describe("priority config resolution", () => {
     expect(cloned).toEqual(TASKNOTES_PRIORITY_OPTIONS);
     expect(cloned).not.toBe(TASKNOTES_PRIORITY_OPTIONS);
     expect(cloned[0]).not.toBe(TASKNOTES_PRIORITY_OPTIONS[0]);
-    expect(DEFAULT_SETTINGS.taskPriorities).toEqual(
-      TASKNOTES_PRIORITY_OPTIONS
-    );
+    expect(DEFAULT_SETTINGS.taskPriorities).toEqual(TASKNOTES_PRIORITY_OPTIONS);
     expect(DEFAULT_SETTINGS.taskPriorities).not.toBe(
       TASKNOTES_PRIORITY_OPTIONS
     );
@@ -1036,6 +1034,16 @@ describe("getUnlinkedTasks", () => {
   it("returns a task with no incoming links that is not referenced by others", () => {
     const task = makeTask({ id: "a", incomingLinks: [] });
     expect(getUnlinkedTasks([task])).toEqual([task]);
+  });
+
+  it("does not treat standalone project notes as unlinked tasks", () => {
+    const project = makeTask({
+      id: "projects/Project.md",
+      incomingLinks: [],
+      isProject: true,
+    });
+
+    expect(getUnlinkedTasks([project])).toEqual([]);
   });
 
   it("excludes a task that has incoming links", () => {

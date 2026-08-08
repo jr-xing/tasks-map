@@ -18,16 +18,29 @@ function makeFile(path: string): FakeFile {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- frontmatter shape is dynamic in tests
-function makeApp(notes: Record<string, any>) {
+function makeApp(
+  notes: Record<string, any>,
+  bodyLinks: Record<string, { link: string; displayText?: string }[]> = {}
+) {
   const files = Object.keys(notes).map(makeFile);
   return {
     vault: {
       getMarkdownFiles: () => files,
       getAbstractFileByPath: (p: string) =>
-        files.find((f) => f.path === p) || null,
+        files.find((f) => f.path === p || f.path === `${p}.md`) || null,
     },
     metadataCache: {
-      getFileCache: (file: FakeFile) => ({ frontmatter: notes[file.path] }),
+      getFirstLinkpathDest: (linkpath: string) =>
+        files.find(
+          (f) =>
+            f.path === linkpath ||
+            f.path === `${linkpath}.md` ||
+            f.basename === linkpath
+        ) || null,
+      getFileCache: (file: FakeFile) => ({
+        frontmatter: notes[file.path],
+        links: bodyLinks[file.path] ?? [],
+      }),
     },
     // No Dataview plugin in these tests
     plugins: { plugins: {} },
@@ -446,6 +459,41 @@ describe("getNoteTasks - configurable criteria", () => {
       expect(byId.get("ProjectA.md")?.incomingLinks).toEqual([]);
       expect(byId.get("Task1.md")?.incomingLinks).toEqual(["ProjectA.md"]);
       expect(byId.get("Subtask1.md")?.incomingLinks).toEqual(["Task1.md"]);
+    });
+
+    it("marks project notes without treating body links as children", () => {
+      const app = makeApp(
+        {
+          "projects/2026-08-05-Project General Planning.md": {
+            type: "project",
+            status: "active",
+          },
+          "2026-08-05-TASK General Planning 2026-08-05.md": {
+            type: "task",
+          },
+        },
+        {
+          "projects/2026-08-05-Project General Planning.md": [
+            { link: "2026-08-05-TASK General Planning 2026-08-05" },
+          ],
+        }
+      );
+
+      const tasks = getNoteTasks(app, {
+        noteTaskPropertyName: "type",
+        noteTaskPropertyValue: "task, project",
+        noteDependencyProperty: "projects",
+      });
+
+      const project = tasks.find(
+        (t) => t.id === "projects/2026-08-05-Project General Planning.md"
+      );
+      const task = tasks.find(
+        (t) => t.id === "2026-08-05-TASK General Planning 2026-08-05.md"
+      );
+      expect(project?.isProject).toBe(true);
+      expect(task?.isProject).toBe(false);
+      expect(task?.incomingLinks).toEqual([]);
     });
 
     it("does not also use projects for grouping when it is the dependency property", () => {
