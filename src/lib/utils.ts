@@ -20,7 +20,12 @@ import { Position, Node, Edge } from "reactflow";
 import { t } from "../i18n";
 import { TagColorPalette } from "./tag-color-manager";
 import { TaskPriorityConfig } from "./priority-config";
-import { TaskStatusConfig, DEFAULT_TASK_STATUSES } from "./status-config";
+import {
+  TaskStatusConfig,
+  DEFAULT_TASK_STATUSES,
+  resolveStatus,
+  type StatusResolution,
+} from "./status-config";
 
 const validDateTypes = [
   "due",
@@ -1343,6 +1348,30 @@ export type NoteTaskConfig = Pick<
   | "noteDependencyProperty"
 >;
 
+export type NoteTaskInspectionReason =
+  | "missing_frontmatter"
+  | "criteria_mismatch"
+  | "parse_error";
+
+interface NoteTaskInspectionDetails {
+  propertyName: string;
+  expectedValues: string[];
+  actualValues: string[];
+}
+
+export type NoteTaskInspection =
+  | (NoteTaskInspectionDetails & {
+      kind: "excluded";
+      reason: NoteTaskInspectionReason;
+      error?: string;
+    })
+  | (NoteTaskInspectionDetails & {
+      kind: "included";
+      task: BaseTask;
+      rawStatus: string;
+      statusResolution: StatusResolution;
+    });
+
 function displayTitleValue(value: unknown): string | null {
   if (
     typeof value !== "string" &&
@@ -1646,35 +1675,54 @@ export function getNoteTasks(
 ): BaseTask[] {
   const tasks: BaseTask[] = [];
   const vault = app.vault;
-  const metadataCache = app.metadataCache;
 
-  // Resolve the configurable note-task criteria (falling back to defaults)
+  // Get all markdown files in the vault
+  const files = vault.getMarkdownFiles();
+
+  for (const file of files) {
+    const inspection = inspectNoteTask(app, file, settings, statuses);
+    if (inspection.kind === "included") tasks.push(inspection.task);
+  }
+
+  return tasks;
+}
+
+/** Inspect one note using the exact same recognition and parsing path as loading. */
+export function inspectNoteTask(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
+  app: any,
+  file: TFile,
+  settings?: Partial<NoteTaskConfig>,
+  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
+): NoteTaskInspection {
   const propertyName =
     settings?.noteTaskPropertyName || DEFAULT_NOTE_TASK_PROPERTY_NAME;
   const propertyValue =
     settings?.noteTaskPropertyValue || DEFAULT_NOTE_TASK_PROPERTY_VALUE;
   const dependencyProperty =
     settings?.noteDependencyProperty || DEFAULT_NOTE_DEPENDENCY_PROPERTY;
+  const expectedValues = propertyValue
+    .split(",")
+    .map((value) => normalizeCriteriaValue(value))
+    .filter((value) => value.length > 0);
+  const cache = app.metadataCache.getFileCache(file);
+  const actualValues = cache?.frontmatter
+    ? getNoteCriteriaCandidates(cache.frontmatter, propertyName)
+        .map((value) => normalizeCriteriaValue(value))
+        .filter((value) => value.length > 0)
+    : [];
+  const details = { propertyName, expectedValues, actualValues };
 
-  // Get all markdown files in the vault
-  const files = vault.getMarkdownFiles();
+  if (!cache?.frontmatter) {
+    return { kind: "excluded", reason: "missing_frontmatter", ...details };
+  }
+  if (
+    !noteMatchesTaskCriteria(cache.frontmatter, propertyName, propertyValue)
+  ) {
+    return { kind: "excluded", reason: "criteria_mismatch", ...details };
+  }
 
-  for (const file of files) {
-    // Get the file's metadata (frontmatter)
-    const cache = metadataCache.getFileCache(file);
-
-    if (!cache?.frontmatter) {
-      continue;
-    }
-
-    // Check if the note matches the configured task criteria
-    if (
-      !noteMatchesTaskCriteria(cache.frontmatter, propertyName, propertyValue)
-    ) {
-      continue;
-    }
-
-    // Parse the note as a task
+  try {
     const task = parseTaskNote(
       file,
       cache,
@@ -1683,12 +1731,22 @@ export function getNoteTasks(
       dependencyProperty,
       statuses
     );
-    if (task) {
-      tasks.push(task);
-    }
+    const rawStatus = cache.frontmatter.status || " ";
+    return {
+      kind: "included",
+      task,
+      rawStatus,
+      statusResolution: resolveStatus(rawStatus, statuses),
+      ...details,
+    };
+  } catch (error) {
+    return {
+      kind: "excluded",
+      reason: "parse_error",
+      error: error instanceof Error ? error.message : String(error),
+      ...details,
+    };
   }
-
-  return tasks;
 }
 
 /**
@@ -1711,7 +1769,7 @@ function parseTaskNote(
   displaySettings: Partial<NoteTaskConfig> | undefined,
   dependencyProperty: string = DEFAULT_NOTE_DEPENDENCY_PROPERTY,
   statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
-): BaseTask | null {
+): BaseTask {
   const frontmatter = cache.frontmatter || {};
   const factory = new TaskFactory(statuses);
 
@@ -1726,96 +1784,92 @@ function parseTaskNote(
     link: { path: file.path },
   };
 
-  try {
-    // Parse as a note-based task
-    const task = factory.parse(rawTask, "note");
+  // Parse as a note-based task
+  const task = factory.parse(rawTask, "note");
 
-    // For note-based tasks, use the file path as the ID
-    task.id = file.path;
-    task.isProject = noteHasTaskCriteriaValue(
-      frontmatter,
-      displaySettings?.noteTaskPropertyName || DEFAULT_NOTE_TASK_PROPERTY_NAME,
-      "project"
-    );
-    task.summary = getNoteTaskDisplayTitle(
-      file.basename,
-      frontmatter,
-      displaySettings
-    );
+  // For note-based tasks, use the file path as the ID
+  task.id = file.path;
+  task.isProject = noteHasTaskCriteriaValue(
+    frontmatter,
+    displaySettings?.noteTaskPropertyName || DEFAULT_NOTE_TASK_PROPERTY_NAME,
+    "project"
+  );
+  task.summary = getNoteTaskDisplayTitle(
+    file.basename,
+    frontmatter,
+    displaySettings
+  );
 
-    // Override with frontmatter data if available
-    if (frontmatter.tags) {
-      const tags: unknown[] = Array.isArray(frontmatter.tags)
-        ? frontmatter.tags
-        : [];
-      task.tags = tags
-        .filter((t: unknown): t is string => typeof t === "string")
-        .map((t) => t.replace(/^#/, ""));
-    }
-
-    if (frontmatter.priority) {
-      task.priority = normalizeNotePriority(frontmatter.priority);
-    }
-
-    if (typeof frontmatter.starred === "boolean") {
-      task.starred = frontmatter.starred;
-    }
-
-    const quickCommentsProperty =
-      displaySettings?.quickCommentsPropertyName?.trim() ||
-      DEFAULT_QUICK_COMMENTS_PROPERTY_NAME;
-    const quickComments = frontmatter[quickCommentsProperty];
-    task.quickComments =
-      typeof quickComments === "string"
-        ? quickComments.replace(/\r\n?/g, "\n").trim()
-        : "";
-
-    task.attachments = extractTaskAttachments(file, cache, app);
-
-    // Collect incoming links (dependencies) from the configured frontmatter
-    // property. Values may be wiki-link strings ("[[Other task]]") or
-    // { uid, reltype } objects; both are resolved to file paths.
-    const allIncomingLinks: string[] = [];
-
-    const dependencyValue = frontmatter[dependencyProperty];
-    if (dependencyValue) {
-      try {
-        const dependencyList = Array.isArray(dependencyValue)
-          ? dependencyValue
-          : [dependencyValue];
-        allIncomingLinks.push(...parseBlockedByLinks(dependencyList, app));
-      } catch {
-        // Failed to parse the dependency property
-      }
-    }
-
-    // Remove duplicates and assign to task
-    task.incomingLinks = [...new Set(allIncomingLinks)];
-
-    // Parse projects from TaskNotes frontmatter for the "group by project"
-    // feature. Skip this when "projects" is itself the dependency property:
-    // in that case the field already drives dependency edges and reusing it
-    // for grouping would represent the same relationship twice.
-    // Format: projects: ["[[Project Name]]"] or projects: ["Project Name"]
-    if (
-      dependencyProperty !== "projects" &&
-      frontmatter.projects &&
-      Array.isArray(frontmatter.projects)
-    ) {
-      task.projects = frontmatter.projects
-        .map((p: unknown) => {
-          if (typeof p !== "string") return null;
-          // Strip wiki-link brackets: "[[My Project]]" → "My Project"
-          const wikiMatch = p.match(/^\[\[(.+)\]\]$/);
-          return wikiMatch ? wikiMatch[1] : p;
-        })
-        .filter((p: string | null): p is string => !!p && p.trim() !== "");
-    }
-
-    return task;
-  } catch {
-    return null;
+  // Override with frontmatter data if available
+  if (frontmatter.tags) {
+    const tags: unknown[] = Array.isArray(frontmatter.tags)
+      ? frontmatter.tags
+      : [];
+    task.tags = tags
+      .filter((t: unknown): t is string => typeof t === "string")
+      .map((t) => t.replace(/^#/, ""));
   }
+
+  if (frontmatter.priority) {
+    task.priority = normalizeNotePriority(frontmatter.priority);
+  }
+
+  if (typeof frontmatter.starred === "boolean") {
+    task.starred = frontmatter.starred;
+  }
+
+  const quickCommentsProperty =
+    displaySettings?.quickCommentsPropertyName?.trim() ||
+    DEFAULT_QUICK_COMMENTS_PROPERTY_NAME;
+  const quickComments = frontmatter[quickCommentsProperty];
+  task.quickComments =
+    typeof quickComments === "string"
+      ? quickComments.replace(/\r\n?/g, "\n").trim()
+      : "";
+
+  task.attachments = extractTaskAttachments(file, cache, app);
+
+  // Collect incoming links (dependencies) from the configured frontmatter
+  // property. Values may be wiki-link strings ("[[Other task]]") or
+  // { uid, reltype } objects; both are resolved to file paths.
+  const allIncomingLinks: string[] = [];
+
+  const dependencyValue = frontmatter[dependencyProperty];
+  if (dependencyValue) {
+    try {
+      const dependencyList = Array.isArray(dependencyValue)
+        ? dependencyValue
+        : [dependencyValue];
+      allIncomingLinks.push(...parseBlockedByLinks(dependencyList, app));
+    } catch {
+      // Failed to parse the dependency property
+    }
+  }
+
+  // Remove duplicates and assign to task
+  task.incomingLinks = [...new Set(allIncomingLinks)];
+
+  // Parse projects from TaskNotes frontmatter for the "group by project"
+  // feature. Skip this when "projects" is itself the dependency property:
+  // in that case the field already drives dependency edges and reusing it
+  // for grouping would represent the same relationship twice.
+  // Format: projects: ["[[Project Name]]"] or projects: ["Project Name"]
+  if (
+    dependencyProperty !== "projects" &&
+    frontmatter.projects &&
+    Array.isArray(frontmatter.projects)
+  ) {
+    task.projects = frontmatter.projects
+      .map((p: unknown) => {
+        if (typeof p !== "string") return null;
+        // Strip wiki-link brackets: "[[My Project]]" → "My Project"
+        const wikiMatch = p.match(/^\[\[(.+)\]\]$/);
+        return wikiMatch ? wikiMatch[1] : p;
+      })
+      .filter((p: string | null): p is string => !!p && p.trim() !== "");
+  }
+
+  return task;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property

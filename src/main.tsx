@@ -41,13 +41,15 @@ import {
   taskPrioritiesFromSchemaValues,
   writeTaskNotesTypeSchemaPriorityValues,
 } from "./lib/tasknotes-type-schema";
-import { checkDataviewPlugin, getAllTasks } from "./lib/utils";
+import { checkDataviewPlugin, getAllTasks, inspectNoteTask } from "./lib/utils";
 import {
   buildTaskFocusCandidates,
   TaskFocusCandidate,
 } from "./lib/task-focus-picker";
 import { buildTaskOrganizerPlan } from "./lib/tasknotes-organizer";
 import { TaskOrganizerPreviewModal } from "./lib/tasknotes-organizer-modal";
+import { buildNoteVisibilityReport } from "./lib/note-visibility";
+import { NoteVisibilityModal } from "./lib/note-visibility-modal";
 
 const EMBED_CODE_BLOCK = "tasks-map";
 
@@ -196,6 +198,14 @@ export default class TasksMapPlugin extends Plugin {
       name: t("commands.focus_project_or_task"),
       callback: () => {
         this.openFocusPicker();
+      },
+    });
+
+    this.addCommand({
+      id: "check-note-map-visibility",
+      name: t("commands.check_note_map_visibility"),
+      callback: () => {
+        this.checkNoteMapVisibility();
       },
     });
 
@@ -534,6 +544,69 @@ export default class TasksMapPlugin extends Plugin {
         baseFilter,
       });
     }).open();
+  }
+
+  private checkNoteMapVisibility(): void {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (activeFile?.extension === "md") {
+      this.openNoteVisibilityReport(activeFile);
+      return;
+    }
+
+    new NoteSuggestModal(this.app, (file) => {
+      this.openNoteVisibilityReport(file);
+    }).open();
+  }
+
+  private openNoteVisibilityReport(file: TFile): void {
+    const noteSettings = {
+      noteTaskPropertyName: this.settings.noteTaskPropertyName,
+      noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
+      noteTaskTitleSource: this.settings.noteTaskTitleSource,
+      noteTaskTitleProperty: this.settings.noteTaskTitleProperty,
+      noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
+      noteTaskCreatedDateProperty: this.settings.noteTaskCreatedDateProperty,
+      quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
+      noteDependencyProperty: this.settings.noteDependencyProperty,
+    };
+    const inspection = inspectNoteTask(
+      this.app,
+      file,
+      noteSettings,
+      this.settings.taskStatuses
+    );
+    const freshTasks = getAllTasks(
+      this.app,
+      noteSettings,
+      this.settings.taskStatuses
+    );
+    const mapView = this.getVisibilityMapView();
+    const report = buildNoteVisibilityReport({
+      filePath: file.path,
+      inspection,
+      freshTasks,
+      liveContext: mapView?.getVisibilityContext() ?? undefined,
+      defaultFilter: this.getDefaultFilterState(),
+      defaultHideUnlinkedTasks: DEFAULT_EMBED_CONFIG.hideUnlinkedTasks,
+    });
+    const reload =
+      report.canReload && mapView
+        ? () => {
+            mapView.reloadTasks();
+          }
+        : null;
+    new NoteVisibilityModal(this.app, report, reload).open();
+  }
+
+  private getVisibilityMapView(): TaskMapGraphItemView | null {
+    const activeLeaf = this.app.workspace.getMostRecentLeaf();
+    if (activeLeaf?.view instanceof TaskMapGraphItemView) {
+      return activeLeaf.view;
+    }
+    const leaf = this.app.workspace
+      .getLeavesOfType(VIEW_TYPE)
+      .find((candidate) => candidate.view instanceof TaskMapGraphItemView);
+    return leaf?.view instanceof TaskMapGraphItemView ? leaf.view : null;
   }
 
   private getDefaultFilterState(): FilterState {

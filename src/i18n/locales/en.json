@@ -7,7 +7,8 @@
     "open_map_view": "Open map view",
     "focus_project_or_task": "Focus project or task in map",
     "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map",
-    "organize_task_notes": "Organize task notes"
+    "organize_task_notes": "Organize task notes",
+    "check_note_map_visibility": "Check why note is (not) shown in map"
   },
   "ribbon": {
     "open_tasks_map": "Open tasks map view"
@@ -297,6 +298,47 @@
     "preview_failed": "Could not build the task organization preview.",
     "notice_complete": "Task organization complete: {{count}} change(s) applied.",
     "notice_partial": "Task organization finished with {{failed}} failure(s); {{succeeded}} change(s) applied."
+  },
+  "visibility": {
+    "title": "Tasks Map note visibility",
+    "context_live": "Checked against the currently open map.",
+    "context_defaults": "No standalone map is open; checked against the configured defaults.",
+    "verdict_shown": "This note is currently shown on the map.",
+    "verdict_should_show": "This note should be shown when a map opens.",
+    "verdict_stale": "The open map has a stale copy of this note.",
+    "verdict_hidden": "The note is recognized, but the current map hides it.",
+    "verdict_excluded": "The note is not recognized as a task or project.",
+    "verdict_pending": "The map is still loading; visibility is not final yet.",
+    "verdict_not_rendered": "The note passes the map rules but has not been rendered.",
+    "reload_map": "Reload map",
+    "close": "Close",
+    "reasons": {
+      "missing_frontmatter": "No parsed frontmatter is available for this note.",
+      "criteria_mismatch": "Property ‘{{property}}’ is {{actual}}; expected one of {{expected}}.",
+      "parse_error": "The note matched the task criteria but could not be parsed: {{error}}",
+      "recognized": "Recognized from ‘{{property}}’: {{actual}}.",
+      "parsed": "Parsed successfully as a note-based task.",
+      "status_mapped": "Status ‘{{raw}}’ maps to ‘{{resolved}}’.",
+      "status_fallback": "Status ‘{{raw}}’ is not configured and falls back to ‘{{resolved}}’.",
+      "no_live_map": "There is no open standalone map, so live filters and snapshot state cannot be checked.",
+      "map_loading": "The open map is still loading its task snapshot.",
+      "snapshot_current": "The loaded map snapshot matches the current note.",
+      "stale_missing": "The current note is eligible but is absent from the loaded map snapshot.",
+      "stale_changed": "The loaded map has older values for: {{fields}}.",
+      "unlinked_allowed": "The unlinked-task rule allows this note on the canvas.",
+      "unlinked_hidden": "This task has no resolved connections and ‘Hide unlinked tasks’ is enabled.",
+      "selected_tags": "Its tags do not match the selected tags: {{selected}}.",
+      "excluded_tags": "It contains a currently excluded tag: {{selected}}.",
+      "selected_statuses": "Its mapped status is ‘{{actual}}’; visible statuses are {{selected}}.",
+      "selected_files": "Its file is outside the selected files or folders: {{selected}}.",
+      "selected_projects": "Its projects are {{actual}}; selected projects are {{selected}}.",
+      "only_starred": "The map is showing starred tasks only, and this note is not starred.",
+      "root_scope": "The note is outside the subtree rooted at {{root}}.",
+      "search_scope": "The note is outside the results and traversal for search ‘{{query}}’.",
+      "filters_pass": "The note passes all current filters and graph scope rules.",
+      "rendered": "A rendered task node exists for this note.",
+      "render_missing": "No rendered task node exists even though the note passes the current rules."
+    }
   },
   "task_node": {
     "create_project_task": "Create task in this project",

@@ -7,7 +7,8 @@
     "open_map_view": "Kaartweergave openen",
     "focus_project_or_task": "Project of taak in kaart focussen",
     "insert_filter_as_code_block": "Huidig filter invoegen als ingesloten Taken Kaart",
-    "organize_task_notes": "Organize task notes"
+    "organize_task_notes": "Organize task notes",
+    "check_note_map_visibility": "Controleren waarom notitie wel/niet op de kaart staat"
   },
   "ribbon": {
     "open_tasks_map": "Taken kaartweergave openen"
@@ -297,6 +298,47 @@
     "preview_failed": "Could not build the task organization preview.",
     "notice_complete": "Task organization complete: {{count}} change(s) applied.",
     "notice_partial": "Task organization finished with {{failed}} failure(s); {{succeeded}} change(s) applied."
+  },
+  "visibility": {
+    "title": "Zichtbaarheid van notitie in Taken Kaart",
+    "context_live": "Gecontroleerd aan de hand van de momenteel geopende kaart.",
+    "context_defaults": "Er is geen zelfstandige kaart geopend; gecontroleerd met de ingestelde standaardwaarden.",
+    "verdict_shown": "Deze notitie staat momenteel op de kaart.",
+    "verdict_should_show": "Deze notitie zou zichtbaar moeten zijn wanneer een kaart wordt geopend.",
+    "verdict_stale": "De geopende kaart bevat een verouderde versie van deze notitie.",
+    "verdict_hidden": "De notitie wordt herkend, maar is verborgen door de huidige kaart.",
+    "verdict_excluded": "De notitie wordt niet herkend als taak of project.",
+    "verdict_pending": "De kaart wordt nog geladen; de zichtbaarheid is nog niet definitief.",
+    "verdict_not_rendered": "De notitie voldoet aan de kaartregels, maar is niet weergegeven.",
+    "reload_map": "Kaart herladen",
+    "close": "Sluiten",
+    "reasons": {
+      "missing_frontmatter": "Er is geen geparseerde frontmatter beschikbaar voor deze notitie.",
+      "criteria_mismatch": "Eigenschap ‘{{property}}’ is {{actual}}; verwacht werd een van {{expected}}.",
+      "parse_error": "De notitie voldeed aan de taakcriteria, maar kon niet worden geparseerd: {{error}}",
+      "recognized": "Herkend via ‘{{property}}’: {{actual}}.",
+      "parsed": "Succesvol geparseerd als notitiegebaseerde taak.",
+      "status_mapped": "Status ‘{{raw}}’ wordt toegewezen aan ‘{{resolved}}’.",
+      "status_fallback": "Status ‘{{raw}}’ is niet ingesteld en valt terug op ‘{{resolved}}’.",
+      "no_live_map": "Er is geen zelfstandige kaart geopend; livefilters en de momentopname kunnen niet worden gecontroleerd.",
+      "map_loading": "De geopende kaart laadt de taakmomentopname nog.",
+      "snapshot_current": "De geladen kaartmomentopname komt overeen met de huidige notitie.",
+      "stale_missing": "De huidige notitie komt in aanmerking, maar ontbreekt in de geladen kaartmomentopname.",
+      "stale_changed": "De geladen kaart heeft oudere waarden voor: {{fields}}.",
+      "unlinked_allowed": "De regel voor niet-gekoppelde taken staat deze notitie toe op het canvas.",
+      "unlinked_hidden": "Deze taak heeft geen opgeloste verbindingen en ‘Niet-gekoppelde taken verbergen’ is ingeschakeld.",
+      "selected_tags": "De tags komen niet overeen met de geselecteerde tags: {{selected}}.",
+      "excluded_tags": "De notitie bevat een momenteel uitgesloten tag: {{selected}}.",
+      "selected_statuses": "De toegewezen status is ‘{{actual}}’; zichtbare statussen zijn {{selected}}.",
+      "selected_files": "Het bestand valt buiten de geselecteerde bestanden of mappen: {{selected}}.",
+      "selected_projects": "De projecten zijn {{actual}}; geselecteerde projecten zijn {{selected}}.",
+      "only_starred": "De kaart toont alleen gemarkeerde taken en deze notitie is niet gemarkeerd.",
+      "root_scope": "De notitie valt buiten de substructuur met {{root}} als hoofdknooppunt.",
+      "search_scope": "De notitie valt buiten de resultaten en traversering voor zoekopdracht ‘{{query}}’.",
+      "filters_pass": "De notitie voldoet aan alle huidige filters en grafiekregels.",
+      "rendered": "Er bestaat een weergegeven taakknooppunt voor deze notitie.",
+      "render_missing": "Er bestaat geen weergegeven taakknooppunt, hoewel de notitie aan de huidige regels voldoet."
+    }
   },
   "task_node": {
     "create_project_task": "Taak in dit project maken",

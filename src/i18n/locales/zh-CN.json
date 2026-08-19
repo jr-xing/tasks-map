@@ -7,7 +7,8 @@
     "organize_task_notes": "Organize task notes",
     "open_map_view": "打开地图视图",
     "focus_project_or_task": "聚焦地图中的项目或任务",
-    "insert_filter_as_code_block": "将当前筛选器插入为嵌入式任务地图"
+    "insert_filter_as_code_block": "将当前筛选器插入为嵌入式任务地图",
+    "check_note_map_visibility": "检查笔记为何显示或未显示在地图中"
   },
   "ribbon": {
     "open_tasks_map": "打开任务地图视图"
@@ -297,6 +298,47 @@
     "preview_failed": "Could not build the task organization preview.",
     "notice_complete": "Task organization complete: {{count}} change(s) applied.",
     "notice_partial": "Task organization finished with {{failed}} failure(s); {{succeeded}} change(s) applied."
+  },
+  "visibility": {
+    "title": "任务地图笔记可见性",
+    "context_live": "已根据当前打开的地图进行检查。",
+    "context_defaults": "没有打开独立地图；已根据配置的默认值进行检查。",
+    "verdict_shown": "此笔记当前已显示在地图中。",
+    "verdict_should_show": "打开地图时，此笔记应当显示。",
+    "verdict_stale": "打开的地图中保存的是此笔记的旧版本。",
+    "verdict_hidden": "此笔记已被识别，但被当前地图隐藏。",
+    "verdict_excluded": "此笔记未被识别为任务或项目。",
+    "verdict_pending": "地图仍在加载，可见性尚未确定。",
+    "verdict_not_rendered": "此笔记符合地图规则，但尚未渲染。",
+    "reload_map": "重新加载地图",
+    "close": "关闭",
+    "reasons": {
+      "missing_frontmatter": "此笔记没有可用的已解析 frontmatter。",
+      "criteria_mismatch": "属性“{{property}}”为 {{actual}}；预期为 {{expected}} 之一。",
+      "parse_error": "此笔记符合任务条件，但无法解析：{{error}}",
+      "recognized": "已通过“{{property}}”识别：{{actual}}。",
+      "parsed": "已成功解析为基于笔记的任务。",
+      "status_mapped": "状态“{{raw}}”映射为“{{resolved}}”。",
+      "status_fallback": "状态“{{raw}}”未配置，因此回退为“{{resolved}}”。",
+      "no_live_map": "没有打开独立地图，因此无法检查实时筛选器和快照状态。",
+      "map_loading": "打开的地图仍在加载任务快照。",
+      "snapshot_current": "已加载的地图快照与当前笔记一致。",
+      "stale_missing": "当前笔记符合条件，但不在已加载的地图快照中。",
+      "stale_changed": "已加载的地图在以下字段中保留旧值：{{fields}}。",
+      "unlinked_allowed": "未链接任务规则允许此笔记显示在画布上。",
+      "unlinked_hidden": "此任务没有已解析的连接，并且已启用“隐藏未链接任务”。",
+      "selected_tags": "其标签与所选标签不匹配：{{selected}}。",
+      "excluded_tags": "它包含当前被排除的标签：{{selected}}。",
+      "selected_statuses": "其映射状态为“{{actual}}”；可见状态为 {{selected}}。",
+      "selected_files": "其文件不在所选文件或文件夹中：{{selected}}。",
+      "selected_projects": "其项目为 {{actual}}；所选项目为 {{selected}}。",
+      "only_starred": "地图仅显示已加星标的任务，而此笔记未加星标。",
+      "root_scope": "此笔记不在以 {{root}} 为根的子树中。",
+      "search_scope": "此笔记不在搜索“{{query}}”的结果和遍历范围中。",
+      "filters_pass": "此笔记通过了所有当前筛选器和图范围规则。",
+      "rendered": "此笔记存在已渲染的任务节点。",
+      "render_missing": "尽管此笔记符合当前规则，但不存在已渲染的任务节点。"
+    }
   },
   "task_node": {
     "create_project_task": "在此项目中创建任务",

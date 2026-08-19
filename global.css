@@ -3292,3 +3292,79 @@ If your plugin does not need CSS, delete this file.
   margin-top: 16px;
   border-color: var(--text-warning);
 }
+
+.tasks-map-visibility-modal {
+  max-width: 680px;
+}
+
+.tasks-map-visibility-path,
+.tasks-map-visibility-context {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  overflow-wrap: anywhere;
+}
+
+.tasks-map-visibility-verdict {
+  margin: 16px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  font-weight: var(--font-semibold, 600);
+}
+
+.tasks-map-visibility-verdict--shown,
+.tasks-map-visibility-verdict--should-show {
+  border-color: var(--text-success);
+  color: var(--text-success);
+}
+
+.tasks-map-visibility-verdict--stale,
+.tasks-map-visibility-verdict--pending {
+  border-color: var(--text-warning);
+  color: var(--text-warning);
+}
+
+.tasks-map-visibility-verdict--hidden,
+.tasks-map-visibility-verdict--excluded,
+.tasks-map-visibility-verdict--not-rendered {
+  border-color: var(--text-error);
+  color: var(--text-error);
+}
+
+.tasks-map-visibility-checks {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.tasks-map-visibility-check {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.tasks-map-visibility-check-icon {
+  font-weight: var(--font-bold, 700);
+  text-align: center;
+}
+
+.tasks-map-visibility-check--pass .tasks-map-visibility-check-icon {
+  color: var(--text-success);
+}
+
+.tasks-map-visibility-check--warning .tasks-map-visibility-check-icon {
+  color: var(--text-warning);
+}
+
+.tasks-map-visibility-check--fail .tasks-map-visibility-check-icon {
+  color: var(--text-error);
+}
+
+.tasks-map-visibility-check-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -74,6 +74,38 @@ function splitNoteValues(noteValues: string): string[] {
     .filter((v) => v.length > 0);
 }
 
+export type StatusMatchSource = "checkbox" | "note_value" | "id" | "fallback";
+
+export interface StatusResolution {
+  id: string;
+  matched: boolean;
+  source: StatusMatchSource;
+}
+
+/** Resolve a raw status and retain whether a configured value actually matched. */
+export function resolveStatus(
+  raw: string,
+  statuses: TaskStatusConfig[]
+): StatusResolution {
+  const list = statuses.length > 0 ? statuses : DEFAULT_TASK_STATUSES;
+  const fallback = list[0].id;
+  const trimmed = (raw ?? "").trim().toLowerCase();
+
+  for (const status of list) {
+    if (status.checkboxChar === raw) {
+      return { id: status.id, matched: true, source: "checkbox" };
+    }
+    if (splitNoteValues(status.noteValues).includes(trimmed)) {
+      return { id: status.id, matched: true, source: "note_value" };
+    }
+    if (status.id.toLowerCase() === trimmed) {
+      return { id: status.id, matched: true, source: "id" };
+    }
+  }
+
+  return { id: fallback, matched: false, source: "fallback" };
+}
+
 /**
  * Resolves a raw status string (a checkbox character or a frontmatter value)
  * to a configured status `id`. Falls back to the first configured status when
@@ -83,18 +115,7 @@ export function resolveStatusId(
   raw: string,
   statuses: TaskStatusConfig[]
 ): string {
-  const list = statuses.length > 0 ? statuses : DEFAULT_TASK_STATUSES;
-  const fallback = list[0].id;
-  const trimmed = (raw ?? "").trim().toLowerCase();
-
-  for (const status of list) {
-    // Exact checkbox-character match (kept un-trimmed so " " matches a blank box).
-    if (status.checkboxChar === raw) return status.id;
-    if (splitNoteValues(status.noteValues).includes(trimmed)) return status.id;
-    if (status.id.toLowerCase() === trimmed) return status.id;
-  }
-
-  return fallback;
+  return resolveStatus(raw, statuses).id;
 }
 
 /** Returns the config for `id`, or the first status when `id` is unknown. */

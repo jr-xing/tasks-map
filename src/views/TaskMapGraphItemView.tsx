@@ -7,12 +7,10 @@ import TaskMapGraphView from "./TaskMapGraphView";
 import { checkDataviewPlugin } from "../lib/utils";
 import TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
-import {
-  FilterState,
-  createDefaultFilterState,
-} from "src/types/filter-state";
+import { FilterState, createDefaultFilterState } from "src/types/filter-state";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { t } from "../i18n";
+import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
 
 // Wrapper component that manages settings updates and filter state for the graph view
 function TaskMapGraphWrapper({
@@ -22,6 +20,8 @@ function TaskMapGraphWrapper({
   onFilterStateChange,
   onFocusRequestHandled,
   onFocusRequestHandlerChange,
+  onVisibilityContextChange,
+  onReloadHandlerChange,
 }: {
   pluginSettings: TasksMapSettings;
   plugin: TasksMapPlugin;
@@ -31,6 +31,10 @@ function TaskMapGraphWrapper({
   onFocusRequestHandlerChange: (
     _handler: ((_request: TaskMapFocusRequest) => void) | null
   ) => void;
+  onVisibilityContextChange: (
+    _context: LiveMapVisibilityContext | null
+  ) => void;
+  onReloadHandlerChange: (_handler: (() => void) | null) => void;
 }) {
   const [settings, setSettings] = useState<TasksMapSettings>({
     ...pluginSettings,
@@ -48,8 +52,9 @@ function TaskMapGraphWrapper({
   const [filterState, setFilterState] = useState<FilterState>(() =>
     createDefaultFilterState(plugin.settings.defaultStatusFilter)
   );
-  const [focusRequest, setFocusRequest] =
-    useState<TaskMapFocusRequest | null>(initialFocusRequest);
+  const [focusRequest, setFocusRequest] = useState<TaskMapFocusRequest | null>(
+    initialFocusRequest
+  );
 
   useEffect(() => {
     onFocusRequestHandlerChange((request) => {
@@ -81,6 +86,8 @@ function TaskMapGraphWrapper({
           setFocusRequest(null);
           onFocusRequestHandled();
         }}
+        onVisibilityContextChange={onVisibilityContextChange}
+        onReloadHandlerChange={onReloadHandlerChange}
       />
     </ReactFlowProvider>
   );
@@ -93,8 +100,11 @@ export default class TaskMapGraphItemView extends ItemView {
   private filterState: FilterState;
   private plugin: TasksMapPlugin;
   private focusRequest: TaskMapFocusRequest | null = null;
-  private focusRequestHandler: ((_request: TaskMapFocusRequest) => void) | null =
-    null;
+  private focusRequestHandler:
+    | ((_request: TaskMapFocusRequest) => void)
+    | null = null;
+  private visibilityContext: LiveMapVisibilityContext | null = null;
+  private reloadHandler: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: TasksMapPlugin) {
     super(leaf);
@@ -115,6 +125,23 @@ export default class TaskMapGraphItemView extends ItemView {
   /** Returns the current filter state of the open Tasks Map view. */
   getFilterState(): FilterState {
     return structuredClone(this.filterState);
+  }
+
+  getVisibilityContext(): LiveMapVisibilityContext | null {
+    if (!this.visibilityContext) return null;
+    return {
+      ...this.visibilityContext,
+      tasks: [...this.visibilityContext.tasks],
+      filter: structuredClone(this.visibilityContext.filter),
+      droppedTaskIds: [...this.visibilityContext.droppedTaskIds],
+      visibleNodeIds: [...this.visibilityContext.visibleNodeIds],
+    };
+  }
+
+  reloadTasks(): boolean {
+    if (!this.reloadHandler) return false;
+    this.reloadHandler();
+    return true;
   }
 
   focus(request: TaskMapFocusRequest): void {
@@ -162,6 +189,12 @@ export default class TaskMapGraphItemView extends ItemView {
           onFocusRequestHandlerChange={(handler) => {
             this.focusRequestHandler = handler;
           }}
+          onVisibilityContextChange={(context) => {
+            this.visibilityContext = context;
+          }}
+          onReloadHandlerChange={(handler) => {
+            this.reloadHandler = handler;
+          }}
         />
       </AppContext.Provider>
     );
@@ -169,6 +202,8 @@ export default class TaskMapGraphItemView extends ItemView {
 
   async onClose() {
     this.focusRequestHandler = null;
+    this.visibilityContext = null;
+    this.reloadHandler = null;
     this.root?.unmount();
   }
 }

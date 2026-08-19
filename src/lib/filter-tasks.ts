@@ -4,55 +4,73 @@ import { FilterState } from "src/types/filter-state";
 
 export const NO_TAGS_VALUE = "__NO_TAGS__";
 
+export type TaskFilterReasonCode =
+  | "selected_tags"
+  | "excluded_tags"
+  | "selected_statuses"
+  | "selected_files"
+  | "selected_projects"
+  | "only_starred"
+  | "root_scope"
+  | "search_scope";
+
+const getNonSearchReasonCodes = (
+  task: BaseTask,
+  filter: FilterState
+): TaskFilterReasonCode[] => {
+  const reasons: TaskFilterReasonCode[] = [];
+
+  if (filter.selectedTags.length > 0) {
+    const noTagsSelected = filter.selectedTags.includes(NO_TAGS_VALUE);
+    const regularTagsSelected = filter.selectedTags.filter(
+      (tag) => tag !== NO_TAGS_VALUE
+    );
+    const matchesNoTags = noTagsSelected && task.tags.length === 0;
+    const matchesRegularTags = regularTagsSelected.some((tag) =>
+      task.tags.includes(tag)
+    );
+    if (!matchesNoTags && !matchesRegularTags) reasons.push("selected_tags");
+  }
+
+  if (
+    filter.excludedTags.some((excludedTag) => task.tags.includes(excludedTag))
+  ) {
+    reasons.push("excluded_tags");
+  }
+  if (
+    filter.selectedStatuses.length > 0 &&
+    !filter.selectedStatuses.includes(task.status)
+  ) {
+    reasons.push("selected_statuses");
+  }
+  if (
+    filter.selectedFiles.length > 0 &&
+    !filter.selectedFiles.some((selectedPath) =>
+      selectedPath.endsWith("/")
+        ? task.link.startsWith(selectedPath)
+        : task.link === selectedPath
+    )
+  ) {
+    reasons.push("selected_files");
+  }
+  if (
+    filter.selectedProjects.length > 0 &&
+    !filter.selectedProjects.some((project) => task.projects.includes(project))
+  ) {
+    reasons.push("selected_projects");
+  }
+  if (filter.onlyStarred && !task.starred) reasons.push("only_starred");
+
+  return reasons;
+};
+
 const applyNonSearchFilters = (
   tasks: BaseTask[],
   filter: FilterState
 ): BaseTask[] => {
-  let filtered = tasks;
-  if (filter.selectedTags.length > 0) {
-    filtered = filtered.filter((task) => {
-      const noTagsSelected = filter.selectedTags.includes(NO_TAGS_VALUE);
-      const regularTagsSelected = filter.selectedTags.filter(
-        (tag) => tag !== NO_TAGS_VALUE
-      );
-      const matchesNoTags = noTagsSelected && task.tags.length === 0;
-      const matchesRegularTags =
-        regularTagsSelected.length > 0 &&
-        regularTagsSelected.some((tag) => task.tags.includes(tag));
-      return matchesNoTags || matchesRegularTags;
-    });
-  }
-  if (filter.excludedTags.length > 0) {
-    filtered = filtered.filter((task) => {
-      return !filter.excludedTags.some((excludedTag) =>
-        task.tags.includes(excludedTag)
-      );
-    });
-  }
-  if (filter.selectedStatuses.length > 0) {
-    filtered = filtered.filter((task) =>
-      filter.selectedStatuses.includes(task.status)
-    );
-  }
-  if (filter.selectedFiles.length > 0) {
-    filtered = filtered.filter((task) => {
-      return filter.selectedFiles.some((selectedPath) => {
-        if (selectedPath.endsWith("/")) {
-          return task.link.startsWith(selectedPath);
-        }
-        return task.link === selectedPath;
-      });
-    });
-  }
-  if (filter.selectedProjects.length > 0) {
-    filtered = filtered.filter((task) =>
-      filter.selectedProjects.some((project) => task.projects.includes(project))
-    );
-  }
-  if (filter.onlyStarred) {
-    filtered = filtered.filter((task) => task.starred);
-  }
-  return filtered;
+  return tasks.filter(
+    (task) => getNonSearchReasonCodes(task, filter).length === 0
+  );
 };
 
 const applySearchFilter = (
@@ -120,3 +138,33 @@ export const getVisibilityFilteredNodeIds = (
     selectedRootTask: null,
     traversalMode: "match",
   });
+
+/** Explain the active filters that exclude one task from the final result. */
+export function getTaskFilterReasonCodes(
+  task: BaseTask,
+  tasks: BaseTask[],
+  filter: FilterState
+): TaskFilterReasonCode[] {
+  const reasons = getNonSearchReasonCodes(task, filter);
+
+  if (
+    filter.selectedRootTask &&
+    applyRootTaskScope(tasks, [task], filter.selectedRootTask).length === 0
+  ) {
+    reasons.push("root_scope");
+  }
+
+  if (filter.searchQuery.trim()) {
+    const searchMatched = applySearchFilter(tasks, filter.searchQuery);
+    const allIds = new Set(tasks.map((candidate) => candidate.id));
+    const searchScope = traverseGraph(
+      searchMatched.map((candidate) => candidate.id),
+      tasks,
+      allIds,
+      filter.traversalMode
+    );
+    if (!searchScope.includes(task.id)) reasons.push("search_scope");
+  }
+
+  return reasons;
+}

@@ -1,4 +1,4 @@
-import { getNoteTasks } from "../src/lib/utils";
+import { getNoteTasks, inspectNoteTask } from "../src/lib/utils";
 import { getFilteredNodeIds } from "../src/lib/filter-tasks";
 import { DEFAULT_FILTER_STATE } from "../src/types/filter-state";
 
@@ -46,6 +46,93 @@ function makeApp(
     plugins: { plugins: {} },
   };
 }
+
+describe("inspectNoteTask", () => {
+  const statuses = [
+    {
+      id: "todo",
+      label: "Todo",
+      color: "#888888",
+      checkboxChar: " ",
+      noteValues: "open, none",
+    },
+    {
+      id: "active-status",
+      label: "Active",
+      color: "#ff0000",
+      checkboxChar: "/",
+      noteValues: "active",
+    },
+  ];
+
+  it("recognizes the reported active project with null list entries", () => {
+    const app = makeApp({
+      "Project.md": {
+        type: "project",
+        status: "active",
+        tags: [null],
+        aliases: [null],
+        title: "AHA Scientific Session Abstract Submission",
+      },
+    });
+    const [file] = app.vault.getMarkdownFiles();
+
+    const result = inspectNoteTask(
+      app,
+      file as never,
+      {
+        noteTaskPropertyName: "type",
+        noteTaskPropertyValue: "task, project",
+        noteTaskTitleSource: "frontmatter",
+        noteTaskTitleProperty: "title",
+      },
+      statuses
+    );
+
+    expect(result.kind).toBe("included");
+    if (result.kind !== "included") return;
+    expect(result.task.isProject).toBe(true);
+    expect(result.task.tags).toEqual([]);
+    expect(result.task.status).toBe("active-status");
+    expect(result.statusResolution).toEqual({
+      id: "active-status",
+      matched: true,
+      source: "note_value",
+    });
+  });
+
+  it("returns the configured criteria mismatch details", () => {
+    const app = makeApp({ "Note.md": { type: "reference" } });
+    const [file] = app.vault.getMarkdownFiles();
+
+    const result = inspectNoteTask(app, file as never, {
+      noteTaskPropertyName: "type",
+      noteTaskPropertyValue: "task, project",
+    });
+
+    expect(result).toEqual({
+      kind: "excluded",
+      reason: "criteria_mismatch",
+      propertyName: "type",
+      expectedValues: ["task", "project"],
+      actualValues: ["reference"],
+    });
+  });
+
+  it("returns parse errors that the task loader otherwise skips", () => {
+    const app = makeApp({ "Task.md": { type: "task", status: {} } });
+    const [file] = app.vault.getMarkdownFiles();
+
+    const result = inspectNoteTask(app, file as never, {
+      noteTaskPropertyName: "type",
+      noteTaskPropertyValue: "task",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({ kind: "excluded", reason: "parse_error" })
+    );
+  });
+});
 
 describe("getNoteTasks - quick updates", () => {
   it("reads and normalizes the default quick-comments property", () => {

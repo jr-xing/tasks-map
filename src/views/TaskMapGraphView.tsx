@@ -68,6 +68,7 @@ import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { TaskPriorityConfig } from "src/lib/priority-config";
+import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
 
 interface TaskMapGraphViewProps {
   settings: TasksMapSettings;
@@ -77,6 +78,10 @@ interface TaskMapGraphViewProps {
   embedConfig?: EmbedConfig;
   focusRequest?: TaskMapFocusRequest | null;
   onFocusRequestHandled?: () => void;
+  onVisibilityContextChange?: (
+    _context: LiveMapVisibilityContext | null
+  ) => void;
+  onReloadHandlerChange?: (_handler: (() => void) | null) => void;
 }
 
 export default function TaskMapGraphView({
@@ -87,6 +92,8 @@ export default function TaskMapGraphView({
   embedConfig,
   focusRequest,
   onFocusRequestHandled,
+  onVisibilityContextChange,
+  onReloadHandlerChange,
 }: TaskMapGraphViewProps) {
   const embed = { ...DEFAULT_EMBED_CONFIG, ...embedConfig };
   const app = useApp();
@@ -317,8 +324,7 @@ export default function TaskMapGraphView({
           noteTaskTitleSource: settings.noteTaskTitleSource,
           noteTaskTitleProperty: settings.noteTaskTitleProperty,
           noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
-          noteTaskCreatedDateProperty:
-            settings.noteTaskCreatedDateProperty,
+          noteTaskCreatedDateProperty: settings.noteTaskCreatedDateProperty,
           quickCommentsPropertyName: settings.quickCommentsPropertyName,
           noteDependencyProperty: settings.noteDependencyProperty,
         },
@@ -345,6 +351,11 @@ export default function TaskMapGraphView({
     settings.noteDependencyProperty,
     settings.taskStatuses,
   ]);
+
+  useEffect(() => {
+    onReloadHandlerChange?.(reloadTasks);
+    return () => onReloadHandlerChange?.(null);
+  }, [onReloadHandlerChange, reloadTasks]);
 
   const updateTaskTags = useCallback((taskId: string, newTags: string[]) => {
     setTaskTagsRegistry((prevRegistry) => {
@@ -435,6 +446,34 @@ export default function TaskMapGraphView({
       (t) => !unlinkedIds.has(t.id) || droppedTaskIds.has(t.id)
     );
   }, [tasks, allUnlinkedTasks, droppedTaskIds, hideUnlinkedTasks]);
+
+  useEffect(() => {
+    onVisibilityContextChange?.({
+      tasks,
+      filter: filterState,
+      hideUnlinkedTasks,
+      droppedTaskIds: [...droppedTaskIds],
+      visibleNodeIds: nodes
+        .filter((node) => node.type === "task")
+        .map((node) => node.id),
+      isLoading,
+    });
+  }, [
+    droppedTaskIds,
+    filterState,
+    hideUnlinkedTasks,
+    isLoading,
+    nodes,
+    onVisibilityContextChange,
+    tasks,
+  ]);
+
+  useEffect(
+    () => () => {
+      onVisibilityContextChange?.(null);
+    },
+    [onVisibilityContextChange]
+  );
 
   // In-app task editor panel state (create or edit a TaskNotes task).
   const [editorState, setEditorState] = React.useState<{
@@ -778,13 +817,7 @@ export default function TaskMapGraphView({
     );
 
     onFocusRequestHandled?.();
-  }, [
-    isLoading,
-    tasks,
-    focusRequest,
-    onFocusRequestHandled,
-    setFilterState,
-  ]);
+  }, [isLoading, tasks, focusRequest, onFocusRequestHandled, setFilterState]);
 
   const handleTreeTaskClick = useCallback(
     (taskId: string, rootTaskId: string) => {
