@@ -1,7 +1,7 @@
 # Tasks Map Evolution Roadmap
 
 **Date:** 2026-08-30
-**Status:** In progress — Phase 1 completed
+**Status:** In progress — Phases 1 and 2 completed
 **Scope:** Multi-phase improvement plan covering task triage UI, native indexing, auto-refresh, layout stability/minimalism, project creation, and de-forking.
 
 Each phase is designed to be implemented in its own session. Phases list their
@@ -73,27 +73,26 @@ drift; treat them as anchors, re-verify before editing.
   `src/main.tsx` (~662 lines). Grab-bag: `src/lib/utils.ts` (**2302 lines** —
   mixes vault I/O, parsing, and the entire layout engine; see Phase 4 refactor).
 - **Task model:** `BaseTask` with two sources —
-  1. Inline checkbox tasks (`- [ ]`) enumerated via **Dataview** and
+  1. Inline checkbox tasks (`- [ ]`) enumerated natively from
+     `metadataCache.listItems` + `vault.cachedRead()` and
   2. Note-based tasks (`NoteTask`, TaskNotes-compatible) enumerated **natively**
      (`vault.getMarkdownFiles()` + `metadataCache.getFileCache()` in
      `getNoteTasks` / `inspectNoteTask`, utils.ts ~1670).
-- **The ONLY Dataview API call site** is `getAllDataviewTasks`
-  (utils.ts ~1645): `app.plugins.plugins["dataview"].api.pages()` →
-  `page.file.tasks.values`. Dataview is purely an _inline-task enumerator_.
-  Everything else "dataview" in the code is the `[key:: value]` **text format**
-  (regexes) — a syntax on disk, not a plugin dependency.
+- **Dataview is no longer a runtime dependency.** Native inline enumeration is
+  isolated in `src/lib/inline-task-source.ts`. Everything else "dataview" in
+  the code is the `[key:: value]` **text format** or the retained internal
+  inline-task type name — neither requires the plugin.
 - **`RawTask` is tiny:** `{ status: string; text: string; link: { path: string } }`
   (`src/types/task.ts:13`). `TaskFactory` (`src/lib/task-factory.ts`) parses it
   with the plugin's own regexes (`src/lib/task-regex.ts`).
-- **Startup gate:** `TaskMapGraphView.tsx` ~398 waits for
-  `dataview:index-ready` / checks `dataviewPlugin.index.initialized` before the
-  first load.
+- **Startup gate:** `TaskMapGraphView.tsx` waits for
+  `app.workspace.onLayoutReady()` before the first native scan.
 - **Reload path:** `reloadTasks` (TaskMapGraphView.tsx ~312) is a **full vault
-  re-scan**, synchronous inside a `setTimeout(0)`, fires
-  `new Notice("Tasks reloaded")`, then a big effect (~588) rebuilds
-  nodes/edges, re-runs dagre, and calls `scheduleFitView` unless
-  `skipFitViewRef.current` is set. The view exposes `reloadTasks` upward via
-  `onReloadHandlerChange`.
+  re-scan**, asynchronous inside a `setTimeout(0)`, guarded by a generation
+  counter so stale scans cannot win. It fires a reload notice, then a big
+  effect (~588) rebuilds nodes/edges, re-runs dagre, and calls
+  `scheduleFitView` unless `skipFitViewRef.current` is set. The view exposes
+  `reloadTasks` upward via `onReloadHandlerChange`.
 - **Layout engine:** `getLayoutedElements` (utils.ts ~463). With
   `groupByProject`, a two-pass dagre: pass 1 flat layout for ranks; pass 2
   groups sized from member bounding boxes with cycle-safe inter-group edges.
@@ -119,9 +118,9 @@ drift; treat them as anchors, re-verify before editing.
   `isTaskNotesTaskFile`, `openTaskNotesProjectTaskCreationModal`,
   `openTaskNotesTaskCreationModalForProject`, `getTaskNotesConfig`, editor
   availability checks.
-- **Tasks plugin dependency:** only `createTaskLineModal` via `getTasksApi`
-  (used when dragging an edge to empty canvas to create an inline task).
-  Already null-checked / degrades gracefully.
+- **Tasks plugin dependency:** optional `createTaskLineModal` and
+  `editTaskLineModal` integration via `getTasksApi`. Both are null-checked and
+  degrade gracefully; discovery and native mutations do not require Tasks.
 - **Vault event plumbing exists:** `main.tsx` ~405 registers
   `vault.on("modify"/"create"/"delete"/"rename")` — currently only to watch the
   TaskNotes type-schema file, with a 250ms debounce pattern
@@ -141,7 +140,7 @@ drift; treat them as anchors, re-verify before editing.
 | Phase | Title                                | Depends on            | Value | Effort | Progress |
 | ----- | ------------------------------------ | --------------------- | ----- | ------ | -------- |
 | 1     | Task list / triage panel             | —                     | ★★★★★ | M      | Complete |
-| 2     | Native task indexing (drop Dataview) | —                     | ★★★★  | M      | Planned  |
+| 2     | Native task indexing (drop Dataview) | —                     | ★★★★  | M      | Complete |
 | 3     | Auto-refresh                         | 2                     | ★★★★  | M      | Planned  |
 | 4     | Layout stability & visual minimalism | — (4a refactor first) | ★★★★  | M–L    | Planned  |
 | 5     | Viewport-aware component packing     | 4a                    | ★★    | S–M    | Planned  |
@@ -225,6 +224,8 @@ build, CSS lint, changed-file ESLint/Prettier, and `git diff --check` passed.
 
 ## Phase 2 — Native task indexing (drop the Dataview dependency)
 
+**Status:** Completed on 2026-08-30
+
 **Goal:** enumerate inline checkbox tasks with native Obsidian APIs so the
 Dataview plugin becomes unnecessary. Prerequisite for clean auto-refresh
 (Phase 3).
@@ -265,8 +266,26 @@ state if revisited — it evolves quickly.
    fixtures to expected snapshots. Differences from Dataview's `text` shape
    (e.g. trailing whitespace, child-line handling) surface here.
 6. Update README/docs: Dataview no longer required; Tasks plugin required
-   only for inline-task creation modal (it already degrades gracefully via
-   `getTasksApi` null-checks).
+   only for its optional inline-task creation and editing modals (it already
+   degrades gracefully via `getTasksApi` null-checks).
+
+**Implementation result:**
+
+- Added native inline enumeration with the pinned Dataview text semantics for
+  ordered/unordered markers, nested and multiline items, arbitrary checkbox
+  characters, and CRLF files. Unreadable files are logged and skipped.
+- Made `getAllTasks` asynchronous and updated graph reloads, the focus picker,
+  and note-visibility diagnostics. Graph reloads reject stale generations and
+  invalidate pending work on unmount.
+- Removed the main-view, embed, and startup Dataview gates plus all runtime
+  plugin probes. Dataview inline-field parsing and the internal
+  `DataviewTask` type remain compatible.
+- Preserved the existing unlinked-task display rule: disconnected inline
+  tasks are indexed but remain off-canvas by default, appear in the Unlinked
+  tasks panel, and can be dragged onto the map or revealed through View
+  controls.
+- Removed Dataview from documentation and the fixture vault. Tasks is now
+  documented accurately as an optional creation/editing integration.
 
 **Risks / pitfalls:**
 
@@ -276,9 +295,13 @@ state if revisited — it evolves quickly.
 - Async conversion touches every `getAllTasks` caller (also the embed view and
   note-visibility diagnostics — grep for callers first).
 
-**Acceptance:** with the Dataview plugin disabled in a test vault, the map
-loads both task sources; test suite passes; no `app.plugins…dataview` access
-remains outside of an optional compatibility check.
+**Acceptance (verified):** the fixture vault no longer enables or installs
+Dataview; native fixture tests load both task sources and cover text-shape
+compatibility. No runtime Dataview plugin access remains. Automated
+verification: 483 Jest tests, production build, CSS lint, changed-file
+ESLint/Prettier, and `git diff --check` passed. User smoke testing in the real
+vault confirmed that inline tasks in a daily note are indexed correctly and
+appear in the Unlinked tasks panel when they have no graph relationships.
 
 ---
 

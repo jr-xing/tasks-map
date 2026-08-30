@@ -1,7 +1,7 @@
 // Task utility functions - refactored to use OOP with polymorphism
 import dagre from "@dagrejs/dagre";
 import { App, TFile, Vault } from "obsidian";
-import { TaskStatus, TaskNode, TaskEdge, RawTask } from "src/types/task";
+import { TaskStatus, TaskNode, TaskEdge } from "src/types/task";
 import {
   BaseTask,
   TaskAttachment,
@@ -17,9 +17,9 @@ import {
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { TaskFactory } from "./task-factory";
 import { Position, Node, Edge } from "reactflow";
-import { t } from "../i18n";
 import { TagColorPalette } from "./tag-color-manager";
 import { TaskPriorityConfig } from "./priority-config";
+import { getAllInlineTasks } from "./inline-task-source";
 import {
   TaskStatusConfig,
   DEFAULT_TASK_STATUSES,
@@ -1624,48 +1624,13 @@ export function extractTaskAttachments(
   return attachments;
 }
 
-// TODO: Improve typing for app parameter
-export function getAllTasks(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-  app: any,
+export async function getAllTasks(
+  app: App,
   settings?: Partial<NoteTaskConfig>,
   statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
-): BaseTask[] {
-  // Central function to gather tasks from all available sources
-  const allTasks: BaseTask[] = [];
-
-  // Source 1: Dataview plugin tasks
-  allTasks.push(...getAllDataviewTasks(app, statuses));
-
-  // Source 2: Note-based tasks (notes matching the configured frontmatter criteria)
-  allTasks.push(...getNoteTasks(app, settings, statuses));
-
-  return allTasks;
-}
-
-export function getAllDataviewTasks(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-  app: any,
-  statuses: TaskStatusConfig[] = DEFAULT_TASK_STATUSES
-): BaseTask[] {
-  let tasks: RawTask[] = [];
-
-  // plugins exists, just not on the Obsidian App API?:
-  //     https://blacksmithgu.github.io/obsidian-dataview/api/intro/#plugin-access
-  const dataviewApi = app.plugins!.plugins?.["dataview"]?.api;
-  if (dataviewApi && dataviewApi.pages) {
-    const pages = dataviewApi.pages();
-    for (const page of pages) {
-      if (page.file && page.file.tasks && page.file.tasks.values) {
-        tasks = tasks.concat(page.file.tasks.values);
-      }
-    }
-  }
-  const factory = new TaskFactory(statuses);
-  const parsedTasks = tasks.map((rawTask) => factory.parse(rawTask));
-
-  // Filter out empty tasks (tasks with no meaningful content after stripping metadata)
-  return parsedTasks.filter((task) => !factory.isEmptyTask(task));
+): Promise<BaseTask[]> {
+  const inlineTasks = await getAllInlineTasks(app, statuses);
+  return [...inlineTasks, ...getNoteTasks(app, settings, statuses)];
 }
 
 export function getNoteTasks(
@@ -2236,48 +2201,6 @@ function layoutNodesWithDagreInternal(
       },
     };
   });
-}
-
-/**
- * Check if the Dataview plugin is installed and enabled
- * @param app Obsidian App instance
- * @returns object with isInstalled, isEnabled, and getMessage() function
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-export function checkDataviewPlugin(app: any) {
-  const plugins = app.plugins;
-
-  // Check if plugin is installed (available in plugins list)
-  const installedPlugins = plugins?.manifests || {};
-  const isInstalled = "dataview" in installedPlugins;
-
-  // Check if plugin is enabled (in enabledPlugins set)
-  const isEnabled = plugins?.enabledPlugins?.has("dataview") || false;
-
-  // Check if plugin is actually loaded (has API available)
-  const dataviewPlugin = plugins?.plugins?.["dataview"];
-  const isLoaded = !!dataviewPlugin;
-
-  const getMessage = () => {
-    if (!isInstalled) {
-      return t("view.dataview_not_installed");
-    }
-    if (!isEnabled) {
-      return t("view.dataview_disabled");
-    }
-    if (!isLoaded) {
-      return "Dataview plugin is enabled but not loaded properly. Please restart Obsidian or reload the Dataview plugin.";
-    }
-    return null;
-  };
-
-  return {
-    isInstalled,
-    isEnabled,
-    isLoaded,
-    isReady: isInstalled && isEnabled && isLoaded,
-    getMessage,
-  };
 }
 
 /**

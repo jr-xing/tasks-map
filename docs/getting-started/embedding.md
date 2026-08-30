@@ -81,6 +81,5 @@ All fields under `config` are optional. Omitted fields use their defaults.
 
 If something prevents the embed from rendering, a message is shown in place of the graph:
 
-- **Dataview not available** — the [Dataview](https://github.com/blacksmithgu/obsidian-dataview) plugin is not installed or not enabled. Enable it and reload.
 - **Invalid JSON** — the code block body could not be parsed. Re-insert the embed using the command palette or the saved filters panel to generate a valid block.
 - **Outdated format** — the block uses a legacy flat format from an earlier version. Re-insert the embed to migrate it to the current format.

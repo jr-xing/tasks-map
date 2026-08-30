@@ -14,11 +14,7 @@
     "open_tasks_map": "打开任务地图视图"
   },
   "view": {
-    "title": "任务地图",
-    "dataview_required": "任务地图需要安装并启用 Dataview 插件。",
-    "dataview_not_installed": "当前未安装 Dataview 插件。",
-    "dataview_disabled": "Dataview 插件已安装但未启用。",
-    "visit_community_plugins": "请访问设置中的社区插件部分以安装或启用 Dataview。"
+    "title": "任务地图"
   },
   "settings": {
     "display_options": "显示选项",
@@ -251,9 +247,11 @@
     "all_unlinked_hint": "将左侧面板中的任务拖到图上以放置它们。"
   },
   "errors": {
-    "cannot_create_edges_different_types": "无法在不同任务类型（dataview 和基于笔记的任务）之间创建连接。两个任务必须是相同类型。"
+    "cannot_create_edges_different_types": "无法在不同任务类型（内联任务和基于笔记的任务）之间创建连接。两个任务必须是相同类型。"
   },
   "notices": {
+    "tasks_reloaded": "任务已重新加载",
+    "tasks_load_failed": "无法加载任务。",
     "project_assigned": "已添加到项目：{{projectName}}",
     "project_assigned_multiple": "已将 {{count}} 个任务添加到项目：{{projectName}}"
   },
@@ -275,7 +273,6 @@
   },
   "embed": {
     "pick_note_placeholder": "选择笔记...",
-    "dataview_required": "任务地图需要 Dataview 插件。",
     "invalid_json": "此任务地图嵌入块包含无效的 JSON。请通过命令面板重新插入以修复。",
     "legacy_format": "此任务地图嵌入块使用过时的格式。请通过命令面板重新插入以迁移。"
   },

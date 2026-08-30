@@ -107,6 +107,8 @@ export default function TaskMapGraphView({
   const [isLoading, setIsLoading] = React.useState(true);
   const reactFlowInstance = useReactFlow();
   const skipFitViewRef = React.useRef(false);
+  const loadGenerationRef = React.useRef(0);
+  const reloadTimerRef = React.useRef<number | null>(null);
   const pendingTreeFocusRef = React.useRef<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const cornerRef = React.useRef<HTMLDivElement>(null);
@@ -312,34 +314,50 @@ export default function TaskMapGraphView({
   }, [hideTags]);
 
   const reloadTasks = useCallback(() => {
+    const generation = ++loadGenerationRef.current;
     setIsLoading(true);
     // Reset dropped state on reload so unlinked tasks return to sidebar
     setDroppedTaskIds(new Set());
     droppedNodePositions.current = new Map();
+    if (reloadTimerRef.current !== null) {
+      window.clearTimeout(reloadTimerRef.current);
+    }
     // Use setTimeout to allow the loading UI to render before heavy computation
-    window.setTimeout(() => {
-      const newTasks = getAllTasks(
-        app,
-        {
-          noteTaskPropertyName: settings.noteTaskPropertyName,
-          noteTaskPropertyValue: settings.noteTaskPropertyValue,
-          noteTaskTitleSource: settings.noteTaskTitleSource,
-          noteTaskTitleProperty: settings.noteTaskTitleProperty,
-          noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
-          noteTaskCreatedDateProperty: settings.noteTaskCreatedDateProperty,
-          quickCommentsPropertyName: settings.quickCommentsPropertyName,
-          noteDependencyProperty: settings.noteDependencyProperty,
-        },
-        settings.taskStatuses
-      );
-      setTasks(newTasks);
-      const newRegistry = new Map<string, string[]>();
-      newTasks.forEach((task) => {
-        newRegistry.set(task.id, task.tags);
-      });
-      setTaskTagsRegistry(newRegistry);
-      setIsLoading(false);
-      new Notice("Tasks reloaded");
+    reloadTimerRef.current = window.setTimeout(() => {
+      reloadTimerRef.current = null;
+      void (async () => {
+        try {
+          const newTasks = await getAllTasks(
+            app,
+            {
+              noteTaskPropertyName: settings.noteTaskPropertyName,
+              noteTaskPropertyValue: settings.noteTaskPropertyValue,
+              noteTaskTitleSource: settings.noteTaskTitleSource,
+              noteTaskTitleProperty: settings.noteTaskTitleProperty,
+              noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
+              noteTaskCreatedDateProperty: settings.noteTaskCreatedDateProperty,
+              quickCommentsPropertyName: settings.quickCommentsPropertyName,
+              noteDependencyProperty: settings.noteDependencyProperty,
+            },
+            settings.taskStatuses
+          );
+          if (generation !== loadGenerationRef.current) return;
+
+          setTasks(newTasks);
+          const newRegistry = new Map<string, string[]>();
+          newTasks.forEach((task) => {
+            newRegistry.set(task.id, task.tags);
+          });
+          setTaskTagsRegistry(newRegistry);
+          setIsLoading(false);
+          new Notice(t("notices.tasks_reloaded"));
+        } catch (error) {
+          if (generation !== loadGenerationRef.current) return;
+          console.error("[tasks-map] Failed to reload tasks:", error);
+          setIsLoading(false);
+          new Notice(t("notices.tasks_load_failed"));
+        }
+      })();
     }, 0);
   }, [
     app,
@@ -411,26 +429,26 @@ export default function TaskMapGraphView({
   );
 
   useEffect(() => {
-    // Get the Dataview plugin to check index status
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
-    const dataviewPlugin = (app as any).plugins?.plugins?.["dataview"];
+    let active = true;
+    app.workspace.onLayoutReady(() => {
+      if (active) reloadTasks();
+    });
 
-    // Check if Dataview index is already initialized
-    if (dataviewPlugin?.index?.initialized) {
-      // Index already ready, load tasks immediately
-      reloadTasks();
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose metadataCache events
-      const metadataCache = (app as any).metadataCache;
-      const eventRef = metadataCache.on("dataview:index-ready", () => {
-        reloadTasks();
-      });
-
-      return () => {
-        metadataCache.offref(eventRef);
-      };
-    }
+    return () => {
+      active = false;
+    };
   }, [app, reloadTasks]);
+
+  useEffect(
+    () => () => {
+      loadGenerationRef.current += 1;
+      if (reloadTimerRef.current !== null) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   // Update tag registry when tasks change
   useEffect(() => {

@@ -13,7 +13,7 @@
 
 ---
 
-**Tasks Map** is a minimal Obsidian plugin that visualizes your tasks as an interactive graph. It supports both **inline checkbox tasks** (`- [ ] task text`) via Dataview and **file-based tasks** (NoteTask) where an entire note becomes a task through frontmatter metadata. Each task is represented as a node, with edges showing relationships based on special emoji/link syntax.
+**Tasks Map** is a minimal Obsidian plugin that visualizes your tasks as an interactive graph. It supports both **inline checkbox tasks** (`- [ ] task text`) through Obsidian's native metadata index and **file-based tasks** (NoteTask) where an entire note becomes a task through frontmatter metadata. Each task is represented as a node, with edges showing relationships based on special emoji/link syntax.
 
 ### Highlights
 
@@ -28,7 +28,7 @@
 
 ### Quick Start
 
-**Required:** [Dataview](https://github.com/blacksmithgu/obsidian-dataview) and [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugins must be installed and enabled.
+Tasks Map has no required plugin dependencies. The optional [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin enables its inline-task creation and editing modals.
 
 Install through the Obsidian plugin manager: https://obsidian.md/plugins?id=tasks-map
 

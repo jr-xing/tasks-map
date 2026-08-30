@@ -91,7 +91,7 @@ Provides patterns and conventions for:
 - Plugin lifecycle (`onload`, `onunload`)
 - Obsidian views and leaf management
 - Vault read/write operations
-- Dataview plugin integration
+- Native Obsidian metadata-cache task indexing
 - esbuild externals
 - Settings tab patterns
 - i18n setup

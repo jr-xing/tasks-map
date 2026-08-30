@@ -14,11 +14,7 @@
     "open_tasks_map": "Taken kaartweergave openen"
   },
   "view": {
-    "title": "Taken kaart",
-    "dataview_required": "Taken Kaart vereist dat de Dataview-plugin is geïnstalleerd en ingeschakeld.",
-    "dataview_not_installed": "De Dataview-plugin is momenteel niet geïnstalleerd.",
-    "dataview_disabled": "De Dataview-plugin is geïnstalleerd maar niet ingeschakeld.",
-    "visit_community_plugins": "Ga naar het gedeelte Community Plugins in Instellingen om Dataview te installeren of in te schakelen."
+    "title": "Taken kaart"
   },
   "settings": {
     "display_options": "Weergaveopties",
@@ -251,9 +247,11 @@
     "all_unlinked_hint": "Sleep taken vanuit het paneel aan de linkerkant naar de grafiek om ze hier te plaatsen."
   },
   "errors": {
-    "cannot_create_edges_different_types": "Kan geen verbindingen maken tussen verschillende taaktypes (dataview en notitie-gebaseerde taken). Beide taken moeten van hetzelfde type zijn."
+    "cannot_create_edges_different_types": "Kan geen verbindingen maken tussen verschillende taaktypes (inline en notitie-gebaseerde taken). Beide taken moeten van hetzelfde type zijn."
   },
   "notices": {
+    "tasks_reloaded": "Taken opnieuw geladen",
+    "tasks_load_failed": "Taken konden niet worden geladen.",
     "project_assigned": "Toegevoegd aan project: {{projectName}}",
     "project_assigned_multiple": "{{count}} taken toegevoegd aan project: {{projectName}}"
   },
@@ -275,7 +273,6 @@
   },
   "embed": {
     "pick_note_placeholder": "Kies een notitie...",
-    "dataview_required": "Taken Kaart vereist de Dataview-plugin.",
     "invalid_json": "Dit Taken Kaart-blok bevat ongeldige JSON. Voeg het opnieuw in via het opdrachtenpalet om het te herstellen.",
     "legacy_format": "Dit Taken Kaart-blok gebruikt een verouderd formaat. Voeg het opnieuw in via het opdrachtenpalet om het te migreren."
   },

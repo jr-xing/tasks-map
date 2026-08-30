@@ -69,6 +69,10 @@ export class Vault {
     return this.files.get(file.path) || "";
   }
 
+  async cachedRead(file: TFile): Promise<string> {
+    return this.read(file);
+  }
+
   async modify(file: TFile, content: string): Promise<void> {
     this.files.set(file.path, content);
   }
@@ -99,6 +103,14 @@ export class App {
       frontmatter?: Record<string, unknown>;
       links?: Array<{ link: string }>;
       embeds?: Array<{ link: string }>;
+      listItems?: Array<{
+        task?: string;
+        parent: number;
+        position: {
+          start: { line: number; col: number; offset: number };
+          end: { line: number; col: number; offset: number };
+        };
+      }>;
     };
     getFirstLinkpathDest: (
       _linkpath: string,

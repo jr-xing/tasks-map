@@ -10,6 +10,6 @@ The plugin is loaded via a symbolic link in `.obsidian/plugins/tasks-map/` that 
 2. Open this fixture vault in Obsidian to test the latest built version
 3. Any changes you make to the plugin code will be reflected after rebuilding and reloading Obsidian
 
-## Dependencies
+## Optional integrations
 
-**Important:** This fixture includes a pinned version of the **Dataview** plugin for reliable testing purposes, it should be updated frequently. Not updating it is more of a developer risk than a user risk, as it doesn't get packaged in any way upon release.
+The fixture keeps TaskNotes and Tasks available for testing their optional editing and creation integrations. Inline checkbox task discovery uses Obsidian's native metadata index.

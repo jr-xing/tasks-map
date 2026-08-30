@@ -41,7 +41,7 @@ import {
   taskPrioritiesFromSchemaValues,
   writeTaskNotesTypeSchemaPriorityValues,
 } from "./lib/tasknotes-type-schema";
-import { checkDataviewPlugin, getAllTasks, inspectNoteTask } from "./lib/utils";
+import { getAllTasks, inspectNoteTask } from "./lib/utils";
 import {
   buildTaskFocusCandidates,
   TaskFocusCandidate,
@@ -197,7 +197,7 @@ export default class TasksMapPlugin extends Plugin {
       id: "focus-project-or-task",
       name: t("commands.focus_project_or_task"),
       callback: () => {
-        this.openFocusPicker();
+        void this.openFocusPicker();
       },
     });
 
@@ -233,8 +233,6 @@ export default class TasksMapPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor(
       EMBED_CODE_BLOCK,
       (source, el, ctx) => {
-        const dataviewCheck = checkDataviewPlugin(this.app);
-
         const root = createRoot(el);
 
         // Register cleanup via MarkdownRenderChild so the root is unmounted
@@ -242,13 +240,6 @@ export default class TasksMapPlugin extends Plugin {
         const child = new MarkdownRenderChild(el);
         child.onunload = () => root.unmount();
         ctx.addChild(child);
-
-        if (!dataviewCheck.isReady) {
-          root.render(
-            <TaskMapEmbedError message={t("embed.dataview_required")} />
-          );
-          return;
-        }
 
         const parsed = filterStateFromSource(source);
 
@@ -515,22 +506,33 @@ export default class TasksMapPlugin extends Plugin {
     }
   }
 
-  private openFocusPicker(): void {
+  private async openFocusPicker(): Promise<void> {
     const baseFilter = this.getFocusBaseFilter();
-    const tasks = getAllTasks(
-      this.app,
-      {
-        noteTaskPropertyName: this.settings.noteTaskPropertyName,
-        noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
-        noteTaskTitleSource: this.settings.noteTaskTitleSource,
-        noteTaskTitleProperty: this.settings.noteTaskTitleProperty,
-        noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
-        noteTaskCreatedDateProperty: this.settings.noteTaskCreatedDateProperty,
-        quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
-        noteDependencyProperty: this.settings.noteDependencyProperty,
-      },
-      this.settings.taskStatuses
-    );
+    let tasks;
+    try {
+      tasks = await getAllTasks(
+        this.app,
+        {
+          noteTaskPropertyName: this.settings.noteTaskPropertyName,
+          noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
+          noteTaskTitleSource: this.settings.noteTaskTitleSource,
+          noteTaskTitleProperty: this.settings.noteTaskTitleProperty,
+          noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
+          noteTaskCreatedDateProperty:
+            this.settings.noteTaskCreatedDateProperty,
+          quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
+          noteDependencyProperty: this.settings.noteDependencyProperty,
+        },
+        this.settings.taskStatuses
+      );
+    } catch (error) {
+      console.error(
+        "[tasks-map] Failed to load tasks for focus picker:",
+        error
+      );
+      new Notice(t("notices.tasks_load_failed"));
+      return;
+    }
     const items = buildTaskFocusCandidates(tasks, baseFilter);
     if (items.length === 0) {
       new Notice(t("focus_picker.no_items"));
@@ -549,16 +551,16 @@ export default class TasksMapPlugin extends Plugin {
   private checkNoteMapVisibility(): void {
     const activeFile = this.app.workspace.getActiveFile();
     if (activeFile?.extension === "md") {
-      this.openNoteVisibilityReport(activeFile);
+      void this.openNoteVisibilityReport(activeFile);
       return;
     }
 
     new NoteSuggestModal(this.app, (file) => {
-      this.openNoteVisibilityReport(file);
+      void this.openNoteVisibilityReport(file);
     }).open();
   }
 
-  private openNoteVisibilityReport(file: TFile): void {
+  private async openNoteVisibilityReport(file: TFile): Promise<void> {
     const noteSettings = {
       noteTaskPropertyName: this.settings.noteTaskPropertyName,
       noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
@@ -575,11 +577,21 @@ export default class TasksMapPlugin extends Plugin {
       noteSettings,
       this.settings.taskStatuses
     );
-    const freshTasks = getAllTasks(
-      this.app,
-      noteSettings,
-      this.settings.taskStatuses
-    );
+    let freshTasks;
+    try {
+      freshTasks = await getAllTasks(
+        this.app,
+        noteSettings,
+        this.settings.taskStatuses
+      );
+    } catch (error) {
+      console.error(
+        "[tasks-map] Failed to load tasks for visibility report:",
+        error
+      );
+      new Notice(t("notices.tasks_load_failed"));
+      return;
+    }
     const mapView = this.getVisibilityMapView();
     const report = buildNoteVisibilityReport({
       filePath: file.path,

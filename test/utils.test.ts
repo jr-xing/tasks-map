@@ -6,7 +6,6 @@ import {
   getTagColor,
   createNodesFromTasks,
   createEdgesFromTasks,
-  checkDataviewPlugin,
   estimateNodeDimensions,
   getLayoutedElements,
   getUnlinkedTasks,
@@ -970,63 +969,6 @@ describe("getLayoutedElements", () => {
       positionById.get("D")?.y || 0
     );
     expect(Math.max(horizontalGap, verticalGap)).toBeGreaterThanOrEqual(100);
-  });
-});
-
-describe("checkDataviewPlugin", () => {
-  it("detects when plugin is not installed", () => {
-    const app = { plugins: { manifests: {}, enabledPlugins: new Set() } };
-    const result = checkDataviewPlugin(app);
-    expect(result.isInstalled).toBe(false);
-    expect(result.isReady).toBe(false);
-    expect(result.getMessage()).not.toBeNull();
-  });
-
-  it("detects when plugin is installed but not enabled", () => {
-    const app = {
-      plugins: {
-        manifests: { dataview: {} },
-        enabledPlugins: new Set(),
-        plugins: {},
-      },
-    };
-    const result = checkDataviewPlugin(app);
-    expect(result.isInstalled).toBe(true);
-    expect(result.isEnabled).toBe(false);
-    expect(result.isReady).toBe(false);
-    expect(result.getMessage()).not.toBeNull();
-  });
-
-  it("detects when plugin is installed and enabled but not loaded", () => {
-    const app = {
-      plugins: {
-        manifests: { dataview: {} },
-        enabledPlugins: new Set(["dataview"]),
-        plugins: {},
-      },
-    };
-    const result = checkDataviewPlugin(app);
-    expect(result.isInstalled).toBe(true);
-    expect(result.isEnabled).toBe(true);
-    expect(result.isLoaded).toBe(false);
-    expect(result.isReady).toBe(false);
-    expect(result.getMessage()).not.toBeNull();
-  });
-
-  it("detects when plugin is fully ready", () => {
-    const app = {
-      plugins: {
-        manifests: { dataview: {} },
-        enabledPlugins: new Set(["dataview"]),
-        plugins: { dataview: { api: {} } },
-      },
-    };
-    const result = checkDataviewPlugin(app);
-    expect(result.isInstalled).toBe(true);
-    expect(result.isEnabled).toBe(true);
-    expect(result.isLoaded).toBe(true);
-    expect(result.isReady).toBe(true);
-    expect(result.getMessage()).toBeNull();
   });
 });
 

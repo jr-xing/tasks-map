@@ -4,7 +4,6 @@ import { createRoot, Root } from "react-dom/client";
 import { ReactFlowProvider } from "reactflow";
 import { AppContext } from "src/contexts/context";
 import TaskMapGraphView from "./TaskMapGraphView";
-import { checkDataviewPlugin } from "../lib/utils";
 import TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState, createDefaultFilterState } from "src/types/filter-state";
@@ -150,29 +149,7 @@ export default class TaskMapGraphItemView extends ItemView {
   }
 
   async onOpen() {
-    const dataviewCheck = checkDataviewPlugin(this.app);
-
     this.root = createRoot(this.containerEl.children[1]);
-
-    if (!dataviewCheck.isReady) {
-      this.root.render(
-        <div className="tasks-map-centered-message-container">
-          <div className="tasks-map-centered-message-content">
-            <div className="tasks-map-message-icon">⚠️</div>
-            <h3 className="tasks-map-message-title">
-              {t("view.dataview_required")}
-            </h3>
-            <p className="tasks-map-message-description">
-              {dataviewCheck.getMessage()}
-            </p>
-            <p className="tasks-map-message-description">
-              {t("view.visit_community_plugins")}
-            </p>
-          </div>
-        </div>
-      );
-      return;
-    }
 
     this.root.render(
       <AppContext.Provider value={this.app}>

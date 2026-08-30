@@ -14,11 +14,7 @@
     "open_tasks_map": "Open tasks map view"
   },
   "view": {
-    "title": "Tasks map",
-    "dataview_required": "Tasks Map requires the Dataview plugin to be installed and enabled.",
-    "dataview_not_installed": "The Dataview plugin is not currently installed.",
-    "dataview_disabled": "The Dataview plugin is installed but not enabled.",
-    "visit_community_plugins": "Visit the Community Plugins section in Settings to install or enable Dataview."
+    "title": "Tasks map"
   },
   "settings": {
     "display_options": "Display Options",
@@ -251,9 +247,11 @@
     "all_unlinked_hint": "Drag tasks from the panel on the left onto the graph to place them here."
   },
   "errors": {
-    "cannot_create_edges_different_types": "Cannot create edges between different task types (dataview and note-based tasks). Both tasks must be of the same type."
+    "cannot_create_edges_different_types": "Cannot create edges between different task types (inline and note-based tasks). Both tasks must be of the same type."
   },
   "notices": {
+    "tasks_reloaded": "Tasks reloaded",
+    "tasks_load_failed": "Could not load tasks.",
     "project_assigned": "Added to project: {{projectName}}",
     "project_assigned_multiple": "Added {{count}} tasks to project: {{projectName}}"
   },
@@ -275,7 +273,6 @@
   },
   "embed": {
     "pick_note_placeholder": "Choose a note...",
-    "dataview_required": "Tasks Map requires the Dataview plugin.",
     "invalid_json": "This Tasks Map embed contains invalid JSON. Re-insert it using the command palette to fix it.",
     "legacy_format": "This Tasks Map embed uses an outdated format. Re-insert it using the command palette to migrate it."
   },
