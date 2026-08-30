@@ -12,13 +12,27 @@ import {
   PROJECT_GROUP_PADDING,
   partitionTasksByProject,
 } from "./project-groups";
-import { layoutConnectedComponents, LayoutDirection } from "./packing";
+import {
+  layoutConnectedComponents,
+  layoutConnectedComponentSets,
+  spaceConnectedComponents,
+  LayoutDirection,
+  LayoutViewport,
+} from "./packing";
 
 interface GroupBounds {
   minX: number;
   minY: number;
   maxRight: number;
   maxBottom: number;
+}
+
+export interface LayoutSnapshot {
+  nodes: Node[];
+  topLevelComponents: Node[][];
+  topLevelDimensions: Map<string, NodeDimensions>;
+  topLevelNodeIds: Set<string>;
+  direction: LayoutDirection;
 }
 
 function dimensionsForTask(
@@ -37,7 +51,44 @@ function dimensionsForTask(
     : { width: NODEWIDTH, height: NODEHEIGHT };
 }
 
-export function getLayoutedElements(
+function packTopLevelComponents(
+  connectedComponents: Node[][],
+  nodeDimensions: Map<string, NodeDimensions>,
+  direction: LayoutDirection,
+  viewport?: LayoutViewport
+): Node[] {
+  if (connectedComponents.length <= 1) {
+    return connectedComponents[0] ?? [];
+  }
+  return spaceConnectedComponents(
+    connectedComponents,
+    nodeDimensions,
+    direction,
+    viewport
+  );
+}
+
+export function packLayoutSnapshot(
+  snapshot: LayoutSnapshot,
+  viewport?: LayoutViewport
+): Node[] {
+  const packedTopLevelNodes = packTopLevelComponents(
+    snapshot.topLevelComponents,
+    snapshot.topLevelDimensions,
+    snapshot.direction,
+    viewport
+  );
+  const topLevelPositions = new Map(
+    packedTopLevelNodes.map((node) => [node.id, node.position])
+  );
+
+  return snapshot.nodes.map((node) => {
+    const position = topLevelPositions.get(node.id);
+    return position ? { ...node, position } : node;
+  });
+}
+
+export function createLayoutSnapshot(
   nodes: Node[],
   edges: Edge[],
   direction: LayoutDirection = "Horizontal",
@@ -46,7 +97,7 @@ export function getLayoutedElements(
   tasks: BaseTask[] = [],
   visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   nodeDensity: NodeDensity = "comfortable"
-): Node[] {
+): LayoutSnapshot {
   const rankdir = direction === "Horizontal" ? "LR" : "TB";
   const nodeDimensions = new Map<string, NodeDimensions>();
 
@@ -199,10 +250,14 @@ export function getLayoutedElements(
       topLevelEdges.push({ ...edge, source, target });
     });
 
-    const topLevelLayouted = layoutConnectedComponents(
+    const topLevelComponents = layoutConnectedComponentSets(
       topLevelNodes,
       topLevelEdges,
       rankdir,
+      topLevelDimensions
+    );
+    const topLevelLayouted = packTopLevelComponents(
+      topLevelComponents,
       topLevelDimensions,
       direction
     );
@@ -246,7 +301,13 @@ export function getLayoutedElements(
         const position = topLevelPositions.get(node.id);
         resultNodes.push(position ? { ...node, position } : node);
       });
-    return resultNodes;
+    return {
+      nodes: resultNodes,
+      topLevelComponents,
+      topLevelDimensions,
+      topLevelNodeIds: new Set(topLevelNodes.map((node) => node.id)),
+      direction,
+    };
   }
 
   nodes.forEach((node) => {
@@ -260,11 +321,47 @@ export function getLayoutedElements(
       )
     );
   });
-  return layoutConnectedComponents(
+  const topLevelComponents = layoutConnectedComponentSets(
     nodes,
     edges,
     rankdir,
-    nodeDimensions,
-    direction
+    nodeDimensions
+  );
+  return {
+    nodes: packTopLevelComponents(
+      topLevelComponents,
+      nodeDimensions,
+      direction
+    ),
+    topLevelComponents,
+    topLevelDimensions: nodeDimensions,
+    topLevelNodeIds: new Set(nodes.map((node) => node.id)),
+    direction,
+  };
+}
+
+export function getLayoutedElements(
+  nodes: Node[],
+  edges: Edge[],
+  direction: LayoutDirection = "Horizontal",
+  showTags: boolean = true,
+  groupByProject: boolean = true,
+  tasks: BaseTask[] = [],
+  visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  nodeDensity: NodeDensity = "comfortable",
+  viewport?: LayoutViewport
+): Node[] {
+  return packLayoutSnapshot(
+    createLayoutSnapshot(
+      nodes,
+      edges,
+      direction,
+      showTags,
+      groupByProject,
+      tasks,
+      visibleAttachmentKinds,
+      nodeDensity
+    ),
+    viewport
   );
 }

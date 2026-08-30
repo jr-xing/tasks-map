@@ -8,6 +8,7 @@ import ReactFlow, {
   getNodesBounds,
   getViewportForBounds,
   PanOnScrollMode,
+  type Node,
   type NodeDragHandler,
   type NodeMouseHandler,
   type SelectionDragHandler,
@@ -19,7 +20,6 @@ import {
   addLinkSignsBetweenTasks,
   addSignToTaskInFile,
   getAllTasks,
-  getLayoutedElements,
   removeLinkSignsBetweenTasks,
   createNodesFromTasks,
   createEdgesFromTasks,
@@ -74,12 +74,22 @@ import {
   type RefreshRequestOptions,
   type VaultWriteTracker,
 } from "src/lib/vault-watcher";
+import {
+  createLayoutSnapshot,
+  packLayoutSnapshot,
+  type LayoutSnapshot,
+  type LayoutViewport,
+} from "src/lib/layout";
 import { t } from "../i18n";
 import TasksMapPlugin from "../main";
 
 interface ReloadTasksOptions {
   auto?: boolean;
 }
+
+type NodePosition = Node["position"];
+
+const RESIZE_PACKING_DEBOUNCE_MS = 300;
 
 const REFRESH_BLOCKING_SELECTOR = [
   ".tasks-map-tag-select__control",
@@ -103,6 +113,38 @@ function cloneTaskWithUpdates(
     task,
     updates
   );
+}
+
+function getLayoutViewport(
+  container: HTMLDivElement | null
+): LayoutViewport | undefined {
+  if (!container) return undefined;
+  return {
+    width: container.clientWidth,
+    height: container.clientHeight,
+  };
+}
+
+function getTopLevelPositions(
+  snapshot: LayoutSnapshot,
+  nodes: Node[]
+): Map<string, NodePosition> {
+  return new Map(
+    nodes
+      .filter((node) => snapshot.topLevelNodeIds.has(node.id))
+      .map((node) => [node.id, { ...node.position }])
+  );
+}
+
+function positionsEqual(
+  left: Map<string, NodePosition>,
+  right: Map<string, NodePosition>
+): boolean {
+  if (left.size !== right.size) return false;
+  return [...left].every(([id, position]) => {
+    const other = right.get(id);
+    return other?.x === position.x && other.y === position.y;
+  });
 }
 
 interface TaskMapGraphViewProps {
@@ -151,6 +193,13 @@ export default function TaskMapGraphView({
   const cornerRef = React.useRef<HTMLDivElement>(null);
   // Holds the in-flight requestAnimationFrame id for the camera-fit poll.
   const fitRafRef = React.useRef<number | null>(null);
+  const layoutSnapshotRef = React.useRef<LayoutSnapshot | null>(null);
+  const lastPackedPositionsRef = React.useRef<Map<string, NodePosition>>(
+    new Map()
+  );
+  const latestResizeViewportRef = React.useRef<LayoutViewport | null>(null);
+  const resizePackingTimerRef = React.useRef<number | null>(null);
+  const pendingResizePackingRef = React.useRef(false);
 
   const connectStartRef = React.useRef<{
     nodeId: string;
@@ -229,11 +278,14 @@ export default function TaskMapGraphView({
   // Fit the camera to a freshly built node set once ReactFlow has caught up.
   // `expectedIds` is the id set just handed to setNodes; the poll waits until
   // ReactFlow's store holds exactly those nodes (so it never fits to the
-  // previous selection) and every one has been measured. Polls per animation
-  // frame and bails out after ~40 frames so an unmeasured node cannot stall
-  // the camera forever.
+  // previous selection), every one has been measured, and any expected
+  // positions have landed. Polls per animation frame and bails out after ~40
+  // frames so an unmeasured node cannot stall the camera forever.
   const scheduleFitView = useCallback(
-    (expectedIds: Set<string>) => {
+    (
+      expectedIds: Set<string>,
+      expectedPositions?: Map<string, NodePosition>
+    ) => {
       if (fitRafRef.current !== null) {
         cancelAnimationFrame(fitRafRef.current);
       }
@@ -244,7 +296,13 @@ export default function TaskMapGraphView({
           currentNodes.length === expectedIds.size &&
           currentNodes.length > 0 &&
           currentNodes.every(
-            (n) => expectedIds.has(n.id) && n.width != null && n.height != null
+            (node) =>
+              expectedIds.has(node.id) &&
+              node.width != null &&
+              node.height != null &&
+              (expectedPositions === undefined ||
+                (node.position.x === expectedPositions.get(node.id)?.x &&
+                  node.position.y === expectedPositions.get(node.id)?.y))
           );
         if (ready || frames >= 40) {
           fitRafRef.current = null;
@@ -805,8 +863,9 @@ export default function TaskMapGraphView({
     const droppedNodes = newNodes.filter((n) => droppedTaskIds.has(n.id));
     const linkedNodes = newNodes.filter((n) => !droppedTaskIds.has(n.id));
 
-    // Run dagre layout only on linked nodes
-    const layoutedLinkedNodes = getLayoutedElements(
+    // Run dagre once and retain its component-local geometry so a later
+    // container resize only needs to recompute the outer packing offsets.
+    const layoutSnapshot = createLayoutSnapshot(
       linkedNodes,
       newEdges,
       settings.layoutDirection,
@@ -815,6 +874,15 @@ export default function TaskMapGraphView({
       filteredTasks,
       settings.visibleAttachmentKinds,
       settings.nodeDensity
+    );
+    const layoutedLinkedNodes = packLayoutSnapshot(
+      layoutSnapshot,
+      getLayoutViewport(containerRef.current)
+    );
+    layoutSnapshotRef.current = layoutSnapshot;
+    lastPackedPositionsRef.current = getTopLevelPositions(
+      layoutSnapshot,
+      layoutedLinkedNodes
     );
 
     // Apply stored drop positions to dropped nodes (bypass dagre)
@@ -828,12 +896,15 @@ export default function TaskMapGraphView({
     setEdges(newEdges);
 
     const expectedIds = new Set(finalNodes.map((n) => n.id));
+    const expectedPositions = new Map(
+      finalNodes.map((node) => [node.id, { ...node.position }])
+    );
     if (skipFitViewRef.current) {
       skipFitViewRef.current = false;
     } else {
       // Fit the camera once the rebuilt nodes have been measured. Skipped for
       // edits that should leave the camera where it is.
-      scheduleFitView(expectedIds);
+      scheduleFitView(expectedIds, expectedPositions);
     }
   }, [
     graphTasks,
@@ -855,6 +926,76 @@ export default function TaskMapGraphView({
     trackVaultWrite,
     scheduleFitView,
   ]);
+
+  const applyViewportPacking = useCallback(
+    (viewport: LayoutViewport) => {
+      const snapshot = layoutSnapshotRef.current;
+      if (!snapshot) return;
+
+      const packedNodes = packLayoutSnapshot(snapshot, viewport);
+      const packedPositions = getTopLevelPositions(snapshot, packedNodes);
+      if (positionsEqual(packedPositions, lastPackedPositionsRef.current)) {
+        return;
+      }
+
+      lastPackedPositionsRef.current = packedPositions;
+      const currentNodes = reactFlowInstance.getNodes();
+      const expectedPositions = new Map(
+        currentNodes.map((node) => [node.id, { ...node.position }])
+      );
+      packedPositions.forEach((position, id) => {
+        expectedPositions.set(id, { ...position });
+      });
+
+      setNodes((previousNodes) =>
+        previousNodes.map((node) => {
+          const position = packedPositions.get(node.id);
+          return position ? { ...node, position: { ...position } } : node;
+        })
+      );
+      scheduleFitView(
+        new Set(currentNodes.map((node) => node.id)),
+        expectedPositions
+      );
+    },
+    [reactFlowInstance, scheduleFitView, setNodes]
+  );
+
+  const scheduleViewportPacking = useCallback(() => {
+    const viewport = getLayoutViewport(containerRef.current);
+    if (!viewport) return;
+    latestResizeViewportRef.current = viewport;
+
+    if (resizePackingTimerRef.current !== null) {
+      window.clearTimeout(resizePackingTimerRef.current);
+    }
+    resizePackingTimerRef.current = window.setTimeout(() => {
+      resizePackingTimerRef.current = null;
+      if (dragInteractionDepthRef.current > 0) {
+        pendingResizePackingRef.current = true;
+        return;
+      }
+
+      pendingResizePackingRef.current = false;
+      const latestViewport = latestResizeViewportRef.current;
+      if (latestViewport) applyViewportPacking(latestViewport);
+    }, RESIZE_PACKING_DEBOUNCE_MS);
+  }, [applyViewportPacking]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => scheduleViewportPacking());
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+      if (resizePackingTimerRef.current !== null) {
+        window.clearTimeout(resizePackingTimerRef.current);
+        resizePackingTimerRef.current = null;
+      }
+    };
+  }, [scheduleViewportPacking]);
 
   // Cancel any in-flight camera-fit poll when the view unmounts.
   useEffect(
@@ -1423,8 +1564,12 @@ export default function TaskMapGraphView({
     );
     if (dragInteractionDepthRef.current === 0) {
       vaultWatcherRef.current?.resume();
+      if (pendingResizePackingRef.current) {
+        pendingResizePackingRef.current = false;
+        scheduleViewportPacking();
+      }
     }
-  }, []);
+  }, [scheduleViewportPacking]);
 
   // Highlight project group nodes while multiple selected task nodes are dragged
   const onSelectionDrag: SelectionDragHandler = useCallback(

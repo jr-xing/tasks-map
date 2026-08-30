@@ -1,7 +1,7 @@
 # Tasks Map Evolution Roadmap
 
 **Date:** 2026-08-30
-**Status:** In progress — Phases 1–4 completed
+**Status:** In progress — Phases 1–5 completed
 **Scope:** Multi-phase improvement plan covering task triage UI, native indexing, auto-refresh, layout stability/minimalism, project creation, and de-forking.
 
 Each phase is designed to be implemented in its own session. Phases list their
@@ -143,7 +143,7 @@ drift; treat them as anchors, re-verify before editing.
 | 2     | Native task indexing (drop Dataview) | —                     | ★★★★  | M      | Complete |
 | 3     | Auto-refresh                         | 2                     | ★★★★  | M      | Complete |
 | 4     | Layout stability & visual minimalism | — (4a refactor first) | ★★★★  | M–L    | Complete |
-| 5     | Viewport-aware component packing     | 4a                    | ★★    | S–M    | Planned  |
+| 5     | Viewport-aware component packing     | 4a                    | ★★    | S–M    | Complete |
 | 6     | New-project modal                    | —                     | ★★★   | S–M    | Planned  |
 | 7     | De-fork & rebrand                    | —                     | ★★    | S      | Planned  |
 
@@ -474,6 +474,8 @@ tests, production build, changed-file ESLint/Prettier, CSS lint, and
 
 ## Phase 5 — Viewport-aware component packing (depends on 4a)
 
+**Status:** Completed on 2026-08-30
+
 **Goal:** use the tab's aspect ratio when tiling disconnected components /
 project groups, without ever touching intra-project hierarchy.
 
@@ -496,6 +498,29 @@ version we settled on):**
 **Acceptance:** a wide tab tiles components into more columns; a tall tab
 stacks them; resizing re-tiles blocks smoothly without changing any
 component's internal layout; with a single project focused, nothing moves.
+
+**Implementation result:**
+
+- Split layout into a dagre-backed snapshot stage and a packing-only stage.
+  Viewport changes reuse immutable component-local geometry and never invoke
+  dagre.
+- Made horizontal row width and vertical column height respond to the
+  container aspect ratio, while invalid or unavailable dimensions retain the
+  legacy packing threshold.
+- Added a 300ms debounced `ResizeObserver` to the shared graph view. Repacking
+  is deferred during drags, preserves current node state and dropped nodes,
+  and refits only when top-level component positions actually change.
+- Extended camera-fit synchronization to wait for the expected node positions,
+  preventing a resize fit from using stale ReactFlow bounds.
+
+**Acceptance (automated):** wide/tall packing in both layout directions,
+intra-component and grouped-child stability, single-component stability,
+legacy fallback, deterministic repacking, and the no-dagre resize path are
+covered. Automated verification: 505 Jest tests, production build, CSS lint,
+changed-source ESLint, changed-file Prettier, and `git diff --check` passed.
+Repository-wide ESLint still reports four unrelated pre-existing
+unused-parameter errors in `src/lib/tasknotes-organizer.ts`. Manual Obsidian
+smoke testing remains recommended for pane-resize feel.
 
 ---
 

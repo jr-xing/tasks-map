@@ -7,6 +7,11 @@ import { NodeDimensions } from "./dimensions";
 export type LayoutDirection = "Horizontal" | "Vertical";
 export type DagreDirection = "LR" | "TB";
 
+export interface LayoutViewport {
+  width: number;
+  height: number;
+}
+
 function getTaskCardHorizontalOffset(node: Node, dimensions: NodeDimensions) {
   const task = node.data?.task as BaseTask | undefined;
   if (!task) return 0;
@@ -174,7 +179,8 @@ export function normalizeLayoutedNodes(nodes: Node[]): Node[] {
 export function spaceConnectedComponents(
   connectedComponents: Node[][],
   nodeDimensions: Map<string, NodeDimensions>,
-  direction: LayoutDirection
+  direction: LayoutDirection,
+  viewport?: LayoutViewport
 ): Node[] {
   if (connectedComponents.length === 0) return [];
 
@@ -218,12 +224,26 @@ export function spaceConnectedComponents(
       sum + (bounds.width + componentGapX) * (bounds.height + componentGapY),
     0
   );
-  const wrapThreshold = Math.max(
+  const largestComponentSize =
     direction === "Horizontal"
       ? Math.max(...componentBounds.map((bounds) => bounds.width))
-      : Math.max(...componentBounds.map((bounds) => bounds.height)),
-    Math.ceil(Math.sqrt(totalArea) * 1.5)
-  );
+      : Math.max(...componentBounds.map((bounds) => bounds.height));
+  const hasValidViewport =
+    viewport !== undefined &&
+    Number.isFinite(viewport.width) &&
+    Number.isFinite(viewport.height) &&
+    viewport.width > 0 &&
+    viewport.height > 0;
+  const aspectRatio = hasValidViewport
+    ? viewport.width / viewport.height
+    : null;
+  const targetSize =
+    aspectRatio === null
+      ? Math.sqrt(totalArea) * 1.5
+      : direction === "Horizontal"
+        ? Math.sqrt(totalArea * aspectRatio)
+        : Math.sqrt(totalArea / aspectRatio);
+  const wrapThreshold = Math.max(largestComponentSize, Math.ceil(targetSize));
   const offsets = new Map<string, { x: number; y: number }>();
 
   if (direction === "Horizontal") {
@@ -279,10 +299,33 @@ export function layoutConnectedComponents(
   edges: Edge[],
   rankdir: DagreDirection,
   nodeDimensions: Map<string, NodeDimensions>,
-  direction: LayoutDirection
+  direction: LayoutDirection,
+  viewport?: LayoutViewport
 ): Node[] {
+  const layoutedComponents = layoutConnectedComponentSets(
+    nodes,
+    edges,
+    rankdir,
+    nodeDimensions
+  );
+
+  if (layoutedComponents.length <= 1) return layoutedComponents[0] ?? [];
+  return spaceConnectedComponents(
+    layoutedComponents,
+    nodeDimensions,
+    direction,
+    viewport
+  );
+}
+
+export function layoutConnectedComponentSets(
+  nodes: Node[],
+  edges: Edge[],
+  rankdir: DagreDirection,
+  nodeDimensions: Map<string, NodeDimensions>
+): Node[][] {
   const components = getConnectedComponents(nodes, edges);
-  const layoutedComponents = components.map((componentIds) => {
+  return components.map((componentIds) => {
     const componentIdSet = new Set(componentIds);
     const componentNodes = nodes.filter((node) => componentIdSet.has(node.id));
     const componentEdges = edges.filter(
@@ -298,11 +341,4 @@ export function layoutConnectedComponents(
       )
     );
   });
-
-  if (components.length <= 1) return layoutedComponents[0] ?? [];
-  return spaceConnectedComponents(
-    layoutedComponents,
-    nodeDimensions,
-    direction
-  );
 }

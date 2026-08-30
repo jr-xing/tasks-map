@@ -4,7 +4,12 @@ export {
   getVisibleTaskAttachments,
   type NodeDimensions,
 } from "./dimensions";
-export { getLayoutedElements } from "./layout";
+export {
+  createLayoutSnapshot,
+  getLayoutedElements,
+  packLayoutSnapshot,
+  type LayoutSnapshot,
+} from "./layout";
 export {
   createProjectGroupNodes,
   partitionTasksByProject,
@@ -14,10 +19,12 @@ export {
 export {
   getComponentSortKey,
   getConnectedComponents,
+  layoutConnectedComponentSets,
   layoutConnectedComponents,
   layoutNodesWithDagre,
   normalizeLayoutedNodes,
   spaceConnectedComponents,
   type DagreDirection,
   type LayoutDirection,
+  type LayoutViewport,
 } from "./packing";
