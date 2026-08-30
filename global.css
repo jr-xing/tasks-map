@@ -2425,8 +2425,163 @@ If your plugin does not need CSS, delete this file.
   background: var(--background-modifier-hover);
 }
 
+/* Task triage list */
+.tasks-map-task-list {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(var(--tasks-map-color-black-rgb), 0.15);
+  overflow: hidden;
+}
+
+.tasks-map-task-list__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.tasks-map-task-list__title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.tasks-map-task-list__total,
+.tasks-map-task-list__group-count {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks-map-task-list__groups {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tasks-map-task-list__group + .tasks-map-task-list__group {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.tasks-map-task-list__group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--background-primary-alt);
+}
+
+.tasks-map-task-list__status-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--tasks-map-status-color, var(--text-muted));
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tasks-map-task-list__group-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-map-task-list__row {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 1px 8px 1px 2px;
+  color: var(--text-normal);
+  cursor: pointer;
+  outline: none;
+}
+
+.tasks-map-task-list__row:hover,
+.tasks-map-task-list__row:focus-visible {
+  background: var(--background-modifier-hover);
+}
+
+.tasks-map-task-list .tasks-map-status-container {
+  align-self: center;
+  border-radius: 4px;
+  overflow: visible;
+}
+
+.tasks-map-task-list .tasks-map-task-status-toggle {
+  width: 26px;
+  min-height: 28px;
+  border-radius: 4px;
+}
+
+.tasks-map-task-list .tasks-map-task-status-dot {
+  width: 9px;
+  height: 9px;
+  box-shadow: none;
+}
+
+.tasks-map-task-list__priority {
+  width: 3px;
+  height: 18px;
+  margin-right: 7px;
+  background: var(--tasks-map-priority-color, var(--text-faint));
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tasks-map-task-list__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-map-task-list__projects {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.tasks-map-task-list__due {
+  margin-left: 7px;
+  padding: 2px 4px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  background: var(--background-modifier-hover);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tasks-map-task-list__empty {
+  padding: 18px 12px;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-align: center;
+}
+
 /* Transient pulse when the project tree jumps to a node on the canvas */
 .react-flow__node.tasks-map-node--focused {
+  /* stylelint-disable-next-line declaration-no-important -- override ReactFlow inline stacking */
   z-index: 50 !important;
   animation: tasks-map-node-focus-pulse 1.5s ease-out;
 }

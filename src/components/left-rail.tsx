@@ -4,12 +4,19 @@ import {
   Bookmark,
   SlidersHorizontal,
   Inbox,
+  ListTodo,
   ListTree,
   RefreshCw,
 } from "lucide-react";
 import { t } from "../i18n";
 
-export type RailPanelId = "filters" | "presets" | "view" | "unlinked" | "tree";
+export type RailPanelId =
+  | "filters"
+  | "list"
+  | "presets"
+  | "view"
+  | "unlinked"
+  | "tree";
 
 interface LeftRailProps {
   /** The panel currently open in the flyout, or `null` when all are closed. */
@@ -19,6 +26,7 @@ interface LeftRailProps {
   /** Re-reads all task notes from the vault, keeping the active project view. */
   onRefresh: () => void;
   showFilters: boolean;
+  showList: boolean;
   showPresets: boolean;
   showUnlinked: boolean;
   showTree: boolean;
@@ -44,6 +52,7 @@ export default function LeftRail({
   onToggle,
   onRefresh,
   showFilters,
+  showList,
   showPresets,
   showUnlinked,
   showTree,
@@ -55,6 +64,12 @@ export default function LeftRail({
       icon: <Filter size={16} />,
       label: t("filters.title"),
       visible: showFilters,
+    },
+    {
+      id: "list",
+      icon: <ListTodo size={16} />,
+      label: t("task_list.title"),
+      visible: showList,
     },
     {
       id: "presets",

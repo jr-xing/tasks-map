@@ -174,6 +174,46 @@ describe("TaskFactory", () => {
     });
   });
 
+  describe("due date parsing", () => {
+    it.each([
+      ["Ship release 📅 2026-09-02", "2026-09-02"],
+      ["Ship release [[due::2026-09-03]]", "2026-09-03"],
+      ["Ship release due:2026-09-04", "2026-09-04"],
+    ])("extracts an inline due date from %s", (text, expected) => {
+      const task = factory.parse({
+        status: " ",
+        text,
+        link: { path: "t.md" },
+      });
+
+      expect(task.dueDate).toBe(expected);
+      expect(task.summary).toBe("Ship release");
+    });
+
+    it.each(["2026-02-30", "not-a-date"])(
+      "ignores invalid inline due date %s",
+      (dueDate) => {
+        const task = factory.parse({
+          status: " ",
+          text: `Ship release due:${dueDate}`,
+          link: { path: "t.md" },
+        });
+
+        expect(task.dueDate).toBeNull();
+      }
+    );
+
+    it("uses null when no due date is present", () => {
+      const task = factory.parse({
+        status: " ",
+        text: "Ship release",
+        link: { path: "t.md" },
+      });
+
+      expect(task.dueDate).toBeNull();
+    });
+  });
+
   describe("incoming links parsing", () => {
     it("parses individual-style links", () => {
       const raw: RawTask = {

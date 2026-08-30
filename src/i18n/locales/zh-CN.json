@@ -232,6 +232,11 @@
     "visible_level": "层级 {{level}}",
     "visible_level_aria": "可见树层级"
   },
+  "task_list": {
+    "title": "任务列表",
+    "empty": "没有符合当前筛选条件的任务",
+    "due": "截止日期：{{date}}"
+  },
   "project_switcher": {
     "label": "项目",
     "all_projects": "所有项目 ({{count}})",

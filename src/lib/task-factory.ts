@@ -24,6 +24,7 @@ import {
   STAR_PATTERN,
   STAR_PATTERN_GLOBAL,
 } from "./task-regex";
+import { parseInlineDueDate, stripInlineDueDates } from "./task-dates";
 
 const ID_MATCH_PATTERNS = [
   EMOJI_ID_PATTERN,
@@ -55,6 +56,7 @@ export class TaskFactory {
       link: rawTask.link.path,
       incomingLinks: this.parseIncomingLinks(text),
       starred: this.parseStarred(text),
+      dueDate: this.parseDueDate(text, type),
     };
 
     // Return the appropriate subclass based on type
@@ -101,6 +103,10 @@ export class TaskFactory {
 
   private parseStarred(text: string): boolean {
     return STAR_PATTERN.test(text);
+  }
+
+  private parseDueDate(text: string, type: "dataview" | "note"): string | null {
+    return type === "dataview" ? parseInlineDueDate(text) : null;
   }
 
   private parseTags(text: string): string[] {
@@ -160,7 +166,7 @@ export class TaskFactory {
   }
 
   private makeSummary(text: string): string {
-    return text
+    return stripInlineDueDates(text)
       .replace(/(?:^|\s)#\S+/g, "")
       .replace(EMOJI_ID_PATTERN_GLOBAL, "") // Remove task IDs: 🆔 abc123
       .replace(DATAVIEW_BRACKET_ID_PATTERN_GLOBAL, "") // Remove Dataview IDs: [id:: abc123]

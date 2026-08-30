@@ -179,6 +179,23 @@ describe("getNoteTasks - quick updates", () => {
   );
 });
 
+describe("getNoteTasks - due dates", () => {
+  it.each([
+    ["2026-09-05", "2026-09-05"],
+    ["2026-09-06T14:30:00Z", "2026-09-06"],
+    ["2026-02-30", null],
+    ["not-a-date", null],
+    ["2026-09-05 later", null],
+  ])("normalizes due frontmatter value %p", (due, expected) => {
+    const [task] = getNoteTasks(
+      makeApp({ "Task.md": { tags: ["task"], due } })
+    );
+
+    expect(task.dueDate).toBe(expected);
+    expect(task.toPlainObject().dueDate).toBe(expected);
+  });
+});
+
 describe("getNoteTasks - configurable criteria", () => {
   describe("task detection property", () => {
     it("detects notes by the default tags/task criteria", () => {

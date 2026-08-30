@@ -33,6 +33,7 @@ export abstract class BaseTask {
   attachments: TaskAttachment[];
   quickComments: string;
   isProject: boolean;
+  dueDate: string | null;
 
   constructor(data: {
     id: string;
@@ -48,6 +49,7 @@ export abstract class BaseTask {
     attachments?: TaskAttachment[];
     quickComments?: string;
     isProject?: boolean;
+    dueDate?: string | null;
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -62,6 +64,7 @@ export abstract class BaseTask {
     this.attachments = data.attachments ?? [];
     this.quickComments = data.quickComments ?? "";
     this.isProject = data.isProject ?? false;
+    this.dueDate = data.dueDate ?? null;
   }
 
   /**
@@ -150,6 +153,7 @@ export abstract class BaseTask {
       attachments: this.attachments,
       quickComments: this.quickComments,
       isProject: this.isProject,
+      dueDate: this.dueDate,
     };
   }
 }

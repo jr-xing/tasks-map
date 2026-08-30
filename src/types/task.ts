@@ -40,6 +40,8 @@ export interface TaskNodeData {
   quickCommentsPropertyName?: string;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onQuickCommentsChanged?: (taskId: string, value: string) => void;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onTaskStatusChange?: (taskId: string, status: TaskStatus) => void;
 }
 
 export interface TaskEdgeData {

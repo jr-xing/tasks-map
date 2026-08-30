@@ -232,6 +232,11 @@
     "visible_level": "Level {{level}}",
     "visible_level_aria": "Visible tree levels"
   },
+  "task_list": {
+    "title": "Task list",
+    "empty": "No tasks match the active filters",
+    "due": "Due {{date}}"
+  },
   "project_switcher": {
     "label": "Project",
     "all_projects": "All projects ({{count}})",

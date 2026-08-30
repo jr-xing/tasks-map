@@ -232,6 +232,11 @@
     "visible_level": "Niveau {{level}}",
     "visible_level_aria": "Zichtbare boomniveaus"
   },
+  "task_list": {
+    "title": "Takenlijst",
+    "empty": "Geen taken voldoen aan de actieve filters",
+    "due": "Vervalt op {{date}}"
+  },
   "project_switcher": {
     "label": "Project",
     "all_projects": "Alle projecten ({{count}})",

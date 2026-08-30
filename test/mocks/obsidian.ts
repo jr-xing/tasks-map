@@ -201,6 +201,8 @@ export function setIcon(el: HTMLElement, icon: string): void {
   el.setAttribute("data-icon", icon);
 }
 
+export function setTooltip(_el: HTMLElement, _tooltip: string): void {}
+
 /**
  * Wrapper around yaml for Obsidian's parseYaml API
  * Matches Obsidian's behavior

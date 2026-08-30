@@ -26,6 +26,7 @@ import {
   resolveStatus,
   type StatusResolution,
 } from "./status-config";
+import { normalizeDueDate } from "./task-dates";
 
 const validDateTypes = [
   "due",
@@ -1818,6 +1819,8 @@ function parseTaskNote(
     task.starred = frontmatter.starred;
   }
 
+  task.dueDate = normalizeDueDate(frontmatter.due);
+
   const quickCommentsProperty =
     displaySettings?.quickCommentsPropertyName?.trim() ||
     DEFAULT_QUICK_COMMENTS_PROPERTY_NAME;
@@ -1983,7 +1986,9 @@ export function createNodesFromTasks(
   priorityAccentPosition: PriorityAccentPosition = "top",
   quickCommentsPropertyName: string = DEFAULT_QUICK_COMMENTS_PROPERTY_NAME,
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onQuickCommentsChanged?: (taskId: string, value: string) => void
+  onQuickCommentsChanged?: (taskId: string, value: string) => void,
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onTaskStatusChange?: (taskId: string, status: TaskStatus) => void
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
@@ -2008,6 +2013,7 @@ export function createNodesFromTasks(
       onEditTask,
       quickCommentsPropertyName,
       onQuickCommentsChanged,
+      onTaskStatusChange,
     },
     type: "task" as const,
     sourcePosition,

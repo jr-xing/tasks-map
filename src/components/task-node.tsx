@@ -1,9 +1,8 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
-import { setTooltip } from "obsidian";
 import { CirclePlus, Paperclip, Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
-import { BaseTask } from "src/types/task";
+import { BaseTask, TaskStatus } from "src/types/task";
 import { TaskAttachmentKind } from "src/types/base-task";
 import { TaskPriorityConfig } from "src/lib/priority-config";
 import { PriorityAccentPosition } from "src/types/settings";
@@ -17,6 +16,7 @@ import { Tag } from "./tag";
 import { TaskStatusToggle } from "./task-status";
 import { TaskBackground } from "./task-background";
 import { TaskPriorityToggle } from "./task-priority";
+import { ProjectDot } from "./project-dot";
 import { TagInput } from "./tag-input";
 import { QuickUpdate } from "./quick-update";
 import { useSummaryRenderer } from "../hooks/use-summary-renderer";
@@ -37,35 +37,7 @@ import {
 
 export const NODEWIDTH = 250;
 
-const PROJECT_DOT_COLORS = [
-  "var(--color-blue)",
-  "var(--color-purple)",
-  "var(--color-green)",
-  "var(--color-red)",
-  "var(--color-orange)",
-  "var(--color-cyan)",
-  "var(--color-pink)",
-  "var(--color-yellow)",
-];
 export const NODEHEIGHT = 120;
-
-interface ProjectDotProps {
-  project: string;
-  color: string;
-}
-
-function ProjectDot({ project, color }: ProjectDotProps) {
-  const ref = useCallback(
-    (el: HTMLSpanElement | null) => {
-      if (el) {
-        el.style.setProperty("--dot-color", color);
-        setTooltip(el, project);
-      }
-    },
-    [project, color]
-  );
-  return <span ref={ref} className="tasks-map-project-dot" />;
-}
 
 interface TaskNodeData {
   task: BaseTask;
@@ -86,6 +58,8 @@ interface TaskNodeData {
   quickCommentsPropertyName?: string;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onQuickCommentsChanged?: (taskId: string, value: string) => void;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onTaskStatusChange?: (taskId: string, status: TaskStatus) => void;
 }
 
 interface TaskAttachmentsProps {
@@ -152,6 +126,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     onEditTask,
     quickCommentsPropertyName = "quick-comments",
     onQuickCommentsChanged,
+    onTaskStatusChange,
   } = data;
 
   const { allTags, updateTaskTags } = useContext(TagsContext);
@@ -272,6 +247,14 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     }
   };
 
+  const handleStatusChange = useCallback(
+    (newStatus: TaskStatus) => {
+      setStatus(newStatus);
+      onTaskStatusChange?.(task.id, newStatus);
+    },
+    [onTaskStatusChange, task.id]
+  );
+
   const canCreateTaskNotesProjectTask =
     task.type === "note" &&
     !!task.link &&
@@ -298,9 +281,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
         status={status}
         priority={showPriorities ? priority : ""}
         priorityAccentPosition={priorityAccentPosition}
-        priorityOptions={
-          task.type === "dataview" ? undefined : priorityOptions
-        }
+        priorityOptions={task.type === "dataview" ? undefined : priorityOptions}
         starred={starred}
         expanded={expanded}
         debugVisualization={debugVisualization}
@@ -315,7 +296,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           <TaskStatusToggle
             status={status}
             task={task}
-            onStatusChange={setStatus}
+            onStatusChange={handleStatusChange}
           />
           {showPriorities && (
             <TaskPriorityToggle
@@ -416,11 +397,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
         {groupByProject && task.projects.length > 1 && (
           <div className="tasks-map-task-node-projects">
             {task.projects.map((project, index) => (
-              <ProjectDot
-                key={project}
-                project={project}
-                color={PROJECT_DOT_COLORS[index % PROJECT_DOT_COLORS.length]}
-              />
+              <ProjectDot key={project} project={project} index={index} />
             ))}
           </div>
         )}

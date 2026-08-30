@@ -27,9 +27,10 @@ import {
   deleteTaskFromVault,
   getTasksApi,
   parseTaskLine,
+  estimateNodeDimensions,
 } from "src/lib/utils";
 import { Plus } from "lucide-react";
-import { BaseTask, TaskNodeData } from "src/types/task";
+import { BaseTask, TaskNodeData, TaskStatus } from "src/types/task";
 import {
   getTaskNotesConfig,
   isTaskNotesTaskFile,
@@ -55,6 +56,7 @@ import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
 import ProjectTreePanel from "src/components/project-tree-panel";
+import TaskListPanel from "src/components/task-list-panel";
 import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
@@ -392,6 +394,22 @@ export default function TaskMapGraphView({
     []
   );
 
+  const handleTaskStatusChange = useCallback(
+    (taskId: string, status: TaskStatus) => {
+      skipFitViewRef.current = true;
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === taskId
+            ? (Object.assign(Object.create(Object.getPrototypeOf(task)), task, {
+                status,
+              }) as BaseTask)
+            : task
+        )
+      );
+    },
+    []
+  );
+
   useEffect(() => {
     // Get the Dataview plugin to check index status
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
@@ -601,7 +619,8 @@ export default function TaskMapGraphView({
       notePriorityOptions,
       settings.priorityAccentPosition,
       settings.quickCommentsPropertyName,
-      handleQuickCommentsChanged
+      handleQuickCommentsChanged,
+      handleTaskStatusChange
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -669,6 +688,7 @@ export default function TaskMapGraphView({
     reloadTasks,
     handleEditTaskByPath,
     handleQuickCommentsChanged,
+    handleTaskStatusChange,
     scheduleFitView,
   ]);
 
@@ -799,6 +819,57 @@ export default function TaskMapGraphView({
       pendingTreeFocusRef.current = null;
     }
   }, [nodes, focusNode]);
+
+  const handleListTaskClick = useCallback(
+    (taskId: string) => {
+      if (focusNode(taskId)) return;
+
+      const task = tasks.find((candidate) => candidate.id === taskId);
+      if (!task) return;
+
+      pendingTreeFocusRef.current = taskId;
+      skipFitViewRef.current = true;
+
+      const isHiddenUnlinked =
+        hideUnlinkedTasks &&
+        allUnlinkedTasks.some((candidate) => candidate.id === taskId);
+      if (!isHiddenUnlinked) return;
+
+      const container = containerRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        const center = reactFlowInstance.screenToFlowPosition({
+          x: rect.left + getVisibleMapCenterX(),
+          y: rect.top + container.clientHeight / 2,
+        });
+        const dimensions = estimateNodeDimensions(
+          task,
+          settings.showTags,
+          settings.visibleAttachmentKinds
+        );
+        droppedNodePositions.current.set(taskId, {
+          x: center.x - dimensions.width / 2,
+          y: center.y - dimensions.height / 2,
+        });
+      }
+
+      setDroppedTaskIds((previousIds) => {
+        const nextIds = new Set(previousIds);
+        nextIds.add(taskId);
+        return nextIds;
+      });
+    },
+    [
+      allUnlinkedTasks,
+      focusNode,
+      getVisibleMapCenterX,
+      hideUnlinkedTasks,
+      reactFlowInstance,
+      settings.showTags,
+      settings.visibleAttachmentKinds,
+      tasks,
+    ]
+  );
 
   useEffect(() => {
     if (!focusRequest) return;
@@ -1331,6 +1402,11 @@ export default function TaskMapGraphView({
     return graphTasks.filter((t) => idSet.has(t.id));
   }, [graphTasks, filterState]);
 
+  const triageTasks = useMemo(() => {
+    const filteredIds = new Set(getFilteredNodeIds(tasks, filterState));
+    return tasks.filter((task) => filteredIds.has(task.id));
+  }, [tasks, filterState]);
+
   const treeTasks = useMemo(() => {
     const filteredIds = getVisibilityFilteredNodeIds(graphTasks, filterState);
     const idSet = new Set(filteredIds);
@@ -1392,6 +1468,7 @@ export default function TaskMapGraphView({
                 onToggle={togglePanel}
                 onRefresh={reloadTasks}
                 showFilters={embed.showFilterPanel}
+                showList={embed.showFilterPanel}
                 showPresets={embed.showPresetsPanel}
                 showUnlinked={embed.showUnlinkedPanel}
                 showTree={embed.showUnlinkedPanel}
@@ -1421,6 +1498,15 @@ export default function TaskMapGraphView({
                       onSave={handleSavePreset}
                       onRename={handleRenamePreset}
                       onDelete={handleDeletePreset}
+                    />
+                  )}
+                  {openPanel === "list" && (
+                    <TaskListPanel
+                      tasks={triageTasks}
+                      statuses={settings.taskStatuses}
+                      notePriorityOptions={notePriorityOptions}
+                      onTaskClick={handleListTaskClick}
+                      onTaskStatusChange={handleTaskStatusChange}
                     />
                   )}
                   {openPanel === "view" && (
