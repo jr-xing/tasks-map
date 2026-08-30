@@ -3,6 +3,7 @@ import { Menu, setIcon } from "obsidian";
 import { BaseTask } from "src/types/task";
 import { useApp } from "src/hooks/hooks";
 import { updateTaskPriorityInVault } from "src/lib/utils";
+import type { VaultWriteTracker } from "src/lib/vault-watcher";
 import {
   TaskPriorityConfig,
   TASKS_PLUGIN_PRIORITY_OPTIONS,
@@ -17,6 +18,7 @@ interface TaskPriorityToggleProps {
   task: BaseTask;
   priorityOptions?: TaskPriorityConfig[];
   onPriorityChange: (newPriority: string) => void; // eslint-disable-line no-unused-vars -- prop callback parameter convention
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 function optionsForTask(
@@ -34,6 +36,7 @@ export function TaskPriorityToggle({
   task,
   priorityOptions,
   onPriorityChange,
+  trackVaultWrite,
 }: TaskPriorityToggleProps) {
   const app = useApp();
   const options = optionsForTask(task, priorityOptions);
@@ -54,7 +57,13 @@ export function TaskPriorityToggle({
           const previousPriority = priority;
           onPriorityChange(option.value);
           try {
-            await updateTaskPriorityInVault(task, option.value, app);
+            const update = () =>
+              updateTaskPriorityInVault(task, option.value, app);
+            if (trackVaultWrite && task.link) {
+              await trackVaultWrite(task.link, update);
+            } else {
+              await update();
+            }
           } catch {
             onPriorityChange(previousPriority);
           }

@@ -18,6 +18,8 @@
   },
   "settings": {
     "display_options": "显示选项",
+    "auto_refresh": "自动刷新任务地图",
+    "auto_refresh_desc": "Markdown 任务或项目文件发生变化后更新已打开的任务地图。自动刷新会保留当前视图位置。",
     "show_task_priorities": "显示任务优先级",
     "show_task_priorities_desc": "在任务节点上显示优先级指示器",
     "priority_accent_position": "优先级强调位置",

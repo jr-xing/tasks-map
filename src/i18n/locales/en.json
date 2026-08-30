@@ -18,6 +18,8 @@
   },
   "settings": {
     "display_options": "Display Options",
+    "auto_refresh": "Automatically refresh maps",
+    "auto_refresh_desc": "Update open task maps after Markdown task or project files change. Automatic refreshes preserve the current camera.",
     "show_task_priorities": "Show task priorities",
     "show_task_priorities_desc": "Display priority indicators on task nodes",
     "priority_accent_position": "Priority accent position",

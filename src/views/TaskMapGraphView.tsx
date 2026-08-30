@@ -13,6 +13,7 @@ import ReactFlow, {
   type SelectionDragHandler,
 } from "reactflow";
 import { Notice } from "obsidian";
+import { Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
 import {
   addLinkSignsBetweenTasks,
@@ -29,7 +30,6 @@ import {
   parseTaskLine,
   estimateNodeDimensions,
 } from "src/lib/utils";
-import { Plus } from "lucide-react";
 import { BaseTask, TaskNodeData, TaskStatus } from "src/types/task";
 import {
   getTaskNotesConfig,
@@ -61,9 +61,6 @@ import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
 import { createTaskFocusFilter } from "src/lib/task-focus-picker";
-import { t } from "../i18n";
-import TasksMapPlugin from "../main";
-
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
@@ -71,6 +68,42 @@ import { TaskInsertPosition } from "src/types/base-task";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { TaskPriorityConfig } from "src/lib/priority-config";
 import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
+import { normalizeTaskNotesTypeSchemaPath } from "src/lib/tasknotes-type-schema";
+import {
+  VaultWatcher,
+  type RefreshRequestOptions,
+  type VaultWriteTracker,
+} from "src/lib/vault-watcher";
+import { t } from "../i18n";
+import TasksMapPlugin from "../main";
+
+interface ReloadTasksOptions {
+  auto?: boolean;
+}
+
+const REFRESH_BLOCKING_SELECTOR = [
+  ".tasks-map-tag-select__control",
+  ".tasks-map-quick-update-popover",
+  ".tasks-map-editor-panel",
+].join(",");
+
+function isRefreshBlockingTarget(target: EventTarget | null): boolean {
+  const candidate = target as {
+    closest?: (_selector: string) => Element | null;
+  };
+  return candidate?.closest?.(REFRESH_BLOCKING_SELECTOR) != null;
+}
+
+function cloneTaskWithUpdates(
+  task: BaseTask,
+  updates: Partial<BaseTask>
+): BaseTask {
+  return Object.assign(
+    Object.create(Object.getPrototypeOf(task)) as BaseTask,
+    task,
+    updates
+  );
+}
 
 interface TaskMapGraphViewProps {
   settings: TasksMapSettings;
@@ -109,6 +142,10 @@ export default function TaskMapGraphView({
   const skipFitViewRef = React.useRef(false);
   const loadGenerationRef = React.useRef(0);
   const reloadTimerRef = React.useRef<number | null>(null);
+  const vaultWatcherRef = React.useRef<VaultWatcher | null>(null);
+  const previousAutoRefreshRef = React.useRef(settings.autoRefresh);
+  const dragInteractionDepthRef = React.useRef(0);
+  const textInteractionActiveRef = React.useRef(false);
   const pendingTreeFocusRef = React.useRef<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const cornerRef = React.useRef<HTMLDivElement>(null);
@@ -313,71 +350,150 @@ export default function TaskMapGraphView({
     }
   }, [hideTags]);
 
-  const reloadTasks = useCallback(() => {
-    const generation = ++loadGenerationRef.current;
-    setIsLoading(true);
-    // Reset dropped state on reload so unlinked tasks return to sidebar
-    setDroppedTaskIds(new Set());
-    droppedNodePositions.current = new Map();
-    if (reloadTimerRef.current !== null) {
-      window.clearTimeout(reloadTimerRef.current);
-    }
-    // Use setTimeout to allow the loading UI to render before heavy computation
-    reloadTimerRef.current = window.setTimeout(() => {
-      reloadTimerRef.current = null;
-      void (async () => {
-        try {
-          const newTasks = await getAllTasks(
-            app,
-            {
-              noteTaskPropertyName: settings.noteTaskPropertyName,
-              noteTaskPropertyValue: settings.noteTaskPropertyValue,
-              noteTaskTitleSource: settings.noteTaskTitleSource,
-              noteTaskTitleProperty: settings.noteTaskTitleProperty,
-              noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
-              noteTaskCreatedDateProperty: settings.noteTaskCreatedDateProperty,
-              quickCommentsPropertyName: settings.quickCommentsPropertyName,
-              noteDependencyProperty: settings.noteDependencyProperty,
-            },
-            settings.taskStatuses
-          );
-          if (generation !== loadGenerationRef.current) return;
+  const reloadTasks = useCallback(
+    (options: ReloadTasksOptions = {}) => {
+      const auto = options.auto === true;
+      const generation = ++loadGenerationRef.current;
+      if (!auto) {
+        setIsLoading(true);
+        // A manual reload resets session-only dropped nodes as before.
+        setDroppedTaskIds(new Set());
+        droppedNodePositions.current = new Map();
+      }
+      if (reloadTimerRef.current !== null) {
+        window.clearTimeout(reloadTimerRef.current);
+      }
+      // Use setTimeout to allow the loading UI to render before heavy computation
+      reloadTimerRef.current = window.setTimeout(() => {
+        reloadTimerRef.current = null;
+        void (async () => {
+          try {
+            const newTasks = await getAllTasks(
+              app,
+              {
+                noteTaskPropertyName: settings.noteTaskPropertyName,
+                noteTaskPropertyValue: settings.noteTaskPropertyValue,
+                noteTaskTitleSource: settings.noteTaskTitleSource,
+                noteTaskTitleProperty: settings.noteTaskTitleProperty,
+                noteTaskDatePrefixEnabled: settings.noteTaskDatePrefixEnabled,
+                noteTaskCreatedDateProperty:
+                  settings.noteTaskCreatedDateProperty,
+                quickCommentsPropertyName: settings.quickCommentsPropertyName,
+                noteDependencyProperty: settings.noteDependencyProperty,
+              },
+              settings.taskStatuses
+            );
+            if (generation !== loadGenerationRef.current) return;
 
-          setTasks(newTasks);
-          const newRegistry = new Map<string, string[]>();
-          newTasks.forEach((task) => {
-            newRegistry.set(task.id, task.tags);
-          });
-          setTaskTagsRegistry(newRegistry);
-          setIsLoading(false);
-          new Notice(t("notices.tasks_reloaded"));
-        } catch (error) {
-          if (generation !== loadGenerationRef.current) return;
-          console.error("[tasks-map] Failed to reload tasks:", error);
-          setIsLoading(false);
-          new Notice(t("notices.tasks_load_failed"));
-        }
-      })();
-    }, 0);
+            if (auto) {
+              if (fitRafRef.current !== null) {
+                cancelAnimationFrame(fitRafRef.current);
+                fitRafRef.current = null;
+              }
+              skipFitViewRef.current = true;
+            }
+            setTasks(newTasks);
+            const newRegistry = new Map<string, string[]>();
+            newTasks.forEach((task) => {
+              newRegistry.set(task.id, task.tags);
+            });
+            setTaskTagsRegistry(newRegistry);
+            setIsLoading(false);
+            if (!auto) new Notice(t("notices.tasks_reloaded"));
+          } catch (error) {
+            if (generation !== loadGenerationRef.current) return;
+            console.error("[tasks-map] Failed to reload tasks:", error);
+            setIsLoading(false);
+            new Notice(t("notices.tasks_load_failed"));
+          }
+        })();
+      }, 0);
+    },
+    [
+      app,
+      settings.noteTaskPropertyName,
+      settings.noteTaskPropertyValue,
+      settings.noteTaskTitleSource,
+      settings.noteTaskTitleProperty,
+      settings.noteTaskDatePrefixEnabled,
+      settings.noteTaskCreatedDateProperty,
+      settings.quickCommentsPropertyName,
+      settings.noteDependencyProperty,
+      settings.taskStatuses,
+    ]
+  );
+
+  const manualReloadTasks = useCallback(() => reloadTasks(), [reloadTasks]);
+
+  const requestAutoRefresh = useCallback(
+    (options: RefreshRequestOptions = {}) => {
+      vaultWatcherRef.current?.requestRefresh(options);
+    },
+    []
+  );
+
+  const trackVaultWrite: VaultWriteTracker = useCallback(
+    async (paths, operation) => {
+      const watcher = vaultWatcherRef.current;
+      if (watcher) {
+        await watcher.trackWrite(paths, operation);
+        return;
+      }
+      await operation();
+    },
+    []
+  );
+
+  useEffect(() => {
+    const wasEnabled = previousAutoRefreshRef.current;
+    previousAutoRefreshRef.current = settings.autoRefresh;
+    if (!settings.autoRefresh) {
+      vaultWatcherRef.current?.stop();
+      vaultWatcherRef.current = null;
+      return;
+    }
+
+    const ignoredSchemaPath = normalizeTaskNotesTypeSchemaPath(
+      settings.taskNotesTypeSchemaPath
+    );
+    const watcher = new VaultWatcher(app, {
+      onRefresh: () => reloadTasks({ auto: true }),
+      isInteractionActive: () =>
+        dragInteractionDepthRef.current > 0 || textInteractionActiveRef.current,
+      isIgnoredPath: (path) =>
+        normalizeTaskNotesTypeSchemaPath(path) === ignoredSchemaPath,
+    });
+    vaultWatcherRef.current = watcher;
+    watcher.start();
+    if (!wasEnabled) watcher.requestRefresh();
+
+    return () => {
+      watcher.stop();
+      if (vaultWatcherRef.current === watcher) {
+        vaultWatcherRef.current = null;
+      }
+    };
   }, [
     app,
-    settings.noteTaskPropertyName,
-    settings.noteTaskPropertyValue,
-    settings.noteTaskTitleSource,
-    settings.noteTaskTitleProperty,
-    settings.noteTaskDatePrefixEnabled,
-    settings.noteTaskCreatedDateProperty,
-    settings.quickCommentsPropertyName,
-    settings.noteDependencyProperty,
-    settings.taskStatuses,
+    reloadTasks,
+    settings.autoRefresh,
+    settings.taskNotesTypeSchemaPath,
   ]);
 
   useEffect(() => {
-    onReloadHandlerChange?.(reloadTasks);
+    onReloadHandlerChange?.(manualReloadTasks);
     return () => onReloadHandlerChange?.(null);
-  }, [onReloadHandlerChange, reloadTasks]);
+  }, [onReloadHandlerChange, manualReloadTasks]);
 
   const updateTaskTags = useCallback((taskId: string, newTags: string[]) => {
+    skipFitViewRef.current = true;
+    setTasks((previousTasks) =>
+      previousTasks.map((task) =>
+        task.id === taskId
+          ? cloneTaskWithUpdates(task, { tags: newTags })
+          : task
+      )
+    );
     setTaskTagsRegistry((prevRegistry) => {
       const newRegistry = new Map(prevRegistry);
       newRegistry.set(taskId, newTags);
@@ -397,6 +513,7 @@ export default function TaskMapGraphView({
 
   const handleQuickCommentsChanged = useCallback(
     (taskId: string, value: string) => {
+      skipFitViewRef.current = true;
       setTasks((previousTasks) =>
         previousTasks.map((task) => {
           if (task.id === taskId && task instanceof NoteTask) {
@@ -417,11 +534,31 @@ export default function TaskMapGraphView({
       skipFitViewRef.current = true;
       setTasks((previousTasks) =>
         previousTasks.map((task) =>
-          task.id === taskId
-            ? (Object.assign(Object.create(Object.getPrototypeOf(task)), task, {
-                status,
-              }) as BaseTask)
-            : task
+          task.id === taskId ? cloneTaskWithUpdates(task, { status }) : task
+        )
+      );
+    },
+    []
+  );
+
+  const handleTaskPriorityChange = useCallback(
+    (taskId: string, priority: string) => {
+      skipFitViewRef.current = true;
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === taskId ? cloneTaskWithUpdates(task, { priority }) : task
+        )
+      );
+    },
+    []
+  );
+
+  const handleTaskStarredChange = useCallback(
+    (taskId: string, starred: boolean) => {
+      skipFitViewRef.current = true;
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === taskId ? cloneTaskWithUpdates(task, { starred }) : task
         )
       );
     },
@@ -431,13 +568,13 @@ export default function TaskMapGraphView({
   useEffect(() => {
     let active = true;
     app.workspace.onLayoutReady(() => {
-      if (active) reloadTasks();
+      if (active) manualReloadTasks();
     });
 
     return () => {
       active = false;
     };
-  }, [app, reloadTasks]);
+  }, [app, manualReloadTasks]);
 
   useEffect(
     () => () => {
@@ -631,14 +768,17 @@ export default function TaskMapGraphView({
       handleDeleteTask,
       groupByProject,
       settings.tagColorPalette,
-      reloadTasks,
+      requestAutoRefresh,
       handleEditTaskByPath,
       settings.visibleAttachmentKinds,
       notePriorityOptions,
       settings.priorityAccentPosition,
       settings.quickCommentsPropertyName,
       handleQuickCommentsChanged,
-      handleTaskStatusChange
+      handleTaskStatusChange,
+      handleTaskPriorityChange,
+      handleTaskStarredChange,
+      trackVaultWrite
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -703,10 +843,13 @@ export default function TaskMapGraphView({
     handleDeleteTask,
     droppedTaskIds,
     groupByProject,
-    reloadTasks,
+    requestAutoRefresh,
     handleEditTaskByPath,
     handleQuickCommentsChanged,
     handleTaskStatusChange,
+    handleTaskPriorityChange,
+    handleTaskStarredChange,
+    trackVaultWrite,
     scheduleFitView,
   ]);
 
@@ -945,11 +1088,25 @@ export default function TaskMapGraphView({
     if (!sourceTask || !targetTask) return;
 
     if (vault) {
-      await removeLinkSignsBetweenTasks(vault, targetTask, sourceTask.id, app);
+      await trackVaultWrite([sourceTask.link, targetTask.link], () =>
+        removeLinkSignsBetweenTasks(vault, targetTask, sourceTask.id, app)
+      );
+      skipFitViewRef.current = true;
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === targetTask.id
+            ? cloneTaskWithUpdates(task, {
+                incomingLinks: task.incomingLinks.filter(
+                  (id) => id !== sourceTask.id
+                ),
+              })
+            : task
+        )
+      );
       setEdges((eds) => eds.filter((e) => e.id !== selectedEdge));
       setSelectedEdge(null);
     }
-  }, [app, selectedEdge, edges, tasks, vault, setEdges]);
+  }, [app, selectedEdge, edges, tasks, vault, setEdges, trackVaultWrite]);
 
   const onConnect = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ReactFlow Connection type is not exported
@@ -968,14 +1125,28 @@ export default function TaskMapGraphView({
         return;
       }
 
-      const hash = await addLinkSignsBetweenTasks(
-        vault,
-        sourceTask,
-        targetTask,
-        settings.linkingStyle,
-        app
-      );
+      let hash: string | undefined;
+      await trackVaultWrite([sourceTask.link, targetTask.link], async () => {
+        hash = await addLinkSignsBetweenTasks(
+          vault,
+          sourceTask,
+          targetTask,
+          settings.linkingStyle,
+          app
+        );
+      });
       if (hash) {
+        skipFitViewRef.current = true;
+        setTasks((previousTasks) =>
+          previousTasks.map((task) =>
+            task.id === targetTask.id &&
+            !task.incomingLinks.includes(sourceTask.id)
+              ? cloneTaskWithUpdates(task, {
+                  incomingLinks: [...task.incomingLinks, sourceTask.id],
+                })
+              : task
+          )
+        );
         setEdges((eds) =>
           addEdge(
             {
@@ -1000,6 +1171,7 @@ export default function TaskMapGraphView({
       settings.layoutDirection,
       settings.debugVisualization,
       settings.linkingStyle,
+      trackVaultWrite,
     ]
   );
 
@@ -1042,37 +1214,39 @@ export default function TaskMapGraphView({
       }
 
       try {
-        await addTaskLineToVault(anchorTask, taskLine, app, position);
+        await trackVaultWrite(anchorTask.link, async () => {
+          await addTaskLineToVault(anchorTask, taskLine, app, position);
 
-        // Persist the in-memory ID into the newly written task line so that
-        // all subsequent vault lookups (addLinkSignsBetweenTasks, rollback
-        // deleteTaskFromVault) can find the line by ID rather than falling
-        // back to an ambiguous text-match.
-        await addSignToTaskInFile(
-          vault,
-          newTask,
-          "id",
-          newTask.id,
-          settings.linkingStyle
-        );
-
-        if (relation === "after") {
-          await addLinkSignsBetweenTasks(
-            vault,
-            anchorTask,
-            newTask,
-            settings.linkingStyle,
-            app
-          );
-        } else {
-          await addLinkSignsBetweenTasks(
+          // Persist the in-memory ID into the newly written task line so that
+          // all subsequent vault lookups (addLinkSignsBetweenTasks, rollback
+          // deleteTaskFromVault) can find the line by ID rather than falling
+          // back to an ambiguous text-match.
+          await addSignToTaskInFile(
             vault,
             newTask,
-            anchorTask,
-            settings.linkingStyle,
-            app
+            "id",
+            newTask.id,
+            settings.linkingStyle
           );
-        }
+
+          if (relation === "after") {
+            await addLinkSignsBetweenTasks(
+              vault,
+              anchorTask,
+              newTask,
+              settings.linkingStyle,
+              app
+            );
+          } else {
+            await addLinkSignsBetweenTasks(
+              vault,
+              newTask,
+              anchorTask,
+              settings.linkingStyle,
+              app
+            );
+          }
+        });
 
         skipFitViewRef.current = true;
         setTasks((prevTasks) => {
@@ -1113,6 +1287,7 @@ export default function TaskMapGraphView({
       createUpdatedTask,
       settings.linkingStyle,
       settings.taskStatuses,
+      trackVaultWrite,
       vault,
     ]
   );
@@ -1232,6 +1407,20 @@ export default function TaskMapGraphView({
     [updateDragOverHighlights]
   );
 
+  const beginDragInteraction = useCallback(() => {
+    dragInteractionDepthRef.current += 1;
+  }, []);
+
+  const endDragInteraction = useCallback(() => {
+    dragInteractionDepthRef.current = Math.max(
+      0,
+      dragInteractionDepthRef.current - 1
+    );
+    if (dragInteractionDepthRef.current === 0) {
+      vaultWatcherRef.current?.resume();
+    }
+  }, []);
+
   // Highlight project group nodes while multiple selected task nodes are dragged
   const onSelectionDrag: SelectionDragHandler = useCallback(
     (_event, draggedNodes) => {
@@ -1286,12 +1475,33 @@ export default function TaskMapGraphView({
       if (!targetProjectName) return;
 
       // Assign all task nodes in the selection to that project
-      let count = 0;
+      const assignedTaskIds = new Set<string>();
       for (const draggedNode of taskNodes) {
         const task = tasks.find((t) => t.id === draggedNode.id);
         if (!(task instanceof NoteTask)) continue;
-        await task.addProject(app, targetProjectName);
-        count++;
+        try {
+          await trackVaultWrite(task.link, () =>
+            task.addProject(app, targetProjectName)
+          );
+          assignedTaskIds.add(task.id);
+        } catch (error) {
+          console.error("Failed to assign task to project:", error);
+        }
+      }
+
+      const count = assignedTaskIds.size;
+      if (count > 0) {
+        skipFitViewRef.current = true;
+        setTasks((previousTasks) =>
+          previousTasks.map((task) =>
+            assignedTaskIds.has(task.id) &&
+            !task.projects.includes(targetProjectName)
+              ? cloneTaskWithUpdates(task, {
+                  projects: [...task.projects, targetProjectName],
+                })
+              : task
+          )
+        );
       }
 
       if (count === 1) {
@@ -1307,27 +1517,29 @@ export default function TaskMapGraphView({
         );
       }
     },
-    [tasks, nodes, app, findGroupAtPosition]
+    [tasks, nodes, app, findGroupAtPosition, trackVaultWrite]
   );
 
   // Handle drag-stop of a graph task node — assign to project if dropped inside a group
   const onNodeDragStop: NodeDragHandler = useCallback(
     (_event, draggedNode) => {
       clearDragOverHighlights();
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- NodeDragHandler expects void; async work is intentionally fire-and-forget
-      assignDraggedNodesToProject([draggedNode]);
+      void assignDraggedNodesToProject([draggedNode]).finally(
+        endDragInteraction
+      );
     },
-    [clearDragOverHighlights, assignDraggedNodesToProject]
+    [clearDragOverHighlights, assignDraggedNodesToProject, endDragInteraction]
   );
 
   // Handle drag-stop of a multi-node selection — assign all task nodes to projects
   const onSelectionDragStop: SelectionDragHandler = useCallback(
     (_event, draggedNodes) => {
       clearDragOverHighlights();
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- SelectionDragHandler expects void; async work is intentionally fire-and-forget
-      assignDraggedNodesToProject(draggedNodes);
+      void assignDraggedNodesToProject(draggedNodes).finally(
+        endDragInteraction
+      );
     },
-    [clearDragOverHighlights, assignDraggedNodesToProject]
+    [clearDragOverHighlights, assignDraggedNodesToProject, endDragInteraction]
   );
 
   // Handle drop of an unlinked task from the sidebar onto the graph canvas
@@ -1335,10 +1547,16 @@ export default function TaskMapGraphView({
     async (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const taskId = event.dataTransfer.getData(DRAG_DATA_KEY);
-      if (!taskId) return;
+      if (!taskId) {
+        endDragInteraction();
+        return;
+      }
 
       const task = tasks.find((t) => t.id === taskId);
-      if (!task) return;
+      if (!task) {
+        endDragInteraction();
+        return;
+      }
 
       // Convert screen coordinates to ReactFlow canvas coordinates
       const position = reactFlowInstance.screenToFlowPosition({
@@ -1347,6 +1565,7 @@ export default function TaskMapGraphView({
       });
 
       // Check if drop landed inside a project group node
+      let assignedToProject = false;
       if (task instanceof NoteTask) {
         const projectGroupNodes = nodes.filter(
           (n) => n.type === "projectGroup"
@@ -1368,11 +1587,42 @@ export default function TaskMapGraphView({
             position.y <= y + h
           ) {
             const projectName = (groupNode.data as { label: string }).label;
-            await task.addProject(app, projectName);
+            try {
+              await trackVaultWrite(task.link, () =>
+                task.addProject(app, projectName)
+              );
+            } catch (error) {
+              console.error("Failed to assign task to project:", error);
+              endDragInteraction();
+              return;
+            }
+            skipFitViewRef.current = true;
+            setTasks((previousTasks) =>
+              previousTasks.map((candidate) =>
+                candidate.id === task.id &&
+                !candidate.projects.includes(projectName)
+                  ? cloneTaskWithUpdates(candidate, {
+                      projects: [...candidate.projects, projectName],
+                    })
+                  : candidate
+              )
+            );
             new Notice(t("notices.project_assigned", { projectName }));
+            assignedToProject = true;
             break;
           }
         }
+      }
+
+      if (assignedToProject) {
+        droppedNodePositions.current.delete(taskId);
+        setDroppedTaskIds((previous) => {
+          const next = new Set(previous);
+          next.delete(taskId);
+          return next;
+        });
+        endDragInteraction();
+        return;
       }
 
       // Store the position so the node appears exactly at the drop point
@@ -1387,14 +1637,40 @@ export default function TaskMapGraphView({
         next.add(taskId);
         return next;
       });
+      endDragInteraction();
     },
-    [tasks, reactFlowInstance, nodes, app]
+    [tasks, reactFlowInstance, nodes, app, trackVaultWrite, endDragInteraction]
   );
 
   const onDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
   }, []);
+
+  const onRefreshBlockingFocus = useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      if (isRefreshBlockingTarget(event.target)) {
+        textInteractionActiveRef.current = true;
+      }
+    },
+    []
+  );
+
+  const onRefreshBlockingBlur = useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      if (!isRefreshBlockingTarget(event.target)) return;
+      const ownerDocument = event.currentTarget.ownerDocument;
+      window.setTimeout(() => {
+        textInteractionActiveRef.current = isRefreshBlockingTarget(
+          ownerDocument.activeElement
+        );
+        if (!textInteractionActiveRef.current) {
+          vaultWatcherRef.current?.resume();
+        }
+      }, 0);
+    },
+    []
+  );
 
   const tagsContextValue = useMemo(
     () => ({
@@ -1478,13 +1754,17 @@ export default function TaskMapGraphView({
           ref={containerRef}
           onDrop={(e) => void onDrop(e)}
           onDragOver={onDragOver}
+          onDragStartCapture={beginDragInteraction}
+          onDragEndCapture={endDragInteraction}
+          onFocusCapture={onRefreshBlockingFocus}
+          onBlurCapture={onRefreshBlockingBlur}
         >
           <div className="tasks-map-corner" ref={cornerRef}>
             <div className="tasks-map-rail-row">
               <LeftRail
                 openPanel={openPanel}
                 onToggle={togglePanel}
-                onRefresh={reloadTasks}
+                onRefresh={manualReloadTasks}
                 showFilters={embed.showFilterPanel}
                 showList={embed.showFilterPanel}
                 showPresets={embed.showPresetsPanel}
@@ -1525,6 +1805,7 @@ export default function TaskMapGraphView({
                       notePriorityOptions={notePriorityOptions}
                       onTaskClick={handleListTaskClick}
                       onTaskStatusChange={handleTaskStatusChange}
+                      trackVaultWrite={trackVaultWrite}
                     />
                   )}
                   {openPanel === "view" && (
@@ -1532,7 +1813,7 @@ export default function TaskMapGraphView({
                       showTags={settings.showTags}
                       hideTags={hideTags}
                       setHideTags={toggleHideTags}
-                      reloadTasks={reloadTasks}
+                      reloadTasks={manualReloadTasks}
                       showUnlinkedPanel={embed.showUnlinkedPanel}
                       hideUnlinkedTasks={hideUnlinkedTasks}
                       setHideUnlinkedTasks={setHideUnlinkedTasks}
@@ -1592,10 +1873,12 @@ export default function TaskMapGraphView({
             onNodeClick={onNodeClick}
             onNodeDoubleClick={onNodeDoubleClick}
             onPaneClick={onPaneClick}
+            onNodeDragStart={beginDragInteraction}
             onNodeDrag={onNodeDrag}
             onNodeDragStop={(e, node, nodes) =>
               void onNodeDragStop(e, node, nodes)
             }
+            onSelectionDragStart={beginDragInteraction}
             onSelectionDrag={onSelectionDrag}
             onSelectionDragStop={(e, nodes) =>
               void onSelectionDragStop(e, nodes)
@@ -1649,7 +1932,7 @@ export default function TaskMapGraphView({
                 onBodyFontSizeChange={handleEditorBodyFontSizeChange}
                 autosaveEnabled={settings.editorAutosave}
                 onClose={() => setEditorState(null)}
-                onSaved={reloadTasks}
+                onSaved={() => requestAutoRefresh({ force: true })}
               />
             </div>
           )}

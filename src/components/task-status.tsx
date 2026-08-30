@@ -5,17 +5,20 @@ import { updateTaskStatusInVault } from "src/lib/utils";
 import { useApp } from "src/hooks/hooks";
 import { StatusConfigContext } from "src/contexts/context";
 import { getStatusById } from "src/lib/status-config";
+import type { VaultWriteTracker } from "src/lib/vault-watcher";
 
 interface TaskStatusProps {
   status: TaskStatus;
   task: BaseTask;
   onStatusChange: (newStatus: TaskStatus) => void; // eslint-disable-line no-unused-vars -- prop callback parameter convention
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 export function TaskStatusToggle({
   status,
   task,
   onStatusChange,
+  trackVaultWrite,
 }: TaskStatusProps) {
   const app = useApp();
   const statuses = useContext(StatusConfigContext);
@@ -30,7 +33,13 @@ export function TaskStatusToggle({
         item.setTitle(s.label);
         item.setChecked(s.id === status);
         item.onClick(async () => {
-          await updateTaskStatusInVault(task, s.id, app, statuses);
+          const update = () =>
+            updateTaskStatusInVault(task, s.id, app, statuses);
+          if (trackVaultWrite && task.link) {
+            await trackVaultWrite(task.link, update);
+          } else {
+            await update();
+          }
           onStatusChange(s.id);
         });
       });

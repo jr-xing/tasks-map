@@ -529,6 +529,18 @@ export class TasksMapSettingTab extends PluginSettingTab {
       .setName(t("settings.display_options"));
 
     new Setting(containerEl)
+      .setName(t("settings.auto_refresh"))
+      .setDesc(t("settings.auto_refresh_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.autoRefresh)
+          .onChange(async (value) => {
+            this.plugin.settings.autoRefresh = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName(t("settings.show_task_priorities"))
       .setDesc(t("settings.show_task_priorities_desc"))
       .addToggle((toggle) =>

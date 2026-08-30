@@ -17,6 +17,7 @@ import {
   isTaskNotesTaskFile,
   openTaskNotesEditModal,
 } from "../lib/tasknotes-bridge";
+import type { VaultWriteTracker } from "../lib/vault-watcher";
 
 interface TaskMenuProps {
   task: BaseTask;
@@ -25,6 +26,7 @@ interface TaskMenuProps {
   onTaskChanged?: () => void;
   /** Open the in-app task editor panel for this task. */
   onEditTask?: () => void;
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 const TaskMenu = ({
@@ -33,6 +35,7 @@ const TaskMenu = ({
   onTaskDeleted,
   onTaskChanged,
   onEditTask,
+  trackVaultWrite,
 }: TaskMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -107,7 +110,13 @@ const TaskMenu = ({
       // console.log("after: ", newTaskLine);
 
       lines[taskLineIdx] = newTaskLine;
-      await vault.modify(file, lines.join("\n"));
+      const update = () => vault.modify(file, lines.join("\n"));
+      if (trackVaultWrite) {
+        await trackVaultWrite(file.path, update);
+      } else {
+        await update();
+      }
+      onTaskChanged?.();
     } catch (error) {
       console.error("Error processing task:", error);
     }
@@ -141,7 +150,12 @@ const TaskMenu = ({
     e.stopPropagation();
 
     try {
-      await deleteTaskFromVault(task, app);
+      const remove = () => deleteTaskFromVault(task, app);
+      if (trackVaultWrite && task.link) {
+        await trackVaultWrite(task.link, remove);
+      } else {
+        await remove();
+      }
       onTaskDeleted?.();
     } catch (error) {
       console.error("Failed to delete task:", error);
@@ -153,9 +167,7 @@ const TaskMenu = ({
   // The TaskNotes modal only applies to note-based tasks whose file is an
   // actual TaskNotes task. Computed on render; the dropdown is mounted lazily.
   const canOpenInTaskNotes =
-    task.type === "note" &&
-    !!task.link &&
-    isTaskNotesTaskFile(app, task.link);
+    task.type === "note" && !!task.link && isTaskNotesTaskFile(app, task.link);
 
   return (
     <div className="tasks-map-task-menu nodrag" ref={menuRef}>

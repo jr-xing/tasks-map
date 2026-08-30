@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MessageSquarePlus, Trash2, X } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
+import type { VaultWriteTracker } from "src/lib/vault-watcher";
 import { NoteTask } from "src/types/note-task";
 import { useSummaryRenderer } from "../hooks/use-summary-renderer";
 import { t } from "../i18n";
@@ -11,6 +12,7 @@ interface QuickUpdateProps {
   propertyName: string;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onChanged?: (taskId: string, value: string) => void;
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 interface PopoverPosition {
@@ -31,6 +33,7 @@ export function QuickUpdate({
   task,
   propertyName,
   onChanged,
+  trackVaultWrite,
 }: QuickUpdateProps) {
   const app = useApp();
   const anchorElementRef = useRef<HTMLDivElement | null>(null);
@@ -119,7 +122,13 @@ export function QuickUpdate({
     setSaving(true);
     setError(false);
     try {
-      await task.updateQuickComments(normalized, propertyName, app);
+      const update = () =>
+        task.updateQuickComments(normalized, propertyName, app);
+      if (trackVaultWrite && task.link) {
+        await trackVaultWrite(task.link, update);
+      } else {
+        await update();
+      }
       setDraft(normalized);
       onChanged?.(task.id, normalized);
       setOpen(false);
@@ -128,7 +137,7 @@ export function QuickUpdate({
     } finally {
       setSaving(false);
     }
-  }, [app, draft, onChanged, propertyName, saving, task]);
+  }, [app, draft, onChanged, propertyName, saving, task, trackVaultWrite]);
 
   const handlePreviewClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {

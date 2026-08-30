@@ -34,6 +34,7 @@ import {
   isTaskNotesCreationModalAvailable,
   openTaskNotesProjectTaskCreationModal,
 } from "../lib/tasknotes-bridge";
+import type { VaultWriteTracker } from "../lib/vault-watcher";
 
 export const NODEWIDTH = 250;
 
@@ -60,6 +61,11 @@ interface TaskNodeData {
   onQuickCommentsChanged?: (taskId: string, value: string) => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onTaskStatusChange?: (taskId: string, status: TaskStatus) => void;
+  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
+  onTaskPriorityChange?: (taskId: string, priority: string) => void;
+  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
+  onTaskStarredChange?: (taskId: string, starred: boolean) => void;
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 interface TaskAttachmentsProps {
@@ -127,6 +133,9 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     quickCommentsPropertyName = "quick-comments",
     onQuickCommentsChanged,
     onTaskStatusChange,
+    onTaskPriorityChange,
+    onTaskStarredChange,
+    trackVaultWrite,
   } = data;
 
   const { allTags, updateTaskTags } = useContext(TagsContext);
@@ -157,23 +166,23 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
 
   const handleTagRemove = async (tagToRemove: string) => {
+    const previousTags = tags;
+    const updatedTags = previousTags.filter((tag) => tag !== tagToRemove);
     // Immediately update the visual state
-    setTags((prevTags) => {
-      const updatedTags = prevTags.filter((tag) => tag !== tagToRemove);
-      // Update tasks array so allTags recomputes
-      updateTaskTags(task.id, updatedTags);
-      return updatedTags;
-    });
+    setTags(updatedTags);
+    updateTaskTags(task.id, updatedTags);
 
     try {
-      await removeTagFromTaskInVault(task, tagToRemove, app);
+      const update = () => removeTagFromTaskInVault(task, tagToRemove, app);
+      if (trackVaultWrite && task.link) {
+        await trackVaultWrite(task.link, update);
+      } else {
+        await update();
+      }
     } catch {
       // Revert the visual change if the vault operation failed
-      setTags((prevTags) => {
-        const revertedTags = [...prevTags, tagToRemove];
-        updateTaskTags(task.id, revertedTags);
-        return revertedTags;
-      });
+      setTags(previousTags);
+      updateTaskTags(task.id, previousTags);
     }
   };
 
@@ -202,23 +211,23 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       return;
     }
 
-    // Immediately update the visual state
-    setTags((prevTags) => {
-      const updatedTags = [...prevTags, cleanTag];
-      // Update tasks array so allTags recomputes
-      updateTaskTags(task.id, updatedTags);
-      return updatedTags;
-    });
+    const previousTags = tags;
+    const updatedTags = [...previousTags, cleanTag];
+    // Immediately update the visual state and shared task registry.
+    setTags(updatedTags);
+    updateTaskTags(task.id, updatedTags);
 
     try {
-      await addTagToTaskInVault(task, cleanTag, app);
+      const update = () => addTagToTaskInVault(task, cleanTag, app);
+      if (trackVaultWrite && task.link) {
+        await trackVaultWrite(task.link, update);
+      } else {
+        await update();
+      }
     } catch {
       // Revert the visual change if the vault operation failed
-      setTags((prevTags) => {
-        const revertedTags = prevTags.filter((tag) => tag !== cleanTag);
-        updateTaskTags(task.id, revertedTags);
-        return revertedTags;
-      });
+      setTags(previousTags);
+      updateTaskTags(task.id, previousTags);
     }
 
     // Reset input state
@@ -234,16 +243,21 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     const newStarred = !starred;
     // Immediately update the visual state
     setStarred(newStarred);
+    onTaskStarredChange?.(task.id, newStarred);
 
     try {
-      if (newStarred) {
-        await addStarToTaskInVault(task, app);
+      const update = newStarred
+        ? () => addStarToTaskInVault(task, app)
+        : () => removeStarFromTaskInVault(task, app);
+      if (trackVaultWrite && task.link) {
+        await trackVaultWrite(task.link, update);
       } else {
-        await removeStarFromTaskInVault(task, app);
+        await update();
       }
     } catch {
       // Revert the visual change if the vault operation failed
       setStarred(!newStarred);
+      onTaskStarredChange?.(task.id, !newStarred);
     }
   };
 
@@ -253,6 +267,14 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       onTaskStatusChange?.(task.id, newStatus);
     },
     [onTaskStatusChange, task.id]
+  );
+
+  const handlePriorityChange = useCallback(
+    (newPriority: string) => {
+      setPriority(newPriority);
+      onTaskPriorityChange?.(task.id, newPriority);
+    },
+    [onTaskPriorityChange, task.id]
   );
 
   const canCreateTaskNotesProjectTask =
@@ -297,13 +319,15 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             status={status}
             task={task}
             onStatusChange={handleStatusChange}
+            trackVaultWrite={trackVaultWrite}
           />
           {showPriorities && (
             <TaskPriorityToggle
               priority={priority}
               task={task}
               priorityOptions={priorityOptions}
-              onPriorityChange={setPriority}
+              onPriorityChange={handlePriorityChange}
+              trackVaultWrite={trackVaultWrite}
             />
           )}
           <div className="tasks-map-task-node-header-spacer" />
@@ -329,6 +353,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             onTaskDeleted={() => onDeleteTask?.(task.id)}
             onTaskChanged={onTaskChanged}
             onEditTask={task.link ? () => onEditTask?.(task.link) : undefined}
+            trackVaultWrite={trackVaultWrite}
           />
         </div>
 
@@ -341,6 +366,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             task={task}
             propertyName={quickCommentsPropertyName}
             onChanged={onQuickCommentsChanged}
+            trackVaultWrite={trackVaultWrite}
           />
         )}
 

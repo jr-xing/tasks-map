@@ -1,7 +1,7 @@
 # Tasks Map Evolution Roadmap
 
 **Date:** 2026-08-30
-**Status:** In progress — Phases 1 and 2 completed
+**Status:** In progress — Phases 1–3 completed
 **Scope:** Multi-phase improvement plan covering task triage UI, native indexing, auto-refresh, layout stability/minimalism, project creation, and de-forking.
 
 Each phase is designed to be implemented in its own session. Phases list their
@@ -141,7 +141,7 @@ drift; treat them as anchors, re-verify before editing.
 | ----- | ------------------------------------ | --------------------- | ----- | ------ | -------- |
 | 1     | Task list / triage panel             | —                     | ★★★★★ | M      | Complete |
 | 2     | Native task indexing (drop Dataview) | —                     | ★★★★  | M      | Complete |
-| 3     | Auto-refresh                         | 2                     | ★★★★  | M      | Planned  |
+| 3     | Auto-refresh                         | 2                     | ★★★★  | M      | Complete |
 | 4     | Layout stability & visual minimalism | — (4a refactor first) | ★★★★  | M–L    | Planned  |
 | 5     | Viewport-aware component packing     | 4a                    | ★★    | S–M    | Planned  |
 | 6     | New-project modal                    | —                     | ★★★   | S–M    | Planned  |
@@ -307,6 +307,8 @@ appear in the Unlinked tasks panel when they have no graph relationships.
 
 ## Phase 3 — Auto-refresh (depends on Phase 2)
 
+**Status:** Completed on 2026-08-30
+
 **Goal:** the map updates itself after task/project changes, preserving the
 camera, without manual refresh.
 
@@ -350,6 +352,26 @@ camera, without manual refresh.
    changed file and patch the `tasks` array. Only worth it if full-rescan
    latency is noticeable in the real vault; measure first.
 
+**Implementation result:**
+
+- Added a per-mounted-map watcher using native metadata-cache, delete, and
+  rename events, a 750ms debounce, Markdown/type-schema filtering, and exact
+  event/timer cleanup. Main views and embeds both subscribe.
+- Added a per-map 2-second self-write registry. The initiating map suppresses
+  its optimistic write event while other mounted maps still refresh.
+- Automatic rescans run in the background, preserve the viewport and
+  session-only dropped nodes, cancel pending fits, and omit the success toast.
+  Manual refresh retains its prior loading, reset, refit, and toast behavior.
+- Drag and focused tag/quick-update/editor interactions defer external
+  refreshes. Completed editor saves use the same scheduler and may refresh
+  safely while the editor remains open.
+- Status, priority, star, tag, quick-comment, deletion, project, connected-task,
+  and dependency mutations now use tracked writes and keep shared task state in
+  sync for filtering, triage, grouping, and traversal. Non-optimistic editor and
+  organizer writes continue to trigger rescans.
+- Added the default-on `autoRefresh` display setting with English, Dutch, and
+  Simplified Chinese text. Per-file incremental indexing remains deferred.
+
 **Risks / pitfalls:**
 
 - Reload during node drag or while the tag-input/quick-update is focused is
@@ -359,9 +381,17 @@ camera, without manual refresh.
   before Phase 4, auto-reload may visibly reshuffle components — acceptable
   interim state, but note it in the release notes.
 
-**Acceptance:** edit a task note in the editor pane → map updates within ~1s
-with camera unchanged, no toast; toggling a status on the map does NOT cause a
-visible reload; disabling the setting restores manual-only behavior.
+**Acceptance (automated):** watcher tests cover batching, relevance filtering,
+delete/rename events, suppression expiry/failure, independent mounted maps,
+interaction deferral, forced saves, and cleanup. Automated verification: 491
+Jest tests, production build, CSS lint, changed-file ESLint/Prettier, and
+`git diff --check` passed.
+
+**Acceptance (manual):** real-vault smoke testing completed successfully on
+2026-08-30. External edits refreshed the map without a loading flash or success
+toast, map-owned mutations remained immediate, interaction deferral behaved as
+expected, and manual-only behavior remained available when auto-refresh was
+disabled.
 
 ---
 

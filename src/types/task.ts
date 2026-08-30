@@ -4,6 +4,7 @@ import type { TaskAttachment } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
 import { TaskPriorityConfig } from "../lib/priority-config";
 import { PriorityAccentPosition } from "./settings";
+import type { VaultWriteTracker } from "../lib/vault-watcher";
 
 // Status is a configured status `id` (see src/lib/status-config.ts). It is a
 // plain string because the available statuses are user-configurable.
@@ -42,6 +43,11 @@ export interface TaskNodeData {
   onQuickCommentsChanged?: (taskId: string, value: string) => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onTaskStatusChange?: (taskId: string, status: TaskStatus) => void;
+  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
+  onTaskPriorityChange?: (taskId: string, priority: string) => void;
+  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
+  onTaskStarredChange?: (taskId: string, starred: boolean) => void;
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 export interface TaskEdgeData {

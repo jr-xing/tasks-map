@@ -23,6 +23,7 @@ export interface FilterPreset {
 }
 
 export interface TasksMapSettings {
+  autoRefresh: boolean;
   showPriorities: boolean;
   priorityAccentPosition: PriorityAccentPosition;
   showTags: boolean;
@@ -110,6 +111,7 @@ export const DEFAULT_VISIBLE_ATTACHMENT_KINDS: TaskAttachmentKind[] = [
 ];
 
 export const DEFAULT_SETTINGS: TasksMapSettings = {
+  autoRefresh: true,
   showPriorities: true,
   priorityAccentPosition: "top",
   showTags: true,

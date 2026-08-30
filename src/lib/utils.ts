@@ -27,6 +27,7 @@ import {
   type StatusResolution,
 } from "./status-config";
 import { normalizeDueDate } from "./task-dates";
+import type { VaultWriteTracker } from "./vault-watcher";
 
 const validDateTypes = [
   "due",
@@ -1953,7 +1954,12 @@ export function createNodesFromTasks(
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onQuickCommentsChanged?: (taskId: string, value: string) => void,
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onTaskStatusChange?: (taskId: string, status: TaskStatus) => void
+  onTaskStatusChange?: (taskId: string, status: TaskStatus) => void,
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onTaskPriorityChange?: (taskId: string, priority: string) => void,
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onTaskStarredChange?: (taskId: string, starred: boolean) => void,
+  trackVaultWrite?: VaultWriteTracker
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
@@ -1979,6 +1985,9 @@ export function createNodesFromTasks(
       quickCommentsPropertyName,
       onQuickCommentsChanged,
       onTaskStatusChange,
+      onTaskPriorityChange,
+      onTaskStarredChange,
+      trackVaultWrite,
     },
     type: "task" as const,
     sourcePosition,

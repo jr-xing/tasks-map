@@ -18,6 +18,8 @@
   },
   "settings": {
     "display_options": "Weergaveopties",
+    "auto_refresh": "Kaarten automatisch vernieuwen",
+    "auto_refresh_desc": "Werk geopende taakkaarten bij nadat Markdown-taak- of projectbestanden veranderen. Automatisch vernieuwen behoudt de huidige camera.",
     "show_task_priorities": "Taakprioriteiten tonen",
     "show_task_priorities_desc": "Toon prioriteitsindicatoren op taakknooppunten",
     "priority_accent_position": "Positie prioriteitsaccent",

@@ -6,6 +6,7 @@ import {
 } from "src/lib/priority-config";
 import { buildTaskTriageGroups, getTaskTriageLabel } from "src/lib/task-triage";
 import { TaskStatusConfig } from "src/lib/status-config";
+import type { VaultWriteTracker } from "src/lib/vault-watcher";
 import { BaseTask, TaskStatus } from "src/types/task";
 import { ProjectDot } from "./project-dot";
 import { TaskStatusToggle } from "./task-status";
@@ -19,6 +20,7 @@ interface TaskListPanelProps {
   onTaskClick: (taskId: string) => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onTaskStatusChange: (taskId: string, status: TaskStatus) => void;
+  trackVaultWrite?: VaultWriteTracker;
 }
 
 interface PriorityAccentProps {
@@ -55,6 +57,7 @@ export default function TaskListPanel({
   notePriorityOptions,
   onTaskClick,
   onTaskStatusChange,
+  trackVaultWrite,
 }: TaskListPanelProps) {
   const groups = useMemo(
     () => buildTaskTriageGroups(tasks, statuses, notePriorityOptions),
@@ -124,6 +127,7 @@ export default function TaskListPanel({
                     onStatusChange={(status) =>
                       onTaskStatusChange(task.id, status)
                     }
+                    trackVaultWrite={trackVaultWrite}
                   />
                   <PriorityAccent
                     task={task}

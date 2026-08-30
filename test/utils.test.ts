@@ -739,6 +739,40 @@ describe("createNodesFromTasks", () => {
     expect(nodes[0].data.priorityOptions).toBe(priorityOptions);
     expect(nodes[0].data.priorityAccentPosition).toBe("right");
   });
+
+  it("passes through optimistic mutation callbacks and write tracking", () => {
+    const task = makeTask();
+    const onStatusChange = jest.fn();
+    const onPriorityChange = jest.fn();
+    const onStarredChange = jest.fn();
+    const trackVaultWrite = jest.fn(async (_paths, operation) => operation());
+    const nodes = createNodesFromTasks(
+      [task],
+      "Horizontal",
+      true,
+      true,
+      false,
+      undefined,
+      true,
+      "rainbow",
+      undefined,
+      undefined,
+      ["markdown", "pdf"],
+      [],
+      "top",
+      "quick-comments",
+      undefined,
+      onStatusChange,
+      onPriorityChange,
+      onStarredChange,
+      trackVaultWrite
+    );
+
+    expect(nodes[0].data.onTaskStatusChange).toBe(onStatusChange);
+    expect(nodes[0].data.onTaskPriorityChange).toBe(onPriorityChange);
+    expect(nodes[0].data.onTaskStarredChange).toBe(onStarredChange);
+    expect(nodes[0].data.trackVaultWrite).toBe(trackVaultWrite);
+  });
 });
 
 describe("note task priority parsing", () => {
