@@ -230,6 +230,160 @@ If your plugin does not need CSS, delete this file.
   width: 250px;
 }
 
+/* Compact cards keep the same React tree and disclose their chrome in place. */
+.tasks-map-task-node-shell--compact .tasks-map-task-background {
+  height: 56px;
+  min-height: 56px;
+  padding: 8px 10px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-task-node-header {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 10px;
+  width: 32px;
+  min-height: 40px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+}
+
+.tasks-map-task-node-shell--compact
+  .tasks-map-task-node-header
+  > :not(.tasks-map-status-container) {
+  display: none;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-status-container {
+  width: 32px;
+  border-radius: var(--radius-s);
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-task-status-toggle {
+  width: 32px;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-task-node-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 40px;
+  margin-left: 38px;
+  padding: 0 28px 0 0;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-task-node-summary {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-quick-update,
+.tasks-map-task-node-shell--compact .tasks-map-task-node-footer,
+.tasks-map-task-node-shell--compact .tasks-map-task-attachments {
+  display: none;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-task-node-projects {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-background,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-background {
+  height: auto;
+  min-height: 120px;
+  padding: 12px;
+  gap: 4px;
+  overflow: visible;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-header,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-node-header {
+  position: static;
+  width: calc(100% + 24px);
+  min-height: 40px;
+  margin: -12px -12px 8px;
+  border-bottom: 1px solid var(--tasks-map-node-divider);
+  border-radius: var(--radius-m) var(--radius-m) 0 0;
+}
+
+.tasks-map-task-node-shell--compact:hover
+  .tasks-map-task-node-header
+  > :not(.tasks-map-status-container),
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-node-header
+  > :not(.tasks-map-status-container) {
+  display: flex;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-status-container,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-status-container {
+  width: auto;
+  border-radius: var(--radius-m) 0 0 0;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-status-toggle,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-status-toggle {
+  width: 40px;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-content,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-node-content {
+  display: block;
+  height: auto;
+  margin-left: 0;
+  padding: 0 0 4px;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-summary,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-node-summary {
+  margin-bottom: 6px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-quick-update,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-quick-update {
+  display: block;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-footer,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-node-footer {
+  display: block;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-attachments,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-attachments {
+  display: flex;
+}
+
+.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-projects,
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+  .tasks-map-task-node-projects {
+  position: static;
+  padding: 4px 8px 6px;
+  transform: none;
+}
+
 .tasks-map-task-node-header {
   display: flex;
   align-items: stretch;
@@ -1405,6 +1559,22 @@ If your plugin does not need CSS, delete this file.
   border-radius: 3px;
   border: none;
   background: var(--color-base-40);
+}
+
+.react-flow__node-task .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.react-flow__node-task:hover .react-flow__handle,
+.react-flow__node-task[class~="selected"] .react-flow__handle {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.react-flow__node:not([class~="draggable"]) {
+  cursor: default;
 }
 
 .react-flow__handle-left {
@@ -2883,6 +3053,14 @@ If your plugin does not need CSS, delete this file.
   gap: 4px;
   padding: 4px 8px 6px;
   justify-content: flex-end;
+}
+
+.tasks-map-task-node-projects--single {
+  display: none;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-task-node-projects--single {
+  display: flex;
 }
 
 .tasks-map-project-dot {

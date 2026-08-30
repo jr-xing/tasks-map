@@ -13,6 +13,8 @@ interface ControlsPanelProps {
   showGroupByProject: boolean;
   groupByProject: boolean;
   setGroupByProject: (_val: boolean) => void;
+  arrangeMode: boolean;
+  setArrangeMode: (_val: boolean) => void;
 }
 
 export default function ControlsPanel({
@@ -26,6 +28,8 @@ export default function ControlsPanel({
   showGroupByProject,
   groupByProject,
   setGroupByProject,
+  arrangeMode,
+  setArrangeMode,
 }: ControlsPanelProps) {
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -103,6 +107,20 @@ export default function ControlsPanel({
                 </label>
               </div>
             )}
+
+            <div className="tasks-map-filter-item">
+              <label className="tasks-map-gui-overlay-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={arrangeMode}
+                  onChange={(e) => setArrangeMode(e.target.checked)}
+                  className="tasks-map-gui-overlay-checkbox-input"
+                />
+                <span className="tasks-map-gui-overlay-checkbox-text">
+                  {t("controls.arrange_mode")}
+                </span>
+              </label>
+            </div>
           </div>
 
           <div className="tasks-map-filter-actions">

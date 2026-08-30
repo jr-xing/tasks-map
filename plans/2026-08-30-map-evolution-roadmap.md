@@ -1,7 +1,7 @@
 # Tasks Map Evolution Roadmap
 
 **Date:** 2026-08-30
-**Status:** In progress — Phases 1–3 completed
+**Status:** In progress — Phases 1–4 completed
 **Scope:** Multi-phase improvement plan covering task triage UI, native indexing, auto-refresh, layout stability/minimalism, project creation, and de-forking.
 
 Each phase is designed to be implemented in its own session. Phases list their
@@ -142,7 +142,7 @@ drift; treat them as anchors, re-verify before editing.
 | 1     | Task list / triage panel             | —                     | ★★★★★ | M      | Complete |
 | 2     | Native task indexing (drop Dataview) | —                     | ★★★★  | M      | Complete |
 | 3     | Auto-refresh                         | 2                     | ★★★★  | M      | Complete |
-| 4     | Layout stability & visual minimalism | — (4a refactor first) | ★★★★  | M–L    | Planned  |
+| 4     | Layout stability & visual minimalism | — (4a refactor first) | ★★★★  | M–L    | Complete |
 | 5     | Viewport-aware component packing     | 4a                    | ★★    | S–M    | Planned  |
 | 6     | New-project modal                    | —                     | ★★★   | S–M    | Planned  |
 | 7     | De-fork & rebrand                    | —                     | ★★    | S      | Planned  |
@@ -397,6 +397,8 @@ disabled.
 
 ## Phase 4 — Layout stability & visual minimalism
 
+**Status:** Completed on 2026-08-30
+
 ### Phase 4a (prerequisite refactor): extract the layout engine
 
 Move the layout code out of `utils.ts` (2302 lines) into `src/lib/layout/`
@@ -440,6 +442,33 @@ and Phase 5 safe.
 **Acceptance:** two consecutive refreshes of an unchanged vault produce
 identical layouts; projects appear in alphabetical order; compact mode shows
 one-line nodes with actions on hover; layout has no overlaps in compact mode.
+
+**Implementation result:**
+
+- Extracted layout responsibilities into `src/lib/layout/` (`layout.ts`,
+  `packing.ts`, `dimensions.ts`, and `project-groups.ts`) while retaining the
+  established exports from `src/lib/utils.ts`.
+- Made dagre inputs and connected-component packing deterministic. Project
+  groups sort by normalized project name; other components sort by root-task
+  label with stable IDs as tiebreakers.
+- Disabled graph-node dragging by default and added a session-scoped Arrange
+  mode toggle to the View panel. Sidebar HTML5 drag-and-drop remains separate
+  and unchanged.
+- Added the comfortable/compact node-density setting. Compact cards use fixed
+  collapsed bounds, a single-line title with status/priority/project cues, and
+  reveal their existing controls and details on hover or selection. Connection
+  handles are hidden until task-node hover/selection.
+- Added layout regression coverage for export compatibility, alphabetical
+  ordering, root-label ordering, shuffled-input stability, compact dimensions,
+  compact non-overlap, and the default drag policy.
+
+**Acceptance (verified):** repeated refreshes preserve the layout, project
+groups have deterministic ordering, compact nodes disclose their controls on
+hover/selection without resting overlaps, graph nodes stay fixed until Arrange
+mode is enabled, and sidebar unlinked-task drops continue to work. User smoke
+testing confirmed the phase works well. Automated verification: 498 Jest
+tests, production build, changed-file ESLint/Prettier, CSS lint, and
+`git diff --check` passed.
 
 ---
 

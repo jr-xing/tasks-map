@@ -5,7 +5,7 @@ import { useApp } from "src/hooks/hooks";
 import { BaseTask, TaskStatus } from "src/types/task";
 import { TaskAttachmentKind } from "src/types/base-task";
 import { TaskPriorityConfig } from "src/lib/priority-config";
-import { PriorityAccentPosition } from "src/types/settings";
+import { NodeDensity, PriorityAccentPosition } from "src/types/settings";
 import { NoteTask } from "src/types/note-task";
 import { TaskDetails } from "./task-details";
 import { ExpandButton } from "./expand-button";
@@ -45,6 +45,7 @@ interface TaskNodeData {
   layoutDirection?: "Horizontal" | "Vertical";
   showPriorities?: boolean;
   priorityAccentPosition?: PriorityAccentPosition;
+  nodeDensity?: NodeDensity;
   showTags?: boolean;
   debugVisualization?: boolean;
   tagColorPalette?: import("src/lib/tag-color-manager").TagColorPalette;
@@ -121,6 +122,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     layoutDirection = "Horizontal",
     showPriorities = true,
     priorityAccentPosition = "top",
+    nodeDensity = "comfortable",
     showTags = true,
     debugVisualization = false,
     tagColorPalette = "rainbow",
@@ -298,7 +300,15 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   }, []);
 
   return (
-    <div className="tasks-map-task-node-shell">
+    <div
+      className={[
+        "tasks-map-task-node-shell",
+        `tasks-map-task-node-shell--${nodeDensity}`,
+        selected && "tasks-map-task-node-shell--selected",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <TaskBackground
         status={status}
         priority={showPriorities ? priority : ""}
@@ -420,8 +430,16 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           <TaskDetails task={task} status={status} />
         )}
 
-        {groupByProject && task.projects.length > 1 && (
-          <div className="tasks-map-task-node-projects">
+        {groupByProject && task.projects.length > 0 && (
+          <div
+            className={[
+              "tasks-map-task-node-projects",
+              task.projects.length === 1 &&
+                "tasks-map-task-node-projects--single",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             {task.projects.map((project, index) => (
               <ProjectDot key={project} project={project} index={index} />
             ))}

@@ -3,7 +3,7 @@ import { BaseTask } from "./base-task";
 import type { TaskAttachment } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
 import { TaskPriorityConfig } from "../lib/priority-config";
-import { PriorityAccentPosition } from "./settings";
+import { NodeDensity, PriorityAccentPosition } from "./settings";
 import type { VaultWriteTracker } from "../lib/vault-watcher";
 
 // Status is a configured status `id` (see src/lib/status-config.ts). It is a
@@ -26,6 +26,7 @@ export interface TaskNodeData {
   layoutDirection?: "Horizontal" | "Vertical";
   showPriorities?: boolean;
   priorityAccentPosition?: PriorityAccentPosition;
+  nodeDensity?: NodeDensity;
   showTags?: boolean;
   debugVisualization?: boolean;
   groupByProject?: boolean;

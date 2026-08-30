@@ -30,6 +30,10 @@
     "show_task_tags_desc": "Display tags on task nodes",
     "show_status_counts": "Show status counts",
     "show_status_counts_desc": "Display a status counts overlay on the canvas",
+    "node_density": "Node density",
+    "node_density_desc": "Choose comfortable task cards or compact one-line cards that reveal details on hover and selection",
+    "node_density_comfortable": "Comfortable",
+    "node_density_compact": "Compact",
     "attachment_types": "Attachment Types",
     "attachment_type_markdown": "Markdown notes",
     "attachment_type_markdown_desc": "Show owned attachment notes under task nodes",
@@ -194,7 +198,8 @@
     "title": "View",
     "expand": "Expand view controls",
     "minimize": "Minimize view controls",
-    "group_by_project": "Group by project"
+    "group_by_project": "Group by project",
+    "arrange_mode": "Arrange mode"
   },
   "multiselect": {
     "select": "Select...",

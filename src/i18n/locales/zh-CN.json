@@ -30,6 +30,10 @@
     "show_task_tags_desc": "在任务节点上显示标签",
     "show_status_counts": "显示状态计数",
     "show_status_counts_desc": "在画布上显示状态计数叠加层",
+    "node_density": "节点密度",
+    "node_density_desc": "选择舒适任务卡片，或在悬停和选中时显示详情的紧凑单行卡片",
+    "node_density_comfortable": "舒适",
+    "node_density_compact": "紧凑",
     "attachment_types": "附件类型",
     "attachment_type_markdown": "Markdown 笔记",
     "attachment_type_markdown_desc": "在任务节点下显示所属附件笔记",
@@ -194,7 +198,8 @@
     "title": "视图",
     "expand": "展开视图控制",
     "minimize": "最小化视图控制",
-    "group_by_project": "按项目分组"
+    "group_by_project": "按项目分组",
+    "arrange_mode": "排列模式"
   },
   "multiselect": {
     "select": "选择...",

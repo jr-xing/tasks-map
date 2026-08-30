@@ -10,6 +10,7 @@ import { TaskStatusConfig, cloneDefaultStatuses } from "../lib/status-config";
 import type { TaskAttachmentKind } from "./base-task";
 
 export type PriorityAccentPosition = "top" | "right";
+export type NodeDensity = "comfortable" | "compact";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
 export type TaskOrganizerAiProvider = "openai" | "anthropic" | "google";
 export type TaskOrganizerOrphans = "skip" | "unassigned";
@@ -29,6 +30,7 @@ export interface TasksMapSettings {
   showTags: boolean;
   showStatusCounts: boolean;
   visibleAttachmentKinds: TaskAttachmentKind[];
+  nodeDensity: NodeDensity;
 
   layoutDirection: "Horizontal" | "Vertical";
   edgeStyle: "Bezier" | "Straight" | "SmoothStep";
@@ -117,6 +119,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   showTags: true,
   showStatusCounts: true,
   visibleAttachmentKinds: [...DEFAULT_VISIBLE_ATTACHMENT_KINDS],
+  nodeDensity: "comfortable",
 
   layoutDirection: "Horizontal",
   edgeStyle: "Bezier",

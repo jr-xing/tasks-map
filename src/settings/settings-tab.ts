@@ -7,6 +7,7 @@ import { getTaskNotesConfig } from "../lib/tasknotes-bridge";
 import { cloneDefaultStatuses } from "../lib/status-config";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  NodeDensity,
   NoteTaskTitleSource,
   PriorityAccentPosition,
   TaskOrganizerAiProvider,
@@ -587,6 +588,20 @@ export class TasksMapSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.showStatusCounts)
           .onChange(async (value) => {
             this.plugin.settings.showStatusCounts = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.node_density"))
+      .setDesc(t("settings.node_density_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("comfortable", t("settings.node_density_comfortable"))
+          .addOption("compact", t("settings.node_density_compact"))
+          .setValue(this.plugin.settings.nodeDensity)
+          .onChange(async (value) => {
+            this.plugin.settings.nodeDensity = value as NodeDensity;
             await this.plugin.saveSettings();
           })
       );

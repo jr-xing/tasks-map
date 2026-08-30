@@ -30,6 +30,10 @@
     "show_task_tags_desc": "Toon tags op taakknooppunten",
     "show_status_counts": "Statustellingen tonen",
     "show_status_counts_desc": "Toon een statustellingen overlay op het canvas",
+    "node_density": "Knooppuntdichtheid",
+    "node_density_desc": "Kies comfortabele taakkaarten of compacte kaarten op één regel die details tonen bij aanwijzen en selecteren",
+    "node_density_comfortable": "Comfortabel",
+    "node_density_compact": "Compact",
     "attachment_types": "Bijlagetypen",
     "attachment_type_markdown": "Markdown-notities",
     "attachment_type_markdown_desc": "Toon eigen bijlagenotities onder taakknooppunten",
@@ -194,7 +198,8 @@
     "title": "Weergave",
     "expand": "Weergavebediening uitvouwen",
     "minimize": "Weergavebediening minimaliseren",
-    "group_by_project": "Groeperen op project"
+    "group_by_project": "Groeperen op project",
+    "arrange_mode": "Rangschikmodus"
   },
   "multiselect": {
     "select": "Selecteer...",

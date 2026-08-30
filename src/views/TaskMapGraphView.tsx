@@ -162,6 +162,7 @@ export default function TaskMapGraphView({
     embed.hideUnlinkedTasks
   );
   const [groupByProject, setGroupByProject] = React.useState(true);
+  const [arrangeMode, setArrangeMode] = React.useState(false);
 
   // Which left-rail panel is open in the flyout; `null` keeps all collapsed.
   const [openPanel, setOpenPanel] = React.useState<RailPanelId | null>(null);
@@ -778,7 +779,8 @@ export default function TaskMapGraphView({
       handleTaskStatusChange,
       handleTaskPriorityChange,
       handleTaskStarredChange,
-      trackVaultWrite
+      trackVaultWrite,
+      settings.nodeDensity
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -811,7 +813,8 @@ export default function TaskMapGraphView({
       settings.showTags,
       groupByProject,
       filteredTasks,
-      settings.visibleAttachmentKinds
+      settings.visibleAttachmentKinds,
+      settings.nodeDensity
     );
 
     // Apply stored drop positions to dropped nodes (bypass dagre)
@@ -1006,7 +1009,8 @@ export default function TaskMapGraphView({
         const dimensions = estimateNodeDimensions(
           task,
           settings.showTags,
-          settings.visibleAttachmentKinds
+          settings.visibleAttachmentKinds,
+          settings.nodeDensity
         );
         droppedNodePositions.current.set(taskId, {
           x: center.x - dimensions.width / 2,
@@ -1026,6 +1030,7 @@ export default function TaskMapGraphView({
       getVisibleMapCenterX,
       hideUnlinkedTasks,
       reactFlowInstance,
+      settings.nodeDensity,
       settings.showTags,
       settings.visibleAttachmentKinds,
       tasks,
@@ -1820,6 +1825,8 @@ export default function TaskMapGraphView({
                       showGroupByProject={showGroupByProject}
                       groupByProject={groupByProject}
                       setGroupByProject={setGroupByProject}
+                      arrangeMode={arrangeMode}
+                      setArrangeMode={setArrangeMode}
                     />
                   )}
                   {openPanel === "unlinked" && (
@@ -1885,6 +1892,7 @@ export default function TaskMapGraphView({
             }
             multiSelectionKeyCode="Shift"
             selectionKeyCode="Shift"
+            nodesDraggable={arrangeMode}
           >
             {embed.showMinimap && <TaskMinimap />}
             <Background />
