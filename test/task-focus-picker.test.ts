@@ -13,6 +13,7 @@ function makeTask(overrides: {
   projects?: string[];
   incomingLinks?: string[];
   status?: TaskStatus;
+  isProject?: boolean;
 }): NoteTask {
   return new NoteTask({
     id: overrides.id,
@@ -25,6 +26,7 @@ function makeTask(overrides: {
     incomingLinks: overrides.incomingLinks ?? [],
     starred: false,
     projects: overrides.projects ?? [],
+    isProject: overrides.isProject ?? false,
   });
 }
 
@@ -97,6 +99,29 @@ describe("buildTaskFocusCandidates", () => {
     );
 
     expect(candidates.map((candidate) => candidate.taskId)).toEqual(["P", "A"]);
+  });
+
+  it("includes a project note that has no tasks attached to it yet", () => {
+    const candidates = buildTaskFocusCandidates(
+      [
+        makeTask({ id: "P", summary: "Project" }),
+        makeTask({ id: "A", summary: "Alpha", incomingLinks: ["P"] }),
+        makeTask({ id: "New", summary: "New project", isProject: true }),
+      ],
+      filter()
+    );
+
+    expect(candidates.map((candidate) => candidate.taskId)).toEqual([
+      "New",
+      "P",
+      "A",
+    ]);
+    expect(candidates[0]).toMatchObject({
+      taskId: "New",
+      rootTaskId: "New",
+      depth: 0,
+      path: ["New project"],
+    });
   });
 
   it("includes task metadata and ancestry in search text", () => {

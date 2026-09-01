@@ -26,7 +26,8 @@ export function getProjectTreeDepth(nodes: TreeNode[]): number {
  * children of X are the tasks whose `incomingLinks` include X. Roots are tasks
  * no visible task points at. A task may have several parents (a DAG): in that
  * case it appears under each parent. Roots with no descendants are dropped so
- * the panel shows only genuinely structured tasks, not every isolated node.
+ * the panel shows only genuinely structured tasks, not every isolated node —
+ * except project notes, which stand alone until tasks are attached to them.
  */
 export function buildProjectTree(tasks: BaseTask[]): TreeNode[] {
   const byId = new Map(tasks.map((task) => [task.id, task]));
@@ -61,7 +62,7 @@ export function buildProjectTree(tasks: BaseTask[]): TreeNode[] {
 
   return sortTasks(tasks.filter((task) => !hasParent.has(task.id)))
     .map((root) => build(root, new Set([root.id])))
-    .filter((node) => node.children.length > 0);
+    .filter((node) => node.children.length > 0 || node.task.isProject);
 }
 
 /** Prunes the forest to branches that contain a node matching the query. */
