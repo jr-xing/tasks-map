@@ -11,6 +11,7 @@ function makeTask(overrides: {
   summary?: string;
   tags?: string[];
   incomingLinks?: string[];
+  isProject?: boolean;
 }): NoteTask {
   return new NoteTask({
     id: overrides.id,
@@ -22,6 +23,7 @@ function makeTask(overrides: {
     link: `tasks/${overrides.id}.md`,
     incomingLinks: overrides.incomingLinks ?? [],
     starred: false,
+    isProject: overrides.isProject ?? false,
   });
 }
 
@@ -37,6 +39,16 @@ describe("project tree helpers", () => {
     expect(tree).toHaveLength(1);
     expect(tree[0].task.id).toBe("P");
     expect(tree[0].children.map((node) => node.task.id)).toEqual(["A", "B"]);
+  });
+
+  it("keeps a project note with no tasks attached to it", () => {
+    const tree = buildProjectTree([
+      makeTask({ id: "Empty", summary: "Empty project", isProject: true }),
+      makeTask({ id: "Loose", summary: "Loose task" }),
+    ]);
+
+    expect(tree.map((node) => node.task.id)).toEqual(["Empty"]);
+    expect(tree[0].children).toEqual([]);
   });
 
   it("filters only the tree display while preserving matching branches", () => {
