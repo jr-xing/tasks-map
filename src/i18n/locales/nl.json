@@ -240,6 +240,18 @@
     "empty": "Geen taken voldoen aan de actieve filters",
     "due": "Vervalt op {{date}}"
   },
+  "kanban": {
+    "title": "Kanban",
+    "pin": "Kanban vastzetten",
+    "unpin": "Kanban losmaken",
+    "close": "Kanban sluiten",
+    "resize": "Hoogte van kanban wijzigen",
+    "focus_project": "Project op kaart focussen",
+    "no_project_context": "Geen projectcontext beschikbaar",
+    "due": "Vervalt op {{date}}",
+    "empty_column": "Sleep taken hierheen",
+    "status_update_failed": "Taakstatus kon niet worden bijgewerkt."
+  },
   "project_switcher": {
     "label": "Project",
     "all_projects": "Alle projecten ({{count}})",

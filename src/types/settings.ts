@@ -59,6 +59,9 @@ export interface TasksMapSettings {
   // and project-tree panels.
   sidebarWidth: number;
 
+  // Height (in pixels) of the resizable Kanban overlay.
+  kanbanPanelHeight: number;
+
   // Task editor (right sidebar) panel preferences.
   // Width in pixels of the resizable panel.
   editorPanelWidth: number;
@@ -140,6 +143,9 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
 
   // Left sidebar width default
   sidebarWidth: 220,
+
+  // Kanban overlay default
+  kanbanPanelHeight: 360,
 
   // Task editor panel defaults
   editorPanelWidth: 340,

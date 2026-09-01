@@ -28,7 +28,7 @@ import {
   deleteTaskFromVault,
   getTasksApi,
   parseTaskLine,
-  estimateNodeDimensions,
+  updateTaskStatusInVault,
 } from "src/lib/utils";
 import { BaseTask, TaskNodeData, TaskStatus } from "src/types/task";
 import {
@@ -56,7 +56,7 @@ import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
 import ProjectTreePanel from "src/components/project-tree-panel";
-import TaskListPanel from "src/components/task-list-panel";
+import KanbanPanel from "src/components/kanban-panel";
 import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
@@ -67,6 +67,12 @@ import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { TaskPriorityConfig } from "src/lib/priority-config";
+import {
+  buildKanbanFocusOptions,
+  getKanbanTasks,
+  moveKanbanTaskStatus,
+} from "src/lib/kanban";
+import { getVisibleMapViewport } from "src/lib/visible-map-viewport";
 import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
 import { normalizeTaskNotesTypeSchemaPath } from "src/lib/tasknotes-type-schema";
 import {
@@ -215,9 +221,51 @@ export default function TaskMapGraphView({
 
   // Which left-rail panel is open in the flyout; `null` keeps all collapsed.
   const [openPanel, setOpenPanel] = React.useState<RailPanelId | null>(null);
-  const togglePanel = useCallback((panel: RailPanelId) => {
-    setOpenPanel((prev) => (prev === panel ? null : panel));
+  const [isKanbanPinned, setIsKanbanPinned] = React.useState(false);
+  const [kanbanPanelHeight, setKanbanPanelHeight] = React.useState(
+    settings.kanbanPanelHeight
+  );
+  const kanbanHeightRef = React.useRef(settings.kanbanPanelHeight);
+  const kanbanPanelRef = React.useRef<HTMLDivElement | null>(null);
+  const kanbanResizeRef = React.useRef<{
+    startY: number;
+    startHeight: number;
+  } | null>(null);
+
+  const closeKanban = useCallback(() => {
+    setOpenPanel((previous) => (previous === "kanban" ? null : previous));
+    setIsKanbanPinned(false);
   }, []);
+
+  const togglePanel = useCallback(
+    (panel: RailPanelId) => {
+      if (openPanel === panel) {
+        if (panel === "kanban") setIsKanbanPinned(false);
+        setOpenPanel(null);
+        return;
+      }
+      if (openPanel === "kanban" || panel === "kanban") {
+        setIsKanbanPinned(false);
+      }
+      setOpenPanel(panel);
+    },
+    [openPanel]
+  );
+
+  const dismissUnpinnedKanban = useCallback(() => {
+    if (openPanel === "kanban" && !isKanbanPinned) closeKanban();
+  }, [openPanel, isKanbanPinned, closeKanban]);
+
+  useEffect(() => {
+    if (openPanel !== "kanban") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeKanban();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [openPanel, closeKanban]);
 
   const getLeftOverlayInset = useCallback((): number => {
     if (openPanel === null) return 0;
@@ -235,15 +283,45 @@ export default function TaskMapGraphView({
     );
   }, [openPanel]);
 
-  const getVisibleMapCenterX = useCallback((): number => {
-    const containerWidth = containerRef.current?.clientWidth ?? 0;
-    return containerWidth / 2 + getLeftOverlayInset() / 2;
-  }, [getLeftOverlayInset]);
+  const getTopOverlayInset = useCallback((): number => {
+    if (openPanel !== "kanban") return 0;
+    const container = containerRef.current;
+    const panel = kanbanPanelRef.current;
+    if (!container || !panel) return 0;
+    const containerRect = container.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return Math.min(
+      Math.max(0, panelRect.bottom - containerRect.top + 16),
+      Math.max(0, container.clientHeight - 120)
+    );
+  }, [openPanel]);
+
+  const getVisibleMapArea = useCallback(() => {
+    const container = containerRef.current;
+    return getVisibleMapViewport(
+      container?.clientWidth ?? 0,
+      container?.clientHeight ?? 0,
+      {
+        left: getLeftOverlayInset(),
+        top: getTopOverlayInset(),
+      }
+    );
+  }, [getLeftOverlayInset, getTopOverlayInset]);
+
+  const getVisibleMapCenterX = useCallback(
+    (): number => getVisibleMapArea().centerX,
+    [getVisibleMapArea]
+  );
+
+  const getVisibleMapCenterY = useCallback(
+    (): number => getVisibleMapArea().centerY,
+    [getVisibleMapArea]
+  );
 
   const fitNodesToVisibleArea = useCallback(
     (currentNodes: ReturnType<typeof reactFlowInstance.getNodes>) => {
-      const leftInset = getLeftOverlayInset();
-      if (leftInset <= 0) {
+      const visibleArea = getVisibleMapArea();
+      if (visibleArea.left <= 0 && visibleArea.top <= 0) {
         reactFlowInstance.fitView({ duration: 400 });
         return;
       }
@@ -254,12 +332,11 @@ export default function TaskMapGraphView({
         return;
       }
 
-      const visibleWidth = Math.max(120, container.clientWidth - leftInset);
       const bounds = getNodesBounds(currentNodes);
       const viewport = getViewportForBounds(
         bounds,
-        visibleWidth,
-        container.clientHeight,
+        visibleArea.width,
+        visibleArea.height,
         0.1,
         2,
         0.12
@@ -267,12 +344,13 @@ export default function TaskMapGraphView({
       void reactFlowInstance.setViewport(
         {
           ...viewport,
-          x: viewport.x + leftInset,
+          x: viewport.x + visibleArea.left,
+          y: viewport.y + visibleArea.top,
         },
         { duration: 400 }
       );
     },
-    [getLeftOverlayInset, reactFlowInstance]
+    [getVisibleMapArea, reactFlowInstance]
   );
 
   // Fit the camera to a freshly built node set once ReactFlow has caught up.
@@ -600,6 +678,33 @@ export default function TaskMapGraphView({
     []
   );
 
+  const handleKanbanStatusMove = useCallback(
+    async (taskId: string, status: TaskStatus) => {
+      const task = tasks.find((candidate) => candidate.id === taskId);
+      if (!task) return;
+
+      const result = await moveKanbanTaskStatus(
+        task,
+        status,
+        handleTaskStatusChange,
+        async () => {
+          const update = () =>
+            updateTaskStatusInVault(task, status, app, settings.taskStatuses);
+          if (task.link) {
+            await trackVaultWrite(task.link, update);
+          } else {
+            await update();
+          }
+        }
+      );
+
+      if (result.kind !== "rolled_back") return;
+      console.error("Failed to move Kanban task:", result.error);
+      new Notice(t("kanban.status_update_failed"));
+    },
+    [app, handleTaskStatusChange, settings.taskStatuses, tasks, trackVaultWrite]
+  );
+
   const handleTaskPriorityChange = useCallback(
     (taskId: string, priority: string) => {
       skipFitViewRef.current = true;
@@ -817,6 +922,52 @@ export default function TaskMapGraphView({
     [plugin, settings, taskNotesPriorityOptions]
   );
 
+  const onKanbanResizePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      kanbanResizeRef.current = {
+        startY: event.clientY,
+        startHeight:
+          kanbanPanelRef.current?.getBoundingClientRect().height ??
+          kanbanHeightRef.current,
+      };
+    },
+    []
+  );
+
+  const onKanbanResizePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const drag = kanbanResizeRef.current;
+      if (!drag) return;
+      const containerHeight = containerRef.current?.clientHeight ?? 0;
+      const maximumHeight = Math.max(180, containerHeight - 192);
+      const nextHeight = Math.min(
+        maximumHeight,
+        Math.max(180, drag.startHeight + event.clientY - drag.startY)
+      );
+      kanbanHeightRef.current = nextHeight;
+      setKanbanPanelHeight(nextHeight);
+    },
+    []
+  );
+
+  const onKanbanResizePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!kanbanResizeRef.current) return;
+      kanbanResizeRef.current = null;
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      void plugin.updateSettings({
+        kanbanPanelHeight: kanbanHeightRef.current,
+      });
+      window.requestAnimationFrame(() => {
+        fitNodesToVisibleArea(reactFlowInstance.getNodes());
+      });
+    },
+    [fitNodesToVisibleArea, plugin, reactFlowInstance]
+  );
+
   useEffect(() => {
     let newNodes = createNodesFromTasks(
       graphTasks,
@@ -1023,13 +1174,15 @@ export default function TaskMapGraphView({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ReactFlow event/edge types lack exported union
     (event: any, edge: any) => {
       event.stopPropagation();
+      dismissUnpinnedKanban();
       setSelectedEdge(edge.id);
     },
-    [setSelectedEdge]
+    [dismissUnpinnedKanban, setSelectedEdge]
   );
 
   const onNodeClick = useCallback<NodeMouseHandler>(
     (_event, node) => {
+      dismissUnpinnedKanban();
       setSelectedEdge(null);
       // When the editor panel is already open, a single click retargets it to
       // the clicked TaskNotes task (ReactFlow handles node selection itself).
@@ -1043,7 +1196,7 @@ export default function TaskMapGraphView({
       }
       openTaskEditor("edit", task.link);
     },
-    [setSelectedEdge, editorState, app, openTaskEditor]
+    [dismissUnpinnedKanban, setSelectedEdge, editorState, app, openTaskEditor]
   );
 
   // Double-clicking a TaskNotes task node opens the editor panel directly,
@@ -1064,8 +1217,9 @@ export default function TaskMapGraphView({
   );
 
   const onPaneClick = useCallback(() => {
+    dismissUnpinnedKanban();
     setSelectedEdge(null);
-  }, [setSelectedEdge]);
+  }, [dismissUnpinnedKanban, setSelectedEdge]);
 
   // Pan the canvas to center a task node and briefly pulse it. Used by the
   // project tree sidebar to jump to a node when its tree row is clicked.
@@ -1083,7 +1237,7 @@ export default function TaskMapGraphView({
       void reactFlowInstance.setViewport(
         {
           x: getVisibleMapCenterX() - nodeCenterX * zoom,
-          y: (containerRef.current?.clientHeight ?? 0) / 2 - nodeCenterY * zoom,
+          y: getVisibleMapCenterY() - nodeCenterY * zoom,
           zoom,
         },
         { duration: 500 }
@@ -1114,7 +1268,7 @@ export default function TaskMapGraphView({
       }, 1600);
       return true;
     },
-    [getVisibleMapCenterX, reactFlowInstance, setNodes]
+    [getVisibleMapCenterX, getVisibleMapCenterY, reactFlowInstance, setNodes]
   );
 
   useEffect(() => {
@@ -1124,59 +1278,6 @@ export default function TaskMapGraphView({
       pendingTreeFocusRef.current = null;
     }
   }, [nodes, focusNode]);
-
-  const handleListTaskClick = useCallback(
-    (taskId: string) => {
-      if (focusNode(taskId)) return;
-
-      const task = tasks.find((candidate) => candidate.id === taskId);
-      if (!task) return;
-
-      pendingTreeFocusRef.current = taskId;
-      skipFitViewRef.current = true;
-
-      const isHiddenUnlinked =
-        hideUnlinkedTasks &&
-        allUnlinkedTasks.some((candidate) => candidate.id === taskId);
-      if (!isHiddenUnlinked) return;
-
-      const container = containerRef.current;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        const center = reactFlowInstance.screenToFlowPosition({
-          x: rect.left + getVisibleMapCenterX(),
-          y: rect.top + container.clientHeight / 2,
-        });
-        const dimensions = estimateNodeDimensions(
-          task,
-          settings.showTags,
-          settings.visibleAttachmentKinds,
-          settings.nodeDensity
-        );
-        droppedNodePositions.current.set(taskId, {
-          x: center.x - dimensions.width / 2,
-          y: center.y - dimensions.height / 2,
-        });
-      }
-
-      setDroppedTaskIds((previousIds) => {
-        const nextIds = new Set(previousIds);
-        nextIds.add(taskId);
-        return nextIds;
-      });
-    },
-    [
-      allUnlinkedTasks,
-      focusNode,
-      getVisibleMapCenterX,
-      hideUnlinkedTasks,
-      reactFlowInstance,
-      settings.nodeDensity,
-      settings.showTags,
-      settings.visibleAttachmentKinds,
-      tasks,
-    ]
-  );
 
   useEffect(() => {
     if (!focusRequest) return;
@@ -1846,10 +1947,15 @@ export default function TaskMapGraphView({
     return graphTasks.filter((t) => idSet.has(t.id));
   }, [graphTasks, filterState]);
 
-  const triageTasks = useMemo(() => {
-    const filteredIds = new Set(getFilteredNodeIds(tasks, filterState));
-    return tasks.filter((task) => filteredIds.has(task.id));
-  }, [tasks, filterState]);
+  const kanbanTasks = useMemo(
+    () => getKanbanTasks(tasks, filterState),
+    [tasks, filterState]
+  );
+
+  const kanbanFocusOptions = useMemo(
+    () => buildKanbanFocusOptions(tasks),
+    [tasks]
+  );
 
   const treeTasks = useMemo(() => {
     const filteredIds = getVisibilityFilteredNodeIds(graphTasks, filterState);
@@ -1916,13 +2022,13 @@ export default function TaskMapGraphView({
                 onToggle={togglePanel}
                 onRefresh={manualReloadTasks}
                 showFilters={embed.showFilterPanel}
-                showList={embed.showFilterPanel}
+                showKanban={embed.showFilterPanel}
                 showPresets={embed.showPresetsPanel}
                 showUnlinked={embed.showUnlinkedPanel}
                 showTree={embed.showUnlinkedPanel}
                 unlinkedCount={sidebarTasks.length}
               />
-              {openPanel && (
+              {openPanel && openPanel !== "kanban" && (
                 <div className="tasks-map-flyout">
                   {openPanel === "filters" && (
                     <GuiOverlay
@@ -1946,16 +2052,6 @@ export default function TaskMapGraphView({
                       onSave={handleSavePreset}
                       onRename={handleRenamePreset}
                       onDelete={handleDeletePreset}
-                    />
-                  )}
-                  {openPanel === "list" && (
-                    <TaskListPanel
-                      tasks={triageTasks}
-                      statuses={settings.taskStatuses}
-                      notePriorityOptions={notePriorityOptions}
-                      onTaskClick={handleListTaskClick}
-                      onTaskStatusChange={handleTaskStatusChange}
-                      trackVaultWrite={trackVaultWrite}
                     />
                   )}
                   {openPanel === "view" && (
@@ -1991,6 +2087,46 @@ export default function TaskMapGraphView({
               )}
             </div>
           </div>
+          {openPanel === "kanban" && (
+            <div
+              className="tasks-map-kanban-overlay"
+              ref={(element) => {
+                kanbanPanelRef.current = element;
+                if (!element) return;
+                element.style.setProperty(
+                  "--tasks-map-kanban-height",
+                  `${kanbanPanelHeight}px`
+                );
+                element.style.setProperty(
+                  "--tasks-map-kanban-right",
+                  editorState ? `${editorPanelWidth + 8}px` : "16px"
+                );
+              }}
+            >
+              <KanbanPanel
+                tasks={kanbanTasks}
+                statuses={settings.taskStatuses}
+                notePriorityOptions={notePriorityOptions}
+                focusOptions={kanbanFocusOptions}
+                pinned={isKanbanPinned}
+                onPinnedChange={setIsKanbanPinned}
+                onClose={closeKanban}
+                onFocusProject={handleTreeTaskFocus}
+                onTaskStatusChange={handleTaskStatusChange}
+                onTaskStatusMove={handleKanbanStatusMove}
+                trackVaultWrite={trackVaultWrite}
+              />
+              <div
+                className="tasks-map-kanban-resize-handle"
+                onPointerDown={onKanbanResizePointerDown}
+                onPointerMove={onKanbanResizePointerMove}
+                onPointerUp={onKanbanResizePointerUp}
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={t("kanban.resize")}
+              />
+            </div>
+          )}
           {isLoading && (
             <div className="tasks-map-loading-container">
               <div className="tasks-map-spinner" />

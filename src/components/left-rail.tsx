@@ -4,7 +4,7 @@ import {
   Bookmark,
   SlidersHorizontal,
   Inbox,
-  ListTodo,
+  Kanban,
   ListTree,
   RefreshCw,
 } from "lucide-react";
@@ -12,7 +12,7 @@ import { t } from "../i18n";
 
 export type RailPanelId =
   | "filters"
-  | "list"
+  | "kanban"
   | "presets"
   | "view"
   | "unlinked"
@@ -26,7 +26,7 @@ interface LeftRailProps {
   /** Re-reads all task notes from the vault, keeping the active project view. */
   onRefresh: () => void;
   showFilters: boolean;
-  showList: boolean;
+  showKanban: boolean;
   showPresets: boolean;
   showUnlinked: boolean;
   showTree: boolean;
@@ -52,7 +52,7 @@ export default function LeftRail({
   onToggle,
   onRefresh,
   showFilters,
-  showList,
+  showKanban,
   showPresets,
   showUnlinked,
   showTree,
@@ -66,10 +66,10 @@ export default function LeftRail({
       visible: showFilters,
     },
     {
-      id: "list",
-      icon: <ListTodo size={16} />,
-      label: t("task_list.title"),
-      visible: showList,
+      id: "kanban",
+      icon: <Kanban size={16} />,
+      label: t("kanban.title"),
+      visible: showKanban,
     },
     {
       id: "presets",

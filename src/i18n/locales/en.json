@@ -240,6 +240,18 @@
     "empty": "No tasks match the active filters",
     "due": "Due {{date}}"
   },
+  "kanban": {
+    "title": "Kanban",
+    "pin": "Pin Kanban",
+    "unpin": "Unpin Kanban",
+    "close": "Close Kanban",
+    "resize": "Resize Kanban height",
+    "focus_project": "Focus project in map",
+    "no_project_context": "No project context available",
+    "due": "Due {{date}}",
+    "empty_column": "Drop tasks here",
+    "status_update_failed": "Could not update the task status."
+  },
   "project_switcher": {
     "label": "Project",
     "all_projects": "All projects ({{count}})",

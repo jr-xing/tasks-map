@@ -10,3 +10,5 @@ export const ChevronUp = jest.fn(() => null);
 export const ChevronRight = jest.fn(() => null);
 export const Crosshair = jest.fn(() => null);
 export const ListTodo = jest.fn(() => null);
+export const Kanban = jest.fn(() => null);
+export const Pin = jest.fn(() => null);

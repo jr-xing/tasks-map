@@ -240,6 +240,18 @@
     "empty": "没有符合当前筛选条件的任务",
     "due": "截止日期：{{date}}"
   },
+  "kanban": {
+    "title": "看板",
+    "pin": "固定看板",
+    "unpin": "取消固定看板",
+    "close": "关闭看板",
+    "resize": "调整看板高度",
+    "focus_project": "在地图中聚焦项目",
+    "no_project_context": "无可用的项目上下文",
+    "due": "截止日期：{{date}}",
+    "empty_column": "将任务拖到此处",
+    "status_update_failed": "无法更新任务状态。"
+  },
   "project_switcher": {
     "label": "项目",
     "all_projects": "所有项目 ({{count}})",
