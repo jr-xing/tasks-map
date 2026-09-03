@@ -229,6 +229,18 @@ export class TasksMapSettingTab extends PluginSettingTab {
   private renderKanbanSection(containerEl: HTMLElement): void {
     new Setting(containerEl).setHeading().setName(t("settings.kanban"));
 
+    new Setting(containerEl)
+      .setName(t("settings.kanban_open_note_double_click"))
+      .setDesc(t("settings.kanban_open_note_double_click_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.kanbanOpenNoteOnDoubleClick)
+          .onChange(async (value) => {
+            this.plugin.settings.kanbanOpenNoteOnDoubleClick = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     const desc = containerEl.createDiv({ cls: "tasks-map-preview-desc" });
     desc.textContent = t("settings.kanban_column_order_desc");
 

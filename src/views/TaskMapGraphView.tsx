@@ -74,6 +74,7 @@ import {
   getKanbanTasks,
   moveKanbanTaskStatus,
 } from "src/lib/kanban";
+import { kanbanPreferencePatchToSettings } from "src/lib/kanban-preferences";
 import { getVisibleMapViewport } from "src/lib/visible-map-viewport";
 import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
 import { normalizeTaskNotesTypeSchemaPath } from "src/lib/tasknotes-type-schema";
@@ -709,20 +710,7 @@ export default function TaskMapGraphView({
 
   const handleKanbanPreferencesChange = useCallback(
     (patch: Partial<KanbanDisplayPreferences>) => {
-      const settingsPatch: Partial<TasksMapSettings> = {};
-      if (patch.cardTitleSource !== undefined) {
-        settingsPatch.kanbanCardTitleSource = patch.cardTitleSource;
-      }
-      if (patch.showProjectTasks !== undefined) {
-        settingsPatch.kanbanShowProjectTasks = patch.showProjectTasks;
-      }
-      if (patch.showCardStatus !== undefined) {
-        settingsPatch.kanbanShowCardStatus = patch.showCardStatus;
-      }
-      if (patch.groupByProject !== undefined) {
-        settingsPatch.kanbanGroupByProject = patch.groupByProject;
-      }
-      void plugin.updateSettings(settingsPatch);
+      void plugin.updateSettings(kanbanPreferencePatchToSettings(patch));
     },
     [plugin]
   );
@@ -1995,12 +1983,14 @@ export default function TaskMapGraphView({
       showProjectTasks: settings.kanbanShowProjectTasks,
       showCardStatus: settings.kanbanShowCardStatus,
       groupByProject: settings.kanbanGroupByProject,
+      openNoteOnDoubleClick: settings.kanbanOpenNoteOnDoubleClick,
       columnOrder: settings.kanbanColumnOrder,
     }),
     [
       settings.kanbanCardTitleSource,
       settings.kanbanColumnOrder,
       settings.kanbanGroupByProject,
+      settings.kanbanOpenNoteOnDoubleClick,
       settings.kanbanShowCardStatus,
       settings.kanbanShowProjectTasks,
     ]

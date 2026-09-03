@@ -3065,6 +3065,7 @@ If your plugin does not need CSS, delete this file.
   -webkit-line-clamp: 2;
 }
 
+.tasks-map-graph-container .tasks-map-kanban__open-button,
 .tasks-map-graph-container .tasks-map-kanban__focus-button {
   display: flex;
   align-items: center;
@@ -3083,12 +3084,14 @@ If your plugin does not need CSS, delete this file.
   box-shadow: none;
 }
 
+.tasks-map-graph-container .tasks-map-kanban__open-button:hover,
 .tasks-map-graph-container .tasks-map-kanban__focus-button:hover {
   color: var(--interactive-accent);
   background: var(--background-modifier-hover);
   box-shadow: none;
 }
 
+.tasks-map-graph-container .tasks-map-kanban__open-button:disabled,
 .tasks-map-graph-container .tasks-map-kanban__focus-button:disabled {
   color: var(--text-faint);
   cursor: not-allowed;

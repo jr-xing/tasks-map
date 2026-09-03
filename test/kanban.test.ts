@@ -143,6 +143,7 @@ describe("Kanban titles and visibility", () => {
       kanbanShowProjectTasks: false,
       kanbanShowCardStatus: false,
       kanbanGroupByProject: true,
+      kanbanOpenNoteOnDoubleClick: true,
       kanbanColumnOrder: [],
     });
   });

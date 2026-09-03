@@ -1,6 +1,21 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Menu } from "obsidian";
-import { Crosshair, GripVertical, Pin, Settings2, X } from "lucide-react";
+import { Menu, Notice } from "obsidian";
+import {
+  ArrowUpRight,
+  Crosshair,
+  GripVertical,
+  Pin,
+  Settings2,
+  X,
+} from "lucide-react";
+import { useApp } from "src/hooks/hooks";
+import {
+  canOpenKanbanTaskNote,
+  isKanbanCardInteractiveTarget,
+  openKanbanTaskNote,
+  shouldOpenKanbanCardOnDoubleClick,
+} from "src/lib/kanban-open-note";
+import type { KanbanDisplayPreferences } from "src/lib/kanban-preferences";
 import {
   TASKS_PLUGIN_PRIORITY_OPTIONS,
   type TaskPriorityConfig,
@@ -18,21 +33,14 @@ import {
 import type { TaskStatusConfig } from "src/lib/status-config";
 import type { VaultWriteTracker } from "src/lib/vault-watcher";
 import type { BaseTask, TaskStatus } from "src/types/task";
-import type { NoteTaskTitleSource } from "src/types/settings";
 import { TaskStatusToggle } from "./task-status";
 import { t } from "../i18n";
+
+export type { KanbanDisplayPreferences } from "src/lib/kanban-preferences";
 
 export const KANBAN_DRAG_DATA_KEY = "application/tasks-map-kanban-task-id";
 export const KANBAN_COLUMN_DRAG_DATA_KEY =
   "application/tasks-map-kanban-column-id";
-
-export interface KanbanDisplayPreferences {
-  cardTitleSource: NoteTaskTitleSource;
-  showProjectTasks: boolean;
-  showCardStatus: boolean;
-  groupByProject: boolean;
-  columnOrder: string[];
-}
 
 interface KanbanPanelProps {
   tasks: BaseTask[];
@@ -108,6 +116,7 @@ export default function KanbanPanel({
   onColumnOrderChange,
   trackVaultWrite,
 }: KanbanPanelProps) {
+  const app = useApp();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
@@ -132,6 +141,11 @@ export default function KanbanPanel({
 
   const handleTaskDragStart = useCallback(
     (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
+      if (isKanbanCardInteractiveTarget(event.target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       event.dataTransfer.setData(KANBAN_DRAG_DATA_KEY, taskId);
       event.dataTransfer.effectAllowed = "move";
       setDraggedTaskId(taskId);
@@ -292,9 +306,65 @@ export default function KanbanPanel({
           })
         );
       });
+      menu.addItem((item) => {
+        item.setTitle(t("kanban.open_note_on_double_click"));
+        item.setChecked(preferences.openNoteOnDoubleClick);
+        item.onClick(() =>
+          onPreferencesChange({
+            openNoteOnDoubleClick: !preferences.openNoteOnDoubleClick,
+          })
+        );
+      });
       menu.showAtMouseEvent(event.nativeEvent);
     },
     [onPreferencesChange, preferences]
+  );
+
+  const handleOpenTaskNote = useCallback(
+    async (task: BaseTask, openInNewTab: boolean) => {
+      try {
+        const opened = await openKanbanTaskNote(app, task, { openInNewTab });
+        if (!opened) new Notice(t("kanban.note_unavailable"));
+      } catch (error) {
+        console.error("Failed to open Kanban task note:", error);
+        new Notice(t("kanban.note_open_failed"));
+      }
+    },
+    [app]
+  );
+
+  const handleOpenNoteClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, task: BaseTask) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void handleOpenTaskNote(task, event.ctrlKey || event.metaKey);
+    },
+    [handleOpenTaskNote]
+  );
+
+  const handleOpenNoteAuxClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, task: BaseTask) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void handleOpenTaskNote(task, true);
+    },
+    [handleOpenTaskNote]
+  );
+
+  const handleCardDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: BaseTask) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const shouldOpen = shouldOpenKanbanCardOnDoubleClick({
+        enabled: preferences.openNoteOnDoubleClick,
+        isDragging: draggedTaskId !== null,
+        target: event.target,
+      });
+      if (!shouldOpen) return;
+      void handleOpenTaskNote(task, event.ctrlKey || event.metaKey);
+    },
+    [draggedTaskId, handleOpenTaskNote, preferences.openNoteOnDoubleClick]
   );
 
   const renderCard = useCallback(
@@ -306,6 +376,7 @@ export default function KanbanPanel({
           ? task.projects
           : projectOptions.map((option) => option.label);
       const canFocus = projectOptions.length > 0;
+      const canOpenNote = canOpenKanbanTaskNote(app, task);
       const cardTitle = getKanbanCardTitle(task, preferences.cardTitleSource);
       const showProjectMeta =
         !preferences.groupByProject || section.kind !== "project";
@@ -327,6 +398,7 @@ export default function KanbanPanel({
           draggable
           onDragStart={(event) => handleTaskDragStart(event, task.id)}
           onDragEnd={handleTaskDragEnd}
+          onDoubleClick={(event) => handleCardDoubleClick(event, task)}
         >
           <div className="tasks-map-kanban__card-main">
             {preferences.showCardStatus && (
@@ -344,6 +416,31 @@ export default function KanbanPanel({
             <span className="tasks-map-kanban__card-title" title={cardTitle}>
               {cardTitle}
             </span>
+            <button
+              className="tasks-map-kanban__open-button"
+              type="button"
+              draggable={false}
+              onClick={(event) => handleOpenNoteClick(event, task)}
+              onAuxClick={(event) => handleOpenNoteAuxClick(event, task)}
+              onMouseDown={(event) => event.stopPropagation()}
+              onDragStart={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              disabled={!canOpenNote}
+              aria-label={
+                canOpenNote
+                  ? t("kanban.open_note")
+                  : t("kanban.note_unavailable")
+              }
+              title={
+                canOpenNote
+                  ? t("kanban.open_note")
+                  : t("kanban.note_unavailable")
+              }
+            >
+              <ArrowUpRight size={15} />
+            </button>
             <button
               className="tasks-map-kanban__focus-button"
               onClick={(event) => handleFocus(event, task.id)}
@@ -393,8 +490,12 @@ export default function KanbanPanel({
     },
     [
       draggedTaskId,
+      app,
       focusOptions,
+      handleCardDoubleClick,
       handleFocus,
+      handleOpenNoteAuxClick,
+      handleOpenNoteClick,
       handleTaskDragEnd,
       handleTaskDragStart,
       notePriorityOptions,

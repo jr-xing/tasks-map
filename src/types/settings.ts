@@ -67,6 +67,7 @@ export interface TasksMapSettings {
   kanbanShowProjectTasks: boolean;
   kanbanShowCardStatus: boolean;
   kanbanGroupByProject: boolean;
+  kanbanOpenNoteOnDoubleClick: boolean;
   // Empty means use the configured task-status order.
   kanbanColumnOrder: string[];
 
@@ -158,6 +159,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   kanbanShowProjectTasks: false,
   kanbanShowCardStatus: false,
   kanbanGroupByProject: true,
+  kanbanOpenNoteOnDoubleClick: true,
   kanbanColumnOrder: [],
 
   // Task editor panel defaults

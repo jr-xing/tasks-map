@@ -14,3 +14,4 @@ export const Kanban = jest.fn(() => null);
 export const Pin = jest.fn(() => null);
 export const GripVertical = jest.fn(() => null);
 export const Settings2 = jest.fn(() => null);
+export const ArrowUpRight = jest.fn(() => null);
