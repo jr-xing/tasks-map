@@ -237,8 +237,9 @@ If your plugin does not need CSS, delete this file.
 
 /* Compact cards keep the same React tree and disclose their chrome in place. */
 .tasks-map-task-node-shell--compact .tasks-map-task-background {
-  height: 56px;
+  height: auto;
   min-height: 56px;
+  max-height: 76px;
   padding: 8px 10px;
   gap: 0;
   overflow: hidden;
@@ -275,17 +276,21 @@ If your plugin does not need CSS, delete this file.
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 40px;
+  min-height: 40px;
   margin-left: 38px;
   padding: 0 28px 0 0;
 }
 
 .tasks-map-task-node-shell--compact .tasks-map-task-node-summary {
+  display: -webkit-box;
   width: 100%;
   margin: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 20px;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .tasks-map-task-node-shell--compact .tasks-map-quick-update,
@@ -307,6 +312,7 @@ If your plugin does not need CSS, delete this file.
   .tasks-map-task-background {
   height: auto;
   min-height: 120px;
+  max-height: none;
   padding: 12px;
   gap: 4px;
   overflow: visible;
@@ -357,10 +363,11 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-task-node-shell--compact:hover .tasks-map-task-node-summary,
 .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
   .tasks-map-task-node-summary {
+  display: block;
   margin-bottom: 6px;
   overflow: visible;
-  text-overflow: clip;
   white-space: normal;
+  -webkit-line-clamp: unset;
 }
 
 .tasks-map-task-node-shell--compact:hover .tasks-map-quick-update,

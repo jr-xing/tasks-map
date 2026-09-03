@@ -387,7 +387,7 @@ describe("layout module", () => {
     dagreLayout.mockRestore();
   });
 
-  it("uses fixed collapsed bounds for compact nodes", () => {
+  it("reserves the maximum collapsed height for compact nodes", () => {
     const task = makeTask({
       summary: "A long summary that would wrap in comfortable mode",
       tags: ["one", "two", "three", "four"],
@@ -404,52 +404,56 @@ describe("layout module", () => {
 
     expect(estimateNodeDimensions(task, true, undefined, "compact")).toEqual({
       width: 250,
-      height: COMPACT_NODE_HEIGHT,
+      height: 76,
     });
+    expect(COMPACT_NODE_HEIGHT).toBe(76);
     expect(
       estimateNodeDimensions(task, true, undefined, "comfortable").height
     ).toBeGreaterThan(COMPACT_NODE_HEIGHT);
   });
 
-  it("does not overlap compact task bounds", () => {
-    const tasks = [
-      makeTask({ id: "root", summary: "Root" }),
-      makeTask({ id: "left", summary: "Left", incomingLinks: ["root"] }),
-      makeTask({ id: "right", summary: "Right", incomingLinks: ["root"] }),
-      makeTask({
-        id: "leaf",
-        summary: "Leaf",
-        incomingLinks: ["left", "right"],
-      }),
-    ];
-    const nodes = getLayoutedElements(
-      createNodesFromTasks(tasks),
-      createEdgesFromTasks(tasks),
-      "Horizontal",
-      true,
-      false,
-      tasks,
-      undefined,
-      "compact"
-    );
+  it.each(["Horizontal", "Vertical"] as const)(
+    "does not overlap compact task bounds in %s layouts",
+    (direction) => {
+      const tasks = [
+        makeTask({ id: "root", summary: "Root" }),
+        makeTask({ id: "left", summary: "Left", incomingLinks: ["root"] }),
+        makeTask({ id: "right", summary: "Right", incomingLinks: ["root"] }),
+        makeTask({
+          id: "leaf",
+          summary: "Leaf",
+          incomingLinks: ["left", "right"],
+        }),
+      ];
+      const nodes = getLayoutedElements(
+        createNodesFromTasks(tasks),
+        createEdgesFromTasks(tasks),
+        direction,
+        true,
+        false,
+        tasks,
+        undefined,
+        "compact"
+      );
 
-    for (let leftIndex = 0; leftIndex < nodes.length; leftIndex += 1) {
-      for (
-        let rightIndex = leftIndex + 1;
-        rightIndex < nodes.length;
-        rightIndex += 1
-      ) {
-        const left = nodes[leftIndex];
-        const right = nodes[rightIndex];
-        const separated =
-          left.position.x + 250 <= right.position.x ||
-          right.position.x + 250 <= left.position.x ||
-          left.position.y + COMPACT_NODE_HEIGHT <= right.position.y ||
-          right.position.y + COMPACT_NODE_HEIGHT <= left.position.y;
-        expect(separated).toBe(true);
+      for (let leftIndex = 0; leftIndex < nodes.length; leftIndex += 1) {
+        for (
+          let rightIndex = leftIndex + 1;
+          rightIndex < nodes.length;
+          rightIndex += 1
+        ) {
+          const left = nodes[leftIndex];
+          const right = nodes[rightIndex];
+          const separated =
+            left.position.x + 250 <= right.position.x ||
+            right.position.x + 250 <= left.position.x ||
+            left.position.y + COMPACT_NODE_HEIGHT <= right.position.y ||
+            right.position.y + COMPACT_NODE_HEIGHT <= left.position.y;
+          expect(separated).toBe(true);
+        }
       }
     }
-  });
+  );
 
   it("leaves task and project-group dragging to the view policy", () => {
     const tasks = [makeTask({ projects: ["Alpha"] })];

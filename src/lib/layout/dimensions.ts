@@ -9,7 +9,7 @@ const ATTACHMENT_LIST_WIDTH = 420;
 const ATTACHMENT_ROW_HEIGHT = 20;
 const ATTACHMENT_LIST_TOP_MARGIN = 6;
 
-export const COMPACT_NODE_HEIGHT = 56;
+export const COMPACT_NODE_HEIGHT = 76;
 
 export interface NodeDimensions {
   width: number;
