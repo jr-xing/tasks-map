@@ -235,6 +235,14 @@ If your plugin does not need CSS, delete this file.
   width: 250px;
 }
 
+.tasks-map-graph-container
+  .react-flow__node-task:has(
+    .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
+  ) {
+  /* stylelint-disable-next-line declaration-no-important -- override ReactFlow inline stacking */
+  z-index: 1001 !important;
+}
+
 /* Compact cards keep the same React tree and disclose their chrome in place. */
 .tasks-map-task-node-shell--compact .tasks-map-task-background {
   box-sizing: border-box;
