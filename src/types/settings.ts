@@ -61,6 +61,14 @@ export interface TasksMapSettings {
 
   // Height (in pixels) of the resizable Kanban overlay.
   kanbanPanelHeight: number;
+  // Kanban-only display preferences. These do not change graph task labels or
+  // the order of the underlying status definitions.
+  kanbanCardTitleSource: NoteTaskTitleSource;
+  kanbanShowProjectTasks: boolean;
+  kanbanShowCardStatus: boolean;
+  kanbanGroupByProject: boolean;
+  // Empty means use the configured task-status order.
+  kanbanColumnOrder: string[];
 
   // Task editor (right sidebar) panel preferences.
   // Width in pixels of the resizable panel.
@@ -146,6 +154,11 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
 
   // Kanban overlay default
   kanbanPanelHeight: 360,
+  kanbanCardTitleSource: "frontmatter",
+  kanbanShowProjectTasks: false,
+  kanbanShowCardStatus: false,
+  kanbanGroupByProject: true,
+  kanbanColumnOrder: [],
 
   // Task editor panel defaults
   editorPanelWidth: 340,

@@ -1,9 +1,14 @@
 import {
   buildKanbanColumns,
   buildKanbanFocusOptions,
+  buildKanbanSections,
+  getKanbanCardTitle,
   getKanbanTasks,
+  moveKanbanColumn,
   moveKanbanTaskStatus,
+  resolveKanbanColumnOrder,
 } from "../src/lib/kanban";
+import { DataviewTask } from "../src/types/dataview-task";
 import type { TaskPriorityConfig } from "../src/lib/priority-config";
 import type { TaskStatusConfig } from "../src/lib/status-config";
 import {
@@ -12,6 +17,7 @@ import {
 } from "../src/types/filter-state";
 import { NoteTask } from "../src/types/note-task";
 import type { BaseTask } from "../src/types/task";
+import { DEFAULT_SETTINGS } from "../src/types/settings";
 
 const STATUSES: TaskStatusConfig[] = [
   {
@@ -51,12 +57,16 @@ interface TaskOverrides {
   link?: string;
   projects?: string[];
   incomingLinks?: string[];
+  isProject?: boolean;
+  summary?: string;
+  noteFilename?: string;
+  noteFrontmatterTitle?: string | null;
 }
 
 function makeTask(overrides: TaskOverrides): BaseTask {
   return new NoteTask({
     id: overrides.id,
-    summary: overrides.id,
+    summary: overrides.summary ?? overrides.id,
     text: overrides.id,
     tags: overrides.tags ?? [],
     status: overrides.status ?? "todo",
@@ -65,6 +75,9 @@ function makeTask(overrides: TaskOverrides): BaseTask {
     incomingLinks: overrides.incomingLinks ?? [],
     starred: overrides.starred ?? false,
     projects: overrides.projects ?? [],
+    isProject: overrides.isProject ?? false,
+    noteFilename: overrides.noteFilename,
+    noteFrontmatterTitle: overrides.noteFrontmatterTitle,
   });
 }
 
@@ -105,6 +118,97 @@ describe("buildKanbanColumns", () => {
       "normal",
     ]);
   });
+
+  it("reorders columns without changing status assignment", () => {
+    const columns = buildKanbanColumns(
+      [makeTask({ id: "one", status: "active" })],
+      STATUSES,
+      PRIORITIES,
+      { columnOrder: ["done", "todo", "active"] }
+    );
+
+    expect(columns.map((column) => column.status.id)).toEqual([
+      "done",
+      "todo",
+      "active",
+    ]);
+    expect(columns[2].tasks.map((task) => task.id)).toEqual(["one"]);
+  });
+});
+
+describe("Kanban titles and visibility", () => {
+  it("uses readable backward-compatible defaults", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({
+      kanbanCardTitleSource: "frontmatter",
+      kanbanShowProjectTasks: false,
+      kanbanShowCardStatus: false,
+      kanbanGroupByProject: true,
+      kanbanColumnOrder: [],
+    });
+  });
+
+  it("uses a frontmatter title with filename fallback", () => {
+    const titled = makeTask({
+      id: "titled",
+      summary: "Global label",
+      noteFilename: "2026-09-03-task",
+      noteFrontmatterTitle: "Readable task title",
+    });
+    const untitled = makeTask({
+      id: "untitled",
+      noteFilename: "Untitled task",
+      noteFrontmatterTitle: null,
+    });
+
+    expect(getKanbanCardTitle(titled, "frontmatter")).toBe(
+      "Readable task title"
+    );
+    expect(getKanbanCardTitle(titled, "filename")).toBe("2026-09-03-task");
+    expect(getKanbanCardTitle(untitled, "frontmatter")).toBe("Untitled task");
+  });
+
+  it("keeps the normal summary for inline tasks", () => {
+    const task = new DataviewTask({
+      id: "inline",
+      summary: "Inline task",
+      text: "Inline task",
+      tags: [],
+      status: "todo",
+      priority: "",
+      link: "Notes/today.md",
+      incomingLinks: [],
+      starred: false,
+    });
+
+    expect(getKanbanCardTitle(task, "frontmatter")).toBe("Inline task");
+    expect(getKanbanCardTitle(task, "filename")).toBe("Inline task");
+  });
+});
+
+describe("Kanban column order", () => {
+  it("drops unknown and duplicate ids and appends new statuses", () => {
+    expect(
+      resolveKanbanColumnOrder(STATUSES, [
+        "done",
+        "missing",
+        "done",
+        "todo",
+      ]).map((status) => status.id)
+    ).toEqual(["done", "todo", "active"]);
+  });
+
+  it("moves a column before or after a target", () => {
+    expect(moveKanbanColumn(STATUSES, [], "done", "todo", "before")).toEqual([
+      "done",
+      "todo",
+      "active",
+    ]);
+    expect(moveKanbanColumn(STATUSES, [], "todo", "done", "after")).toEqual([
+      "active",
+      "done",
+      "todo",
+    ]);
+  });
 });
 
 describe("getKanbanTasks", () => {
@@ -137,6 +241,125 @@ describe("getKanbanTasks", () => {
     );
 
     expect(result.map((task) => task.id)).toEqual(["root", "child"]);
+  });
+
+  it("can hide project task cards after applying content filters", () => {
+    const project = makeTask({ id: "project", isProject: true });
+    const task = makeTask({ id: "task", incomingLinks: ["project"] });
+
+    expect(
+      getKanbanTasks([project, task], filter(), {
+        showProjectTasks: false,
+      }).map((item) => item.id)
+    ).toEqual(["task"]);
+  });
+});
+
+describe("buildKanbanSections", () => {
+  it("prefers explicit TaskNotes project labels for grouping", () => {
+    const alpha = makeTask({ id: "alpha", projects: ["Project A"] });
+    const beta = makeTask({ id: "beta", projects: ["Project A"] });
+
+    const [section] = buildKanbanSections(
+      [alpha, beta],
+      new Map(),
+      PRIORITIES,
+      true
+    );
+
+    expect(section).toMatchObject({
+      kind: "project",
+      label: "Project A",
+    });
+    expect(section.rows.map((row) => row.task.id).sort()).toEqual([
+      "alpha",
+      "beta",
+    ]);
+  });
+
+  it("groups one project and indents only visible same-column children", () => {
+    const parent = makeTask({ id: "parent", priority: "none" });
+    const child = makeTask({
+      id: "child",
+      priority: "high",
+      incomingLinks: ["parent"],
+    });
+    const options = new Map([
+      ["parent", [{ rootTaskId: "project", label: "Project" }]],
+      ["child", [{ rootTaskId: "project", label: "Project" }]],
+    ]);
+
+    const [section] = buildKanbanSections(
+      [child, parent],
+      options,
+      PRIORITIES,
+      true
+    );
+
+    expect(section.kind).toBe("project");
+    expect(section.rows.map((row) => [row.task.id, row.depth])).toEqual([
+      ["parent", 0],
+      ["child", 1],
+    ]);
+  });
+
+  it("makes a child a local root when its parent is in another column", () => {
+    const child = makeTask({ id: "child", incomingLinks: ["parent"] });
+    const options = new Map([
+      ["child", [{ rootTaskId: "project", label: "Project" }]],
+    ]);
+
+    const [section] = buildKanbanSections([child], options, PRIORITIES, true);
+
+    expect(section.rows).toEqual([{ task: child, depth: 0 }]);
+  });
+
+  it("renders multi-project and unassigned tasks once", () => {
+    const shared = makeTask({ id: "shared" });
+    const orphan = makeTask({ id: "orphan" });
+    const options = new Map([
+      [
+        "shared",
+        [
+          { rootTaskId: "alpha", label: "Alpha" },
+          { rootTaskId: "beta", label: "Beta" },
+        ],
+      ],
+    ]);
+
+    const sections = buildKanbanSections(
+      [shared, orphan],
+      options,
+      PRIORITIES,
+      true
+    );
+
+    expect(sections.map((section) => section.kind).sort()).toEqual([
+      "multiple_projects",
+      "no_project",
+    ]);
+    expect(sections.flatMap((section) => section.rows)).toHaveLength(2);
+  });
+
+  it("breaks dependency cycles and never duplicates cards", () => {
+    const alpha = makeTask({ id: "alpha", incomingLinks: ["beta"] });
+    const beta = makeTask({ id: "beta", incomingLinks: ["alpha"] });
+    const options = new Map([
+      ["alpha", [{ rootTaskId: "project", label: "Project" }]],
+      ["beta", [{ rootTaskId: "project", label: "Project" }]],
+    ]);
+
+    const [section] = buildKanbanSections(
+      [alpha, beta],
+      options,
+      PRIORITIES,
+      true
+    );
+
+    expect(section.rows.map((row) => row.task.id).sort()).toEqual([
+      "alpha",
+      "beta",
+    ]);
   });
 });
 

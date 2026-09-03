@@ -12,3 +12,5 @@ export const Crosshair = jest.fn(() => null);
 export const ListTodo = jest.fn(() => null);
 export const Kanban = jest.fn(() => null);
 export const Pin = jest.fn(() => null);
+export const GripVertical = jest.fn(() => null);
+export const Settings2 = jest.fn(() => null);

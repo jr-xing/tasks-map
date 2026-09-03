@@ -34,6 +34,10 @@ export abstract class BaseTask {
   quickComments: string;
   isProject: boolean;
   dueDate: string | null;
+  // Raw note-title sources used by views that allow an independent display
+  // choice. They stay null for inline/Dataview tasks.
+  noteFilename: string | null;
+  noteFrontmatterTitle: string | null;
 
   constructor(data: {
     id: string;
@@ -50,6 +54,8 @@ export abstract class BaseTask {
     quickComments?: string;
     isProject?: boolean;
     dueDate?: string | null;
+    noteFilename?: string | null;
+    noteFrontmatterTitle?: string | null;
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -65,6 +71,8 @@ export abstract class BaseTask {
     this.quickComments = data.quickComments ?? "";
     this.isProject = data.isProject ?? false;
     this.dueDate = data.dueDate ?? null;
+    this.noteFilename = data.noteFilename ?? null;
+    this.noteFrontmatterTitle = data.noteFrontmatterTitle ?? null;
   }
 
   /**
@@ -154,6 +162,8 @@ export abstract class BaseTask {
       quickComments: this.quickComments,
       isProject: this.isProject,
       dueDate: this.dueDate,
+      noteFilename: this.noteFilename,
+      noteFrontmatterTitle: this.noteFrontmatterTitle,
     };
   }
 }

@@ -5,6 +5,7 @@ import { cloneDefaultPriorities, isNoPriority } from "../lib/priority-config";
 import { taskPrioritiesFromSchemaValues } from "../lib/tasknotes-type-schema";
 import { getTaskNotesConfig } from "../lib/tasknotes-bridge";
 import { cloneDefaultStatuses } from "../lib/status-config";
+import { moveKanbanColumn, resolveKanbanColumnOrder } from "../lib/kanban";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   NodeDensity,
@@ -223,6 +224,73 @@ export class TasksMapSettingTab extends PluginSettingTab {
           });
         });
     });
+  }
+
+  private renderKanbanSection(containerEl: HTMLElement): void {
+    new Setting(containerEl).setHeading().setName(t("settings.kanban"));
+
+    const desc = containerEl.createDiv({ cls: "tasks-map-preview-desc" });
+    desc.textContent = t("settings.kanban_column_order_desc");
+
+    const statuses = this.plugin.settings.taskStatuses;
+    const orderedStatuses = resolveKanbanColumnOrder(
+      statuses,
+      this.plugin.settings.kanbanColumnOrder
+    );
+    const columnOrder = orderedStatuses.map((status) => status.id);
+
+    orderedStatuses.forEach((status, index) => {
+      new Setting(containerEl)
+        .setName(status.label || t("settings.status_unnamed"))
+        .addExtraButton((button) =>
+          button
+            .setIcon("arrow-left")
+            .setTooltip(t("settings.kanban_column_move_left"))
+            .setDisabled(index === 0)
+            .onClick(async () => {
+              const target = orderedStatuses[index - 1];
+              if (!target) return;
+              this.plugin.settings.kanbanColumnOrder = moveKanbanColumn(
+                statuses,
+                columnOrder,
+                status.id,
+                target.id,
+                "before"
+              );
+              await this.plugin.saveSettings();
+              this.display();
+            })
+        )
+        .addExtraButton((button) =>
+          button
+            .setIcon("arrow-right")
+            .setTooltip(t("settings.kanban_column_move_right"))
+            .setDisabled(index === orderedStatuses.length - 1)
+            .onClick(async () => {
+              const target = orderedStatuses[index + 1];
+              if (!target) return;
+              this.plugin.settings.kanbanColumnOrder = moveKanbanColumn(
+                statuses,
+                columnOrder,
+                status.id,
+                target.id,
+                "after"
+              );
+              await this.plugin.saveSettings();
+              this.display();
+            })
+        );
+    });
+
+    new Setting(containerEl).addButton((button) =>
+      button
+        .setButtonText(t("settings.kanban_column_reset"))
+        .onClick(async () => {
+          this.plugin.settings.kanbanColumnOrder = [];
+          await this.plugin.saveSettings();
+          this.display();
+        })
+    );
   }
 
   private renderTaskPrioritiesSection(containerEl: HTMLElement): void {
@@ -739,6 +807,7 @@ export class TasksMapSettingTab extends PluginSettingTab {
     );
 
     this.renderTaskStatusesSection(containerEl);
+    this.renderKanbanSection(containerEl);
     this.renderTaskPrioritiesSection(containerEl);
 
     new Setting(containerEl)

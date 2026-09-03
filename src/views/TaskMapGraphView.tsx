@@ -56,7 +56,9 @@ import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
 import ProjectTreePanel from "src/components/project-tree-panel";
-import KanbanPanel from "src/components/kanban-panel";
+import KanbanPanel, {
+  type KanbanDisplayPreferences,
+} from "src/components/kanban-panel";
 import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
@@ -703,6 +705,33 @@ export default function TaskMapGraphView({
       new Notice(t("kanban.status_update_failed"));
     },
     [app, handleTaskStatusChange, settings.taskStatuses, tasks, trackVaultWrite]
+  );
+
+  const handleKanbanPreferencesChange = useCallback(
+    (patch: Partial<KanbanDisplayPreferences>) => {
+      const settingsPatch: Partial<TasksMapSettings> = {};
+      if (patch.cardTitleSource !== undefined) {
+        settingsPatch.kanbanCardTitleSource = patch.cardTitleSource;
+      }
+      if (patch.showProjectTasks !== undefined) {
+        settingsPatch.kanbanShowProjectTasks = patch.showProjectTasks;
+      }
+      if (patch.showCardStatus !== undefined) {
+        settingsPatch.kanbanShowCardStatus = patch.showCardStatus;
+      }
+      if (patch.groupByProject !== undefined) {
+        settingsPatch.kanbanGroupByProject = patch.groupByProject;
+      }
+      void plugin.updateSettings(settingsPatch);
+    },
+    [plugin]
+  );
+
+  const handleKanbanColumnOrderChange = useCallback(
+    (columnOrder: string[]) => {
+      void plugin.updateSettings({ kanbanColumnOrder: columnOrder });
+    },
+    [plugin]
   );
 
   const handleTaskPriorityChange = useCallback(
@@ -1948,13 +1977,33 @@ export default function TaskMapGraphView({
   }, [graphTasks, filterState]);
 
   const kanbanTasks = useMemo(
-    () => getKanbanTasks(tasks, filterState),
-    [tasks, filterState]
+    () =>
+      getKanbanTasks(tasks, filterState, {
+        showProjectTasks: settings.kanbanShowProjectTasks,
+      }),
+    [tasks, filterState, settings.kanbanShowProjectTasks]
   );
 
   const kanbanFocusOptions = useMemo(
     () => buildKanbanFocusOptions(tasks),
     [tasks]
+  );
+
+  const kanbanPreferences = useMemo<KanbanDisplayPreferences>(
+    () => ({
+      cardTitleSource: settings.kanbanCardTitleSource,
+      showProjectTasks: settings.kanbanShowProjectTasks,
+      showCardStatus: settings.kanbanShowCardStatus,
+      groupByProject: settings.kanbanGroupByProject,
+      columnOrder: settings.kanbanColumnOrder,
+    }),
+    [
+      settings.kanbanCardTitleSource,
+      settings.kanbanColumnOrder,
+      settings.kanbanGroupByProject,
+      settings.kanbanShowCardStatus,
+      settings.kanbanShowProjectTasks,
+    ]
   );
 
   const treeTasks = useMemo(() => {
@@ -2108,12 +2157,15 @@ export default function TaskMapGraphView({
                 statuses={settings.taskStatuses}
                 notePriorityOptions={notePriorityOptions}
                 focusOptions={kanbanFocusOptions}
+                preferences={kanbanPreferences}
                 pinned={isKanbanPinned}
                 onPinnedChange={setIsKanbanPinned}
                 onClose={closeKanban}
                 onFocusProject={handleTreeTaskFocus}
                 onTaskStatusChange={handleTaskStatusChange}
                 onTaskStatusMove={handleKanbanStatusMove}
+                onPreferencesChange={handleKanbanPreferencesChange}
+                onColumnOrderChange={handleKanbanColumnOrderChange}
                 trackVaultWrite={trackVaultWrite}
               />
               <div

@@ -1071,6 +1071,14 @@ function parseTaskNote(
 
   // For note-based tasks, use the file path as the ID
   task.id = file.path;
+  task.noteFilename = file.basename;
+  const titleProperty =
+    displaySettings?.noteTaskTitleProperty === undefined
+      ? DEFAULT_NOTE_TASK_TITLE_PROPERTY
+      : displaySettings.noteTaskTitleProperty.trim();
+  task.noteFrontmatterTitle = titleProperty
+    ? displayTitleValue(frontmatter[titleProperty])
+    : null;
   task.isProject = noteHasTaskCriteriaValue(
     frontmatter,
     displaySettings?.noteTaskPropertyName || DEFAULT_NOTE_TASK_PROPERTY_NAME,

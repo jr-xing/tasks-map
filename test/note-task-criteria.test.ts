@@ -92,6 +92,10 @@ describe("inspectNoteTask", () => {
     expect(result.kind).toBe("included");
     if (result.kind !== "included") return;
     expect(result.task.isProject).toBe(true);
+    expect(result.task.noteFilename).toBe("Project");
+    expect(result.task.noteFrontmatterTitle).toBe(
+      "AHA Scientific Session Abstract Submission"
+    );
     expect(result.task.tags).toEqual([]);
     expect(result.task.status).toBe("active-status");
     expect(result.statusResolution).toEqual({
@@ -322,6 +326,8 @@ describe("getNoteTasks - configurable criteria", () => {
         link: "Short.md",
         text: "Short",
         summary: "Short",
+        noteFilename: "Short",
+        noteFrontmatterTitle: "Readable title",
       });
     });
 
@@ -338,6 +344,8 @@ describe("getNoteTasks - configurable criteria", () => {
         link: "Short.md",
         text: "Short",
         summary: "Readable title",
+        noteFilename: "Short",
+        noteFrontmatterTitle: "Readable title",
       });
     });
 
