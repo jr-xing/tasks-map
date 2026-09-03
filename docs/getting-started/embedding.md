@@ -2,6 +2,11 @@
 
 You can embed a fully interactive Tasks Map graph directly inside any note using a fenced code block. The embedded graph supports panning, zooming, and filtering — the same as the main view.
 
+Embedded task cards support Page Preview: hold `Ctrl` on Windows/Linux or
+`Cmd` on macOS while hovering over a non-interactive area of a card. The
+modifier can be customized in Obsidian's Page Preview settings, and the Hover
+Editor community plugin can make the resulting popover editable.
+
 !!! warning
     Tasks Map is pre-v1.0. The embed JSON format — including field names and structure — may change between releases before v1.0 is reached. If you write `tasks-map` code blocks by hand, those blocks may break when you update the plugin. The safest approach is to use the [insert commands](#inserting-an-embed-block) to generate blocks, so that re-inserting them when the format changes is straightforward.
 

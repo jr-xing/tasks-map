@@ -8,6 +8,7 @@ import {
   Notice,
 } from "obsidian";
 import type { FuzzyMatch, TAbstractFile } from "obsidian";
+import type { HoverParent, HoverPopover } from "obsidian";
 import { createRoot } from "react-dom/client";
 
 import TaskMapGraphItemView, { VIEW_TYPE } from "./views/TaskMapGraphItemView";
@@ -52,6 +53,13 @@ import { buildNoteVisibilityReport } from "./lib/note-visibility";
 import { NoteVisibilityModal } from "./lib/note-visibility-modal";
 
 const EMBED_CODE_BLOCK = "tasks-map";
+
+class TaskMapMarkdownRenderChild
+  extends MarkdownRenderChild
+  implements HoverParent
+{
+  hoverPopover: HoverPopover | null = null;
+}
 
 class NoteSuggestModal extends FuzzySuggestModal<TFile> {
   private onChoose: (_file: TFile) => void;
@@ -177,6 +185,11 @@ export default class TasksMapPlugin extends Plugin {
     await this.refreshTaskNotesTypeSchema({ notify: false });
     this.registerTaskNotesTypeSchemaEvents();
 
+    this.registerHoverLinkSource(this.manifest.id, {
+      display: this.manifest.name,
+      defaultMod: true,
+    });
+
     // Always register the view - it will handle the Dataview check internally
     this.registerView(
       VIEW_TYPE,
@@ -237,7 +250,7 @@ export default class TasksMapPlugin extends Plugin {
 
         // Register cleanup via MarkdownRenderChild so the root is unmounted
         // when the embed is removed or the preview re-renders
-        const child = new MarkdownRenderChild(el);
+        const child = new TaskMapMarkdownRenderChild(el);
         child.onunload = () => root.unmount();
         ctx.addChild(child);
 
@@ -258,6 +271,7 @@ export default class TasksMapPlugin extends Plugin {
             plugin={this}
             initialFilter={parsed.filter}
             embedConfig={parsed.config}
+            hoverParent={child}
           />
         );
       }

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import type { HoverParent } from "obsidian";
 import { ReactFlowProvider } from "reactflow";
-import { AppContext } from "src/contexts/context";
+import { AppContext, TaskHoverPreviewContext } from "src/contexts/context";
 import TaskMapGraphView from "./TaskMapGraphView";
 import type TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
@@ -22,12 +23,14 @@ interface TaskMapGraphEmbedViewProps {
   plugin: TasksMapPlugin;
   initialFilter: FilterState;
   embedConfig: EmbedConfig;
+  hoverParent: HoverParent;
 }
 
 export default function TaskMapGraphEmbedView({
   plugin,
   initialFilter,
   embedConfig,
+  hoverParent,
 }: TaskMapGraphEmbedViewProps) {
   const [settings, setSettings] = useState<TasksMapSettings>({
     ...plugin.settings,
@@ -39,6 +42,10 @@ export default function TaskMapGraphEmbedView({
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const hoverPreviewContextValue = useMemo(
+    () => ({ source: plugin.manifest.id, hoverParent }),
+    [hoverParent, plugin.manifest.id]
+  );
 
   useEffect(() => {
     if (containerRef.current) {
@@ -55,17 +62,19 @@ export default function TaskMapGraphEmbedView({
 
   return (
     <AppContext.Provider value={plugin.app}>
-      <div className="tasks-map-embed-container" ref={containerRef}>
-        <ReactFlowProvider>
-          <TaskMapGraphView
-            settings={settings}
-            filterState={filterState}
-            setFilterState={setFilterState}
-            plugin={plugin}
-            embedConfig={embedConfig}
-          />
-        </ReactFlowProvider>
-      </div>
+      <TaskHoverPreviewContext.Provider value={hoverPreviewContextValue}>
+        <div className="tasks-map-embed-container" ref={containerRef}>
+          <ReactFlowProvider>
+            <TaskMapGraphView
+              settings={settings}
+              filterState={filterState}
+              setFilterState={setFilterState}
+              plugin={plugin}
+              embedConfig={embedConfig}
+            />
+          </ReactFlowProvider>
+        </div>
+      </TaskHoverPreviewContext.Provider>
     </AppContext.Provider>
   );
 }

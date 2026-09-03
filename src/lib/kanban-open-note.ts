@@ -1,16 +1,7 @@
 import type { App } from "obsidian";
 import type { BaseTask } from "src/types/task";
 import { openFileInObsidian } from "./open-file";
-
-const KANBAN_CARD_INTERACTIVE_SELECTOR = [
-  "button",
-  "a",
-  "input",
-  "select",
-  "textarea",
-  "[role='button']",
-  "[contenteditable='true']",
-].join(", ");
+import { isTaskCardInteractiveTarget } from "./task-hover-preview";
 
 interface KanbanOpenNoteOptions {
   openInNewTab?: boolean;
@@ -37,10 +28,7 @@ export async function openKanbanTaskNote(
 export function isKanbanCardInteractiveTarget(
   target: EventTarget | null
 ): boolean {
-  const candidate = target as {
-    closest?: (_selector: string) => Element | null;
-  } | null;
-  return candidate?.closest?.(KANBAN_CARD_INTERACTIVE_SELECTOR) != null;
+  return isTaskCardInteractiveTarget(target);
 }
 
 export function shouldOpenKanbanCardOnDoubleClick(options: {

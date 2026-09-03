@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { ItemView, WorkspaceLeaf } from "obsidian";
+import type { HoverParent } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import { ReactFlowProvider } from "reactflow";
-import { AppContext } from "src/contexts/context";
+import { AppContext, TaskHoverPreviewContext } from "src/contexts/context";
 import TaskMapGraphView from "./TaskMapGraphView";
 import TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
@@ -21,6 +22,7 @@ function TaskMapGraphWrapper({
   onFocusRequestHandlerChange,
   onVisibilityContextChange,
   onReloadHandlerChange,
+  hoverParent,
 }: {
   pluginSettings: TasksMapSettings;
   plugin: TasksMapPlugin;
@@ -34,6 +36,7 @@ function TaskMapGraphWrapper({
     _context: LiveMapVisibilityContext | null
   ) => void;
   onReloadHandlerChange: (_handler: (() => void) | null) => void;
+  hoverParent: HoverParent;
 }) {
   const [settings, setSettings] = useState<TasksMapSettings>({
     ...pluginSettings,
@@ -53,6 +56,10 @@ function TaskMapGraphWrapper({
   );
   const [focusRequest, setFocusRequest] = useState<TaskMapFocusRequest | null>(
     initialFocusRequest
+  );
+  const hoverPreviewContextValue = useMemo(
+    () => ({ source: plugin.manifest.id, hoverParent }),
+    [hoverParent, plugin.manifest.id]
   );
 
   useEffect(() => {
@@ -74,21 +81,23 @@ function TaskMapGraphWrapper({
   );
 
   return (
-    <ReactFlowProvider>
-      <TaskMapGraphView
-        settings={settings}
-        filterState={filterState}
-        setFilterState={handleSetFilterState}
-        plugin={plugin}
-        focusRequest={focusRequest}
-        onFocusRequestHandled={() => {
-          setFocusRequest(null);
-          onFocusRequestHandled();
-        }}
-        onVisibilityContextChange={onVisibilityContextChange}
-        onReloadHandlerChange={onReloadHandlerChange}
-      />
-    </ReactFlowProvider>
+    <TaskHoverPreviewContext.Provider value={hoverPreviewContextValue}>
+      <ReactFlowProvider>
+        <TaskMapGraphView
+          settings={settings}
+          filterState={filterState}
+          setFilterState={handleSetFilterState}
+          plugin={plugin}
+          focusRequest={focusRequest}
+          onFocusRequestHandled={() => {
+            setFocusRequest(null);
+            onFocusRequestHandled();
+          }}
+          onVisibilityContextChange={onVisibilityContextChange}
+          onReloadHandlerChange={onReloadHandlerChange}
+        />
+      </ReactFlowProvider>
+    </TaskHoverPreviewContext.Provider>
   );
 }
 
@@ -173,6 +182,7 @@ export default class TaskMapGraphItemView extends ItemView {
           onReloadHandlerChange={(handler) => {
             this.reloadHandler = handler;
           }}
+          hoverParent={this.leaf}
         />
       </AppContext.Provider>
     );

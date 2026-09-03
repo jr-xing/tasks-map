@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import { Menu, Notice } from "obsidian";
 import {
   ArrowUpRight,
@@ -32,7 +32,9 @@ import {
 } from "src/lib/kanban";
 import type { TaskStatusConfig } from "src/lib/status-config";
 import type { VaultWriteTracker } from "src/lib/vault-watcher";
+import { triggerTaskHoverPreview } from "src/lib/task-hover-preview";
 import type { BaseTask, TaskStatus } from "src/types/task";
+import { TaskHoverPreviewContext } from "src/contexts/context";
 import { TaskStatusToggle } from "./task-status";
 import { t } from "../i18n";
 
@@ -117,6 +119,7 @@ export default function KanbanPanel({
   trackVaultWrite,
 }: KanbanPanelProps) {
   const app = useApp();
+  const taskHoverPreview = useContext(TaskHoverPreviewContext);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
@@ -367,6 +370,22 @@ export default function KanbanPanel({
     [draggedTaskId, handleOpenTaskNote, preferences.openNoteOnDoubleClick]
   );
 
+  const handleCardHoverPreview = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>, task: BaseTask) => {
+      if (!taskHoverPreview) return;
+      triggerTaskHoverPreview({
+        app,
+        task,
+        event: event.nativeEvent,
+        source: taskHoverPreview.source,
+        hoverParent: taskHoverPreview.hoverParent,
+        targetEl: event.currentTarget,
+        originTarget: event.target,
+      });
+    },
+    [app, taskHoverPreview]
+  );
+
   const renderCard = useCallback(
     (row: KanbanTaskRow, section: KanbanSection) => {
       const { task } = row;
@@ -399,6 +418,7 @@ export default function KanbanPanel({
           onDragStart={(event) => handleTaskDragStart(event, task.id)}
           onDragEnd={handleTaskDragEnd}
           onDoubleClick={(event) => handleCardDoubleClick(event, task)}
+          onMouseEnter={(event) => handleCardHoverPreview(event, task)}
         >
           <div className="tasks-map-kanban__card-main">
             {preferences.showCardStatus && (
@@ -493,6 +513,7 @@ export default function KanbanPanel({
       app,
       focusOptions,
       handleCardDoubleClick,
+      handleCardHoverPreview,
       handleFocus,
       handleOpenNoteAuxClick,
       handleOpenNoteClick,

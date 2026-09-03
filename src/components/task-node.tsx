@@ -38,9 +38,10 @@ import {
   removeStarFromTaskInVault,
   getVisibleTaskAttachments,
 } from "../lib/utils";
-import { TagsContext } from "../contexts/context";
+import { TagsContext, TaskHoverPreviewContext } from "../contexts/context";
 import { t } from "../i18n";
 import { openFileInObsidian } from "../lib/open-file";
+import { triggerTaskHoverPreview } from "../lib/task-hover-preview";
 import {
   isTaskNotesCreationModalAvailable,
   openTaskNotesProjectTaskCreationModal,
@@ -175,6 +176,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   } = data;
 
   const { allTags, updateTaskTags } = useContext(TagsContext);
+  const taskHoverPreview = useContext(TaskHoverPreviewContext);
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState(task.status);
   const [priority, setPriority] = useState(task.priority);
@@ -560,6 +562,30 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     e.stopPropagation();
   }, []);
 
+  const handleHoverPreview = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!taskHoverPreview) return;
+      triggerTaskHoverPreview({
+        app,
+        task,
+        event: event.nativeEvent,
+        source: taskHoverPreview.source,
+        hoverParent: taskHoverPreview.hoverParent,
+        targetEl: event.currentTarget,
+        originTarget: event.target,
+      });
+    },
+    [app, task, taskHoverPreview]
+  );
+
+  const handleNodeMouseEnter = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      handleCompactMouseEnter();
+      handleHoverPreview(event);
+    },
+    [handleCompactMouseEnter, handleHoverPreview]
+  );
+
   return (
     <div
       className={[
@@ -570,7 +596,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       ]
         .filter(Boolean)
         .join(" ")}
-      onMouseEnter={handleCompactMouseEnter}
+      onMouseEnter={handleNodeMouseEnter}
       onMouseLeave={handleCompactMouseLeave}
     >
       <div ref={compactCardRef} className="tasks-map-task-node-card">

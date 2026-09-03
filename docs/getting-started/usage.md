@@ -17,6 +17,12 @@ Each task is represented as a node. Edges between nodes indicate task dependenci
 - **Pan** by clicking and dragging the canvas background.
 - **Zoom** with the scroll wheel or trackpad pinch.
 - **Select a node** by clicking it.
+- **Preview a task's source note** by holding `Ctrl` on Windows/Linux or
+  `Cmd` on macOS while hovering over a non-interactive area of its card.
+
+Hover previews use Obsidian's Page Preview core plugin. The modifier requirement
+can be changed for Tasks Map in Page Preview's settings. If the Hover Editor
+community plugin is installed, the same popover can also edit the source note.
 
 ## Task Node Actions
 
