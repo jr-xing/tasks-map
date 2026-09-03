@@ -1,6 +1,6 @@
 import { Node, Edge } from "reactflow";
 import { BaseTask } from "./base-task";
-import type { TaskAttachment } from "./base-task";
+import type { TaskAttachment, TaskAttachmentKind } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
 import { TaskPriorityConfig } from "../lib/priority-config";
 import { NodeDensity, PriorityAccentPosition } from "./settings";
@@ -31,7 +31,13 @@ export interface TaskNodeData {
   debugVisualization?: boolean;
   groupByProject?: boolean;
   tagColorPalette?: TagColorPalette;
+  visibleAttachmentKinds?: TaskAttachmentKind[];
   priorityOptions?: TaskPriorityConfig[];
+  hasVisibleChildren?: boolean;
+  childrenCollapsed?: boolean;
+  foldedChildrenCount?: number;
+  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
+  onToggleChildren?: (taskId: string) => void;
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onDeleteTask?: (taskId: string) => void;
   /** Called after an external editor (e.g. TaskNotes modal) saves changes. */
@@ -49,6 +55,14 @@ export interface TaskNodeData {
   // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
   onTaskStarredChange?: (taskId: string, starred: boolean) => void;
   trackVaultWrite?: VaultWriteTracker;
+}
+
+export interface TaskNodeFoldingOptions {
+  taskIdsWithVisibleChildren: ReadonlySet<string>;
+  collapsedTaskIds: ReadonlySet<string>;
+  foldedDescendantCounts: ReadonlyMap<string, number>;
+  // eslint-disable-next-line no-unused-vars -- callback parameter convention
+  onToggleChildren: (taskId: string) => void;
 }
 
 export interface TaskEdgeData {

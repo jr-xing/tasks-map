@@ -1,11 +1,15 @@
 import React, { useState, useContext, useCallback, useEffect } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
-import { CirclePlus, Paperclip, Plus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CirclePlus,
+  Paperclip,
+  Plus,
+} from "lucide-react";
 import { useApp } from "src/hooks/hooks";
-import { BaseTask, TaskStatus } from "src/types/task";
+import { BaseTask, TaskNodeData, TaskStatus } from "src/types/task";
 import { TaskAttachmentKind } from "src/types/base-task";
-import { TaskPriorityConfig } from "src/lib/priority-config";
-import { NodeDensity, PriorityAccentPosition } from "src/types/settings";
 import { NoteTask } from "src/types/note-task";
 import { TaskDetails } from "./task-details";
 import { ExpandButton } from "./expand-button";
@@ -34,40 +38,10 @@ import {
   isTaskNotesCreationModalAvailable,
   openTaskNotesProjectTaskCreationModal,
 } from "../lib/tasknotes-bridge";
-import type { VaultWriteTracker } from "../lib/vault-watcher";
 
 export const NODEWIDTH = 250;
 
 export const NODEHEIGHT = 120;
-
-interface TaskNodeData {
-  task: BaseTask;
-  layoutDirection?: "Horizontal" | "Vertical";
-  showPriorities?: boolean;
-  priorityAccentPosition?: PriorityAccentPosition;
-  nodeDensity?: NodeDensity;
-  showTags?: boolean;
-  debugVisualization?: boolean;
-  tagColorPalette?: import("src/lib/tag-color-manager").TagColorPalette;
-  visibleAttachmentKinds?: TaskAttachmentKind[];
-  priorityOptions?: TaskPriorityConfig[];
-  groupByProject?: boolean;
-  // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onDeleteTask?: (taskId: string) => void;
-  onTaskChanged?: () => void;
-  // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onEditTask?: (taskPath: string) => void;
-  quickCommentsPropertyName?: string;
-  // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onQuickCommentsChanged?: (taskId: string, value: string) => void;
-  // eslint-disable-next-line no-unused-vars -- callback parameter convention
-  onTaskStatusChange?: (taskId: string, status: TaskStatus) => void;
-  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
-  onTaskPriorityChange?: (taskId: string, priority: string) => void;
-  // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
-  onTaskStarredChange?: (taskId: string, starred: boolean) => void;
-  trackVaultWrite?: VaultWriteTracker;
-}
 
 interface TaskAttachmentsProps {
   task: BaseTask;
@@ -128,6 +102,10 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     tagColorPalette = "rainbow",
     visibleAttachmentKinds,
     priorityOptions = [],
+    hasVisibleChildren = false,
+    childrenCollapsed = false,
+    foldedChildrenCount = 0,
+    onToggleChildren,
     groupByProject = false,
     onDeleteTask,
     onTaskChanged,
@@ -294,6 +272,15 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     [app, task.link]
   );
 
+  const handleToggleChildren = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onToggleChildren?.(task.id);
+    },
+    [onToggleChildren, task.id]
+  );
+
   const handleHeaderDoubleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -309,143 +296,185 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
         .filter(Boolean)
         .join(" ")}
     >
-      <TaskBackground
-        status={status}
-        priority={showPriorities ? priority : ""}
-        priorityAccentPosition={priorityAccentPosition}
-        priorityOptions={task.type === "dataview" ? undefined : priorityOptions}
-        starred={starred}
-        expanded={expanded}
-        debugVisualization={debugVisualization}
-        selected={selected}
-      >
-        <Handle type="target" position={targetPosition} />
-        <Handle type="source" position={sourcePosition} />
-        <div
-          className="tasks-map-task-node-header"
-          onDoubleClick={handleHeaderDoubleClick}
+      <div className="tasks-map-task-node-card">
+        <TaskBackground
+          status={status}
+          priority={showPriorities ? priority : ""}
+          priorityAccentPosition={priorityAccentPosition}
+          priorityOptions={
+            task.type === "dataview" ? undefined : priorityOptions
+          }
+          starred={starred}
+          expanded={expanded}
+          debugVisualization={debugVisualization}
+          selected={selected}
         >
-          <TaskStatusToggle
-            status={status}
-            task={task}
-            onStatusChange={handleStatusChange}
-            trackVaultWrite={trackVaultWrite}
-          />
-          {showPriorities && (
-            <TaskPriorityToggle
-              priority={priority}
+          <Handle type="target" position={targetPosition} />
+          <Handle type="source" position={sourcePosition} />
+          <div
+            className="tasks-map-task-node-header"
+            onDoubleClick={handleHeaderDoubleClick}
+          >
+            <TaskStatusToggle
+              status={status}
               task={task}
-              priorityOptions={priorityOptions}
-              onPriorityChange={handlePriorityChange}
+              onStatusChange={handleStatusChange}
+              trackVaultWrite={trackVaultWrite}
+            />
+            {showPriorities && (
+              <TaskPriorityToggle
+                priority={priority}
+                task={task}
+                priorityOptions={priorityOptions}
+                onPriorityChange={handlePriorityChange}
+                trackVaultWrite={trackVaultWrite}
+              />
+            )}
+            <div className="tasks-map-task-node-header-spacer" />
+            <StarButton
+              starred={starred}
+              onClick={() => void handleStarToggle()}
+            />
+            {canCreateTaskNotesProjectTask && (
+              <button
+                type="button"
+                className="tasks-map-task-node-header-button nodrag"
+                title={t("task_node.create_project_task")}
+                aria-label={t("task_node.create_project_task")}
+                onClick={handleCreateTask}
+              >
+                <CirclePlus size={16} />
+              </button>
+            )}
+            <LinkButton link={task.link} app={app} taskStatus={status} />
+            <TaskMenu
+              task={task}
+              app={app}
+              onTaskDeleted={() => onDeleteTask?.(task.id)}
+              onTaskChanged={onTaskChanged}
+              onEditTask={task.link ? () => onEditTask?.(task.link) : undefined}
+              trackVaultWrite={trackVaultWrite}
+            />
+          </div>
+
+          <div className="tasks-map-task-node-content">
+            <span ref={summaryRef} className="tasks-map-task-node-summary" />
+          </div>
+
+          {task instanceof NoteTask && (
+            <QuickUpdate
+              task={task}
+              propertyName={quickCommentsPropertyName}
+              onChanged={onQuickCommentsChanged}
               trackVaultWrite={trackVaultWrite}
             />
           )}
-          <div className="tasks-map-task-node-header-spacer" />
-          <StarButton
-            starred={starred}
-            onClick={() => void handleStarToggle()}
-          />
-          {canCreateTaskNotesProjectTask && (
-            <button
-              type="button"
-              className="tasks-map-task-node-header-button nodrag"
-              title={t("task_node.create_project_task")}
-              aria-label={t("task_node.create_project_task")}
-              onClick={handleCreateTask}
-            >
-              <CirclePlus size={16} />
-            </button>
-          )}
-          <LinkButton link={task.link} app={app} taskStatus={status} />
-          <TaskMenu
-            task={task}
-            app={app}
-            onTaskDeleted={() => onDeleteTask?.(task.id)}
-            onTaskChanged={onTaskChanged}
-            onEditTask={task.link ? () => onEditTask?.(task.link) : undefined}
-            trackVaultWrite={trackVaultWrite}
-          />
-        </div>
 
-        <div className="tasks-map-task-node-content">
-          <span ref={summaryRef} className="tasks-map-task-node-summary" />
-        </div>
-
-        {task instanceof NoteTask && (
-          <QuickUpdate
-            task={task}
-            propertyName={quickCommentsPropertyName}
-            onChanged={onQuickCommentsChanged}
-            trackVaultWrite={trackVaultWrite}
-          />
-        )}
-
-        {showTags && (
-          <div className="tasks-map-task-node-footer">
-            <div className="tasks-map-tag-list">
-              {tags.map((tag) => (
-                <Tag
-                  key={tag}
-                  tag={tag}
-                  palette={tagColorPalette}
-                  onRemove={(tag) => void handleTagRemove(tag)}
-                />
-              ))}
-
-              {/* Add tag button/input */}
-              {isAddingTag ? (
-                <div className="nodrag">
-                  <TagInput
-                    allTags={allTags}
-                    existingTags={tags}
-                    onAddTag={(tag) => void handleAddTag(tag)}
-                    onCancel={handleCancelAddTag}
-                    hasError={tagError}
+          {showTags && (
+            <div className="tasks-map-task-node-footer">
+              <div className="tasks-map-tag-list">
+                {tags.map((tag) => (
+                  <Tag
+                    key={tag}
+                    tag={tag}
+                    palette={tagColorPalette}
+                    onRemove={(tag) => void handleTagRemove(tag)}
                   />
-                </div>
-              ) : (
-                <span
-                  className="tasks-map-add-tag-button"
-                  onClick={() => setIsAddingTag(true)}
-                >
-                  <Plus size={10} />
-                  Add tag
-                </span>
-              )}
+                ))}
+
+                {/* Add tag button/input */}
+                {isAddingTag ? (
+                  <div className="nodrag">
+                    <TagInput
+                      allTags={allTags}
+                      existingTags={tags}
+                      onAddTag={(tag) => void handleAddTag(tag)}
+                      onCancel={handleCancelAddTag}
+                      hasError={tagError}
+                    />
+                  </div>
+                ) : (
+                  <span
+                    className="tasks-map-add-tag-button"
+                    onClick={() => setIsAddingTag(true)}
+                  >
+                    <Plus size={10} />
+                    Add tag
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {debugVisualization && (
-          <ExpandButton
-            expanded={expanded}
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded((v) => !v);
-            }}
-          />
-        )}
+          {debugVisualization && (
+            <ExpandButton
+              expanded={expanded}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
+            />
+          )}
 
-        {debugVisualization && expanded && (
-          <TaskDetails task={task} status={status} />
-        )}
+          {debugVisualization && expanded && (
+            <TaskDetails task={task} status={status} />
+          )}
 
-        {groupByProject && task.projects.length > 0 && (
-          <div
+          {groupByProject && task.projects.length > 0 && (
+            <div
+              className={[
+                "tasks-map-task-node-projects",
+                task.projects.length === 1 &&
+                  "tasks-map-task-node-projects--single",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {task.projects.map((project, index) => (
+                <ProjectDot key={project} project={project} index={index} />
+              ))}
+            </div>
+          )}
+        </TaskBackground>
+        {hasVisibleChildren && (
+          <button
+            type="button"
             className={[
-              "tasks-map-task-node-projects",
-              task.projects.length === 1 &&
-                "tasks-map-task-node-projects--single",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+              "tasks-map-task-node-fold-button",
+              `tasks-map-task-node-fold-button--${
+                isVertical ? "vertical" : "horizontal"
+              }`,
+              "nodrag nopan",
+            ].join(" ")}
+            title={t(
+              childrenCollapsed
+                ? "task_node.expand_children_count"
+                : "task_node.collapse_children",
+              { count: foldedChildrenCount }
+            )}
+            aria-label={t(
+              childrenCollapsed
+                ? "task_node.expand_children_count"
+                : "task_node.collapse_children",
+              { count: foldedChildrenCount }
+            )}
+            aria-expanded={!childrenCollapsed}
+            onClick={handleToggleChildren}
+            onDoubleClick={handleHeaderDoubleClick}
           >
-            {task.projects.map((project, index) => (
-              <ProjectDot key={project} project={project} index={index} />
-            ))}
-          </div>
+            {childrenCollapsed ? (
+              <ChevronRight size={14} />
+            ) : (
+              <ChevronDown size={14} />
+            )}
+            {childrenCollapsed && (
+              <span className="tasks-map-task-node-fold-count">
+                {foldedChildrenCount}
+              </span>
+            )}
+          </button>
         )}
-      </TaskBackground>
+      </div>
       <TaskAttachments
         task={task}
         visibleAttachmentKinds={visibleAttachmentKinds}

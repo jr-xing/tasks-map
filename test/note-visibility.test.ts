@@ -52,6 +52,7 @@ function liveContext(
     hideUnlinkedTasks: true,
     droppedTaskIds: [],
     visibleNodeIds: [task.id],
+    foldedNodeIds: [],
     isLoading: false,
     ...overrides,
   };
@@ -206,6 +207,31 @@ describe("buildNoteVisibilityReport", () => {
     const report = buildNoteVisibilityReport(input(task));
 
     expect(report.verdict).toBe("shown");
+  });
+
+  it("reports a task hidden under a folded card without offering reload", () => {
+    const parent = makeTask({ id: "Parent.md", link: "Parent.md" });
+    const task = makeTask({
+      id: "Child.md",
+      link: "Child.md",
+      incomingLinks: [parent.id],
+      isProject: false,
+    });
+
+    const report = buildNoteVisibilityReport(
+      input(task, {
+        freshTasks: [parent, task],
+        liveContext: liveContext(task, {
+          tasks: [parent, task],
+          visibleNodeIds: [parent.id],
+          foldedNodeIds: [task.id],
+        }),
+      })
+    );
+
+    expect(report.verdict).toBe("hidden");
+    expect(report.canReload).toBe(false);
+    expect(report.reasons.at(-1)?.code).toBe("folded_branch");
   });
 
   it.each<{

@@ -773,6 +773,44 @@ describe("createNodesFromTasks", () => {
     expect(nodes[0].data.onTaskStarredChange).toBe(onStarredChange);
     expect(nodes[0].data.trackVaultWrite).toBe(trackVaultWrite);
   });
+
+  it("passes through child-folding state and its toggle callback", () => {
+    const parent = makeTask({ id: "parent" });
+    const onToggleChildren = jest.fn();
+    const nodes = createNodesFromTasks(
+      [parent],
+      "Horizontal",
+      true,
+      true,
+      false,
+      undefined,
+      true,
+      "rainbow",
+      undefined,
+      undefined,
+      undefined,
+      [],
+      "top",
+      "quick-comments",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "comfortable",
+      {
+        taskIdsWithVisibleChildren: new Set([parent.id]),
+        collapsedTaskIds: new Set([parent.id]),
+        foldedDescendantCounts: new Map([[parent.id, 3]]),
+        onToggleChildren,
+      }
+    );
+
+    expect(nodes[0].data.hasVisibleChildren).toBe(true);
+    expect(nodes[0].data.childrenCollapsed).toBe(true);
+    expect(nodes[0].data.foldedChildrenCount).toBe(3);
+    expect(nodes[0].data.onToggleChildren).toBe(onToggleChildren);
+  });
 });
 
 describe("note task priority parsing", () => {

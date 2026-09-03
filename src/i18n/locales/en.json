@@ -354,6 +354,7 @@
     "reload_map": "Reload map",
     "close": "Close",
     "reasons": {
+      "folded_branch": "This note is hidden under a folded parent task card.",
       "missing_frontmatter": "No parsed frontmatter is available for this note.",
       "criteria_mismatch": "Property ‘{{property}}’ is {{actual}}; expected one of {{expected}}.",
       "parse_error": "The note matched the task criteria but could not be parsed: {{error}}",
@@ -382,6 +383,9 @@
     }
   },
   "task_node": {
+    "expand_children_count": "Expand child tasks ({{count}} hidden)",
+    "collapse_children": "Collapse child tasks",
+    "expand_children": "Expand child tasks",
     "create_project_task": "Create task in this project",
     "open_note": "Open note (Ctrl-click or middle-click for new tab)",
     "priority": "Priority: {{priority}}"

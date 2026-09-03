@@ -354,6 +354,7 @@
     "reload_map": "重新加载地图",
     "close": "关闭",
     "reasons": {
+      "folded_branch": "此笔记因上级任务卡片已折叠而隐藏。",
       "missing_frontmatter": "此笔记没有可用的已解析 frontmatter。",
       "criteria_mismatch": "属性“{{property}}”为 {{actual}}；预期为 {{expected}} 之一。",
       "parse_error": "此笔记符合任务条件，但无法解析：{{error}}",
@@ -382,6 +383,9 @@
     }
   },
   "task_node": {
+    "expand_children_count": "展开子任务（已隐藏 {{count}} 个）",
+    "collapse_children": "折叠子任务",
+    "expand_children": "展开子任务",
     "create_project_task": "在此项目中创建任务",
     "priority": "优先级：{{priority}}",
     "open_note": "打开笔记（Ctrl 点击或中键点击新建标签页）"

@@ -134,6 +134,7 @@ export default class TaskMapGraphItemView extends ItemView {
       filter: structuredClone(this.visibilityContext.filter),
       droppedTaskIds: [...this.visibilityContext.droppedTaskIds],
       visibleNodeIds: [...this.visibilityContext.visibleNodeIds],
+      foldedNodeIds: [...this.visibilityContext.foldedNodeIds],
     };
   }
 

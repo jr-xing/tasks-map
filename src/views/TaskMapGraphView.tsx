@@ -48,6 +48,10 @@ import {
   getFilteredNodeIds,
   getVisibilityFilteredNodeIds,
 } from "src/lib/filter-tasks";
+import {
+  getFoldedGraphVisibility,
+  getTaskConnectionKey,
+} from "src/lib/fold-task-children";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
@@ -187,6 +191,9 @@ export default function TaskMapGraphView({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tasks, setTasks] = React.useState<BaseTask[]>([]);
+  const [collapsedTaskIds, setCollapsedTaskIds] = React.useState<Set<string>>(
+    () => new Set()
+  );
   const [selectedEdge, setSelectedEdge] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const reactFlowInstance = useReactFlow();
@@ -238,6 +245,16 @@ export default function TaskMapGraphView({
   const closeKanban = useCallback(() => {
     setOpenPanel((previous) => (previous === "kanban" ? null : previous));
     setIsKanbanPinned(false);
+  }, []);
+
+  const handleToggleTaskChildren = useCallback((taskId: string) => {
+    skipFitViewRef.current = false;
+    setCollapsedTaskIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
   }, []);
 
   const togglePanel = useCallback(
@@ -801,6 +818,21 @@ export default function TaskMapGraphView({
     );
   }, [tasks, allUnlinkedTasks, droppedTaskIds, hideUnlinkedTasks]);
 
+  const filteredGraphNodeIds = useMemo(
+    () => getFilteredNodeIds(graphTasks, filterState),
+    [graphTasks, filterState]
+  );
+
+  const foldedGraphVisibility = useMemo(
+    () =>
+      getFoldedGraphVisibility(
+        graphTasks,
+        filteredGraphNodeIds,
+        collapsedTaskIds
+      ),
+    [collapsedTaskIds, filteredGraphNodeIds, graphTasks]
+  );
+
   useEffect(() => {
     onVisibilityContextChange?.({
       tasks,
@@ -810,11 +842,13 @@ export default function TaskMapGraphView({
       visibleNodeIds: nodes
         .filter((node) => node.type === "task")
         .map((node) => node.id),
+      foldedNodeIds: [...foldedGraphVisibility.foldedNodeIds],
       isLoading,
     });
   }, [
     droppedTaskIds,
     filterState,
+    foldedGraphVisibility.foldedNodeIds,
     hideUnlinkedTasks,
     isLoading,
     nodes,
@@ -1006,7 +1040,14 @@ export default function TaskMapGraphView({
       handleTaskPriorityChange,
       handleTaskStarredChange,
       trackVaultWrite,
-      settings.nodeDensity
+      settings.nodeDensity,
+      {
+        taskIdsWithVisibleChildren:
+          foldedGraphVisibility.taskIdsWithVisibleChildren,
+        collapsedTaskIds,
+        foldedDescendantCounts: foldedGraphVisibility.foldedDescendantCounts,
+        onToggleChildren: handleToggleTaskChildren,
+      }
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -1016,15 +1057,17 @@ export default function TaskMapGraphView({
       settings.smoothStepRadius
     );
 
-    const filteredNodeIds = getFilteredNodeIds(graphTasks, filterState);
-    const filteredTasks = graphTasks.filter((t) =>
-      filteredNodeIds.includes(t.id)
+    const visibleTasks = graphTasks.filter((task) =>
+      foldedGraphVisibility.visibleNodeIds.has(task.id)
     );
 
-    newNodes = newNodes.filter((n) => filteredNodeIds.includes(n.id));
-    newEdges = newEdges.filter(
-      (e) =>
-        filteredNodeIds.includes(e.source) && filteredNodeIds.includes(e.target)
+    newNodes = newNodes.filter((node) =>
+      foldedGraphVisibility.visibleNodeIds.has(node.id)
+    );
+    newEdges = newEdges.filter((edge) =>
+      foldedGraphVisibility.visibleConnectionKeys.has(
+        getTaskConnectionKey(edge.source, edge.target)
+      )
     );
 
     // Separate dropped (unlinked) nodes from linked nodes for layout
@@ -1039,7 +1082,7 @@ export default function TaskMapGraphView({
       settings.layoutDirection,
       settings.showTags,
       groupByProject,
-      filteredTasks,
+      visibleTasks,
       settings.visibleAttachmentKinds,
       settings.nodeDensity
     );
@@ -1076,7 +1119,8 @@ export default function TaskMapGraphView({
     }
   }, [
     graphTasks,
-    filterState,
+    collapsedTaskIds,
+    foldedGraphVisibility,
     settings,
     taskNotesPriorityOptions,
     notePriorityOptions,
@@ -1092,6 +1136,7 @@ export default function TaskMapGraphView({
     handleTaskPriorityChange,
     handleTaskStarredChange,
     trackVaultWrite,
+    handleToggleTaskChildren,
     scheduleFitView,
   ]);
 
@@ -1959,10 +2004,9 @@ export default function TaskMapGraphView({
   }, [graphTasks, filterState]);
 
   const filteredTasks = useMemo(() => {
-    const filteredIds = getFilteredNodeIds(graphTasks, filterState);
-    const idSet = new Set(filteredIds);
+    const idSet = new Set(filteredGraphNodeIds);
     return graphTasks.filter((t) => idSet.has(t.id));
-  }, [graphTasks, filterState]);
+  }, [filteredGraphNodeIds, graphTasks]);
 
   const kanbanTasks = useMemo(
     () =>

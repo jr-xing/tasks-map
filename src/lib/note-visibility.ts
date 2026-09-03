@@ -35,6 +35,7 @@ export type NoteVisibilityReasonCode =
   | "unlinked_allowed"
   | "unlinked_hidden"
   | "filters_pass"
+  | "folded_branch"
   | "rendered"
   | "render_missing";
 
@@ -50,6 +51,7 @@ export interface LiveMapVisibilityContext {
   hideUnlinkedTasks: boolean;
   droppedTaskIds: string[];
   visibleNodeIds: string[];
+  foldedNodeIds: string[];
   isLoading: boolean;
 }
 
@@ -260,6 +262,18 @@ export function buildNoteVisibilityReport({
     };
   }
   reasons.push({ code: "filters_pass", state: "pass" });
+
+  if (liveContext?.foldedNodeIds.includes(currentTask.id)) {
+    reasons.push({ code: "folded_branch", state: "fail" });
+    return {
+      filePath,
+      verdict: "hidden",
+      context,
+      task: currentTask,
+      reasons,
+      canReload: false,
+    };
+  }
 
   if (liveContext && !liveContext.visibleNodeIds.includes(currentTask.id)) {
     reasons.push({ code: "render_missing", state: "fail" });

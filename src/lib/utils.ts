@@ -1,6 +1,11 @@
 // Task utility functions - refactored to use OOP with polymorphism
 import { App, TFile, Vault } from "obsidian";
-import { TaskStatus, TaskNode, TaskEdge } from "src/types/task";
+import {
+  TaskStatus,
+  TaskNode,
+  TaskEdge,
+  TaskNodeFoldingOptions,
+} from "src/types/task";
 import {
   BaseTask,
   TaskAttachment,
@@ -1283,7 +1288,8 @@ export function createNodesFromTasks(
   // eslint-disable-next-line no-unused-vars -- callback parameter convention
   onTaskStarredChange?: (taskId: string, starred: boolean) => void,
   trackVaultWrite?: VaultWriteTracker,
-  nodeDensity: NodeDensity = "comfortable"
+  nodeDensity: NodeDensity = "comfortable",
+  folding?: TaskNodeFoldingOptions
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
@@ -1304,6 +1310,11 @@ export function createNodesFromTasks(
       tagColorPalette,
       visibleAttachmentKinds,
       priorityOptions,
+      hasVisibleChildren:
+        folding?.taskIdsWithVisibleChildren.has(task.id) ?? false,
+      childrenCollapsed: folding?.collapsedTaskIds.has(task.id) ?? false,
+      foldedChildrenCount: folding?.foldedDescendantCounts.get(task.id) ?? 0,
+      onToggleChildren: folding?.onToggleChildren,
       onDeleteTask,
       onTaskChanged,
       onEditTask,

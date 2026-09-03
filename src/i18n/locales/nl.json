@@ -354,6 +354,7 @@
     "reload_map": "Kaart herladen",
     "close": "Sluiten",
     "reasons": {
+      "folded_branch": "Deze notitie is verborgen onder een samengevouwen bovenliggende taakkaart.",
       "missing_frontmatter": "Er is geen geparseerde frontmatter beschikbaar voor deze notitie.",
       "criteria_mismatch": "Eigenschap ‘{{property}}’ is {{actual}}; verwacht werd een van {{expected}}.",
       "parse_error": "De notitie voldeed aan de taakcriteria, maar kon niet worden geparseerd: {{error}}",
@@ -382,6 +383,9 @@
     }
   },
   "task_node": {
+    "expand_children_count": "Onderliggende taken uitvouwen ({{count}} verborgen)",
+    "collapse_children": "Onderliggende taken samenvouwen",
+    "expand_children": "Onderliggende taken uitvouwen",
     "create_project_task": "Taak in dit project maken",
     "open_note": "Notitie openen (Ctrl-klik of middelklik voor nieuw tabblad)",
     "priority": "Prioriteit: {{priority}}"
