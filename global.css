@@ -293,10 +293,20 @@ If your plugin does not need CSS, delete this file.
   -webkit-line-clamp: 3;
 }
 
-.tasks-map-task-node-shell--compact .tasks-map-quick-update,
 .tasks-map-task-node-shell--compact .tasks-map-task-node-footer,
 .tasks-map-task-node-shell--compact .tasks-map-task-attachments {
   display: none;
+}
+
+.tasks-map-task-node-shell--compact .tasks-map-quick-update {
+  display: block;
+  max-height: 0;
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .tasks-map-task-node-shell--compact .tasks-map-task-node-projects {
@@ -334,6 +344,14 @@ If your plugin does not need CSS, delete this file.
 }
 
 .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
+  .tasks-map-task-node-header
+  > :not(.tasks-map-status-container):not(
+    .tasks-map-task-node-header-spacer
+  ) {
+  animation: tasks-map-compact-header-action-reveal 120ms ease-out 35ms both;
+}
+
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-status-container {
   width: auto;
   border-radius: var(--radius-m) 0 0 0;
@@ -364,6 +382,44 @@ If your plugin does not need CSS, delete this file.
 .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-quick-update {
   display: block;
+  max-height: none;
+  margin: 2px 0 7px;
+  overflow: visible;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity 120ms ease-out 35ms,
+    transform 120ms ease-out 35ms;
+}
+
+@keyframes tasks-map-compact-header-action-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
+    .tasks-map-quick-update {
+    transition: none;
+    transform: none;
+  }
+
+  .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
+    .tasks-map-task-node-header
+    > :not(.tasks-map-status-container):not(
+      .tasks-map-task-node-header-spacer
+    ) {
+    animation: none;
+  }
 }
 
 .tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed

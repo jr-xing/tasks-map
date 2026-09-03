@@ -54,6 +54,11 @@ const COMPACT_REVEAL_DURATION_MS = 160;
 const COMPACT_REVEAL_EASING = "cubic-bezier(0.2, 0, 0, 1)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+interface CompactAnimationBounds {
+  status: DOMRect | null;
+  title: DOMRect | null;
+}
+
 interface TaskAttachmentsProps {
   task: BaseTask;
   visibleAttachmentKinds?: TaskAttachmentKind[];
@@ -140,7 +145,11 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const [compactHovered, setCompactHovered] = useState(false);
   const compactCardRef = useRef<HTMLDivElement>(null);
   const compactAnimationRef = useRef<Animation | null>(null);
+  const compactElementAnimationsRef = useRef<Animation[]>([]);
   const compactAnimationStartHeightRef = useRef<number | null>(null);
+  const compactAnimationStartBoundsRef = useRef<CompactAnimationBounds | null>(
+    null
+  );
   const app = useApp();
   const summaryRef = useSummaryRenderer(task.summary, app);
   const compactRevealed =
@@ -158,10 +167,14 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     setTags(task.tags || []);
   }, [task]);
 
-  const stopCompactAnimation = useCallback(() => {
+  const stopCompactAnimations = useCallback(() => {
     const animation = compactAnimationRef.current;
     compactAnimationRef.current = null;
     animation?.cancel();
+
+    const elementAnimations = compactElementAnimationsRef.current;
+    compactElementAnimationsRef.current = [];
+    elementAnimations.forEach((elementAnimation) => elementAnimation.cancel());
 
     const background = compactCardRef.current?.querySelector<HTMLElement>(
       ".tasks-map-task-background"
@@ -185,11 +198,22 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       const background = compactCardRef.current?.querySelector<HTMLElement>(
         ".tasks-map-task-background"
       );
+      const statusContainer =
+        compactCardRef.current?.querySelector<HTMLElement>(
+          ".tasks-map-status-container"
+        );
+      const title = compactCardRef.current?.querySelector<HTMLElement>(
+        ".tasks-map-task-node-summary"
+      );
       compactAnimationStartHeightRef.current =
         background?.getBoundingClientRect().height ?? null;
-      stopCompactAnimation();
+      compactAnimationStartBoundsRef.current = {
+        status: statusContainer?.getBoundingClientRect() ?? null,
+        title: title?.getBoundingClientRect() ?? null,
+      };
+      stopCompactAnimations();
     },
-    [compactHovered, nodeDensity, selected, stopCompactAnimation]
+    [compactHovered, nodeDensity, selected, stopCompactAnimations]
   );
 
   const handleCompactMouseEnter = useCallback(() => {
@@ -204,58 +228,165 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     const background = compactCardRef.current?.querySelector<HTMLElement>(
       ".tasks-map-task-background"
     );
+    const statusContainer = compactCardRef.current?.querySelector<HTMLElement>(
+      ".tasks-map-status-container"
+    );
+    const statusDot = compactCardRef.current?.querySelector<HTMLElement>(
+      ".tasks-map-task-status-dot"
+    );
+    const title = compactCardRef.current?.querySelector<HTMLElement>(
+      ".tasks-map-task-node-summary"
+    );
     const startHeight = compactAnimationStartHeightRef.current;
+    const startBounds = compactAnimationStartBoundsRef.current;
     compactAnimationStartHeightRef.current = null;
+    compactAnimationStartBoundsRef.current = null;
 
     if (!background || startHeight === null) return;
 
     const targetHeight = background.getBoundingClientRect().height;
+    const targetStatusBounds = statusContainer?.getBoundingClientRect();
+    const targetTitleBounds = title?.getBoundingClientRect();
     const reduceMotion =
       typeof window.matchMedia === "function" &&
       window.matchMedia(REDUCED_MOTION_QUERY).matches;
-    if (
-      reduceMotion ||
-      typeof background.animate !== "function" ||
-      Math.abs(startHeight - targetHeight) < 1
-    ) {
+    if (reduceMotion || typeof background.animate !== "function") {
       background.style.removeProperty("overflow");
       return;
     }
 
-    background.style.setProperty("overflow", "hidden");
-    const animation = background.animate(
-      [
+    let animation: Animation | null = null;
+    if (Math.abs(startHeight - targetHeight) >= 1) {
+      background.style.setProperty("overflow", "hidden");
+      animation = background.animate(
+        [
+          {
+            height: `${startHeight}px`,
+            minHeight: `${startHeight}px`,
+            maxHeight: `${startHeight}px`,
+          },
+          {
+            height: `${targetHeight}px`,
+            minHeight: `${targetHeight}px`,
+            maxHeight: `${targetHeight}px`,
+          },
+        ],
         {
-          height: `${startHeight}px`,
-          minHeight: `${startHeight}px`,
-          maxHeight: `${startHeight}px`,
-        },
-        {
-          height: `${targetHeight}px`,
-          minHeight: `${targetHeight}px`,
-          maxHeight: `${targetHeight}px`,
-        },
-      ],
-      {
-        duration: COMPACT_REVEAL_DURATION_MS,
-        easing: COMPACT_REVEAL_EASING,
-      }
-    );
-    compactAnimationRef.current = animation;
+          duration: COMPACT_REVEAL_DURATION_MS,
+          easing: COMPACT_REVEAL_EASING,
+        }
+      );
+      compactAnimationRef.current = animation;
 
-    const finish = () => {
-      if (compactAnimationRef.current !== animation) return;
-      compactAnimationRef.current = null;
+      const finish = () => {
+        if (compactAnimationRef.current !== animation) return;
+        compactAnimationRef.current = null;
+        background.style.removeProperty("overflow");
+      };
+      animation.onfinish = finish;
+      animation.oncancel = finish;
+    } else {
       background.style.removeProperty("overflow");
-    };
-    animation.onfinish = finish;
-    animation.oncancel = finish;
+    }
+
+    const elementAnimations: Animation[] = [];
+    if (
+      startBounds?.status &&
+      statusContainer &&
+      statusDot &&
+      targetStatusBounds &&
+      typeof statusContainer.animate === "function" &&
+      typeof statusDot.animate === "function" &&
+      startBounds.status.width > 0 &&
+      startBounds.status.height > 0 &&
+      targetStatusBounds.width > 0 &&
+      targetStatusBounds.height > 0
+    ) {
+      const offsetX = startBounds.status.left - targetStatusBounds.left;
+      const offsetY = startBounds.status.top - targetStatusBounds.top;
+      const scaleX = startBounds.status.width / targetStatusBounds.width;
+      const scaleY = startBounds.status.height / targetStatusBounds.height;
+      const containerAnimation = statusContainer.animate(
+        [
+          {
+            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scaleX}, ${scaleY})`,
+            transformOrigin: "top left",
+          },
+          {
+            transform: "none",
+            transformOrigin: "top left",
+          },
+        ],
+        {
+          duration: COMPACT_REVEAL_DURATION_MS,
+          easing: COMPACT_REVEAL_EASING,
+        }
+      );
+      const dotAnimation = statusDot.animate(
+        [
+          {
+            transform: `scale(${1 / scaleX}, ${1 / scaleY})`,
+            transformOrigin: "center",
+          },
+          { transform: "none", transformOrigin: "center" },
+        ],
+        {
+          duration: COMPACT_REVEAL_DURATION_MS,
+          easing: COMPACT_REVEAL_EASING,
+        }
+      );
+      elementAnimations.push(containerAnimation, dotAnimation);
+    }
+
+    if (
+      startBounds?.title &&
+      title &&
+      targetTitleBounds &&
+      typeof title.animate === "function"
+    ) {
+      const offsetX = startBounds.title.left - targetTitleBounds.left;
+      const offsetY = startBounds.title.top - targetTitleBounds.top;
+      const titleAnimation = title.animate(
+        [
+          { transform: `translate(${offsetX}px, ${offsetY}px)` },
+          { transform: "none" },
+        ],
+        {
+          duration: COMPACT_REVEAL_DURATION_MS,
+          easing: COMPACT_REVEAL_EASING,
+        }
+      );
+      elementAnimations.push(titleAnimation);
+    }
+
+    if (elementAnimations.length > 0) {
+      compactElementAnimationsRef.current = elementAnimations;
+      let remainingAnimations = elementAnimations.length;
+      const finishElementAnimation = () => {
+        if (compactElementAnimationsRef.current !== elementAnimations) return;
+        remainingAnimations -= 1;
+        if (remainingAnimations === 0) {
+          compactElementAnimationsRef.current = [];
+        }
+      };
+      elementAnimations.forEach((elementAnimation) => {
+        elementAnimation.onfinish = finishElementAnimation;
+        elementAnimation.oncancel = finishElementAnimation;
+      });
+    }
 
     return () => {
-      if (compactAnimationRef.current !== animation) return;
-      compactAnimationRef.current = null;
-      animation.cancel();
-      background.style.removeProperty("overflow");
+      if (animation && compactAnimationRef.current === animation) {
+        compactAnimationRef.current = null;
+        animation.cancel();
+        background.style.removeProperty("overflow");
+      }
+      if (compactElementAnimationsRef.current === elementAnimations) {
+        compactElementAnimationsRef.current = [];
+        elementAnimations.forEach((elementAnimation) =>
+          elementAnimation.cancel()
+        );
+      }
     };
   }, [compactRevealed]);
 
