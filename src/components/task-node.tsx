@@ -54,9 +54,49 @@ const COMPACT_REVEAL_DURATION_MS = 160;
 const COMPACT_REVEAL_EASING = "cubic-bezier(0.2, 0, 0, 1)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
-interface CompactAnimationBounds {
-  status: DOMRect | null;
-  title: DOMRect | null;
+interface CompactElementBounds {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface CompactAnimationSnapshot {
+  height: number;
+  status: CompactElementBounds | null;
+  title: CompactElementBounds | null;
+}
+
+function measureCompactAnimation(
+  card: HTMLDivElement | null
+): CompactAnimationSnapshot | null {
+  const background = card?.querySelector<HTMLElement>(
+    ".tasks-map-task-background"
+  );
+  if (!background || background.offsetWidth <= 0) return null;
+
+  const backgroundBounds = background.getBoundingClientRect();
+  const renderedScale = backgroundBounds.width / background.offsetWidth;
+  if (!Number.isFinite(renderedScale) || renderedScale <= 0) return null;
+
+  const measureElement = (selector: string): CompactElementBounds | null => {
+    const element = card?.querySelector<HTMLElement>(selector);
+    if (!element) return null;
+
+    const bounds = element.getBoundingClientRect();
+    return {
+      left: (bounds.left - backgroundBounds.left) / renderedScale,
+      top: (bounds.top - backgroundBounds.top) / renderedScale,
+      width: bounds.width / renderedScale,
+      height: bounds.height / renderedScale,
+    };
+  };
+
+  return {
+    height: backgroundBounds.height / renderedScale,
+    status: measureElement(".tasks-map-status-container"),
+    title: measureElement(".tasks-map-task-node-summary"),
+  };
 }
 
 interface TaskAttachmentsProps {
@@ -146,10 +186,8 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const compactCardRef = useRef<HTMLDivElement>(null);
   const compactAnimationRef = useRef<Animation | null>(null);
   const compactElementAnimationsRef = useRef<Animation[]>([]);
-  const compactAnimationStartHeightRef = useRef<number | null>(null);
-  const compactAnimationStartBoundsRef = useRef<CompactAnimationBounds | null>(
-    null
-  );
+  const compactAnimationStartSnapshotRef =
+    useRef<CompactAnimationSnapshot | null>(null);
   const app = useApp();
   const summaryRef = useSummaryRenderer(task.summary, app);
   const compactRevealed =
@@ -195,22 +233,9 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
 
       if (currentlyRevealed === nextRevealed) return;
 
-      const background = compactCardRef.current?.querySelector<HTMLElement>(
-        ".tasks-map-task-background"
+      compactAnimationStartSnapshotRef.current = measureCompactAnimation(
+        compactCardRef.current
       );
-      const statusContainer =
-        compactCardRef.current?.querySelector<HTMLElement>(
-          ".tasks-map-status-container"
-        );
-      const title = compactCardRef.current?.querySelector<HTMLElement>(
-        ".tasks-map-task-node-summary"
-      );
-      compactAnimationStartHeightRef.current =
-        background?.getBoundingClientRect().height ?? null;
-      compactAnimationStartBoundsRef.current = {
-        status: statusContainer?.getBoundingClientRect() ?? null,
-        title: title?.getBoundingClientRect() ?? null,
-      };
       stopCompactAnimations();
     },
     [compactHovered, nodeDensity, selected, stopCompactAnimations]
@@ -237,16 +262,16 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     const title = compactCardRef.current?.querySelector<HTMLElement>(
       ".tasks-map-task-node-summary"
     );
-    const startHeight = compactAnimationStartHeightRef.current;
-    const startBounds = compactAnimationStartBoundsRef.current;
-    compactAnimationStartHeightRef.current = null;
-    compactAnimationStartBoundsRef.current = null;
+    const startSnapshot = compactAnimationStartSnapshotRef.current;
+    compactAnimationStartSnapshotRef.current = null;
 
-    if (!background || startHeight === null) return;
+    if (!background || !startSnapshot) return;
 
-    const targetHeight = background.getBoundingClientRect().height;
-    const targetStatusBounds = statusContainer?.getBoundingClientRect();
-    const targetTitleBounds = title?.getBoundingClientRect();
+    const targetSnapshot = measureCompactAnimation(compactCardRef.current);
+    if (!targetSnapshot) return;
+
+    const startHeight = startSnapshot.height;
+    const targetHeight = targetSnapshot.height;
     const reduceMotion =
       typeof window.matchMedia === "function" &&
       window.matchMedia(REDUCED_MOTION_QUERY).matches;
@@ -291,21 +316,21 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
 
     const elementAnimations: Animation[] = [];
     if (
-      startBounds?.status &&
+      startSnapshot.status &&
       statusContainer &&
       statusDot &&
-      targetStatusBounds &&
+      targetSnapshot.status &&
       typeof statusContainer.animate === "function" &&
       typeof statusDot.animate === "function" &&
-      startBounds.status.width > 0 &&
-      startBounds.status.height > 0 &&
-      targetStatusBounds.width > 0 &&
-      targetStatusBounds.height > 0
+      startSnapshot.status.width > 0 &&
+      startSnapshot.status.height > 0 &&
+      targetSnapshot.status.width > 0 &&
+      targetSnapshot.status.height > 0
     ) {
-      const offsetX = startBounds.status.left - targetStatusBounds.left;
-      const offsetY = startBounds.status.top - targetStatusBounds.top;
-      const scaleX = startBounds.status.width / targetStatusBounds.width;
-      const scaleY = startBounds.status.height / targetStatusBounds.height;
+      const offsetX = startSnapshot.status.left - targetSnapshot.status.left;
+      const offsetY = startSnapshot.status.top - targetSnapshot.status.top;
+      const scaleX = startSnapshot.status.width / targetSnapshot.status.width;
+      const scaleY = startSnapshot.status.height / targetSnapshot.status.height;
       const containerAnimation = statusContainer.animate(
         [
           {
@@ -339,13 +364,13 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     }
 
     if (
-      startBounds?.title &&
+      startSnapshot.title &&
       title &&
-      targetTitleBounds &&
+      targetSnapshot.title &&
       typeof title.animate === "function"
     ) {
-      const offsetX = startBounds.title.left - targetTitleBounds.left;
-      const offsetY = startBounds.title.top - targetTitleBounds.top;
+      const offsetX = startSnapshot.title.left - targetSnapshot.title.left;
+      const offsetY = startSnapshot.title.top - targetSnapshot.title.top;
       const titleAnimation = title.animate(
         [
           { transform: `translate(${offsetX}px, ${offsetY}px)` },

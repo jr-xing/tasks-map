@@ -237,6 +237,7 @@ If your plugin does not need CSS, delete this file.
 
 /* Compact cards keep the same React tree and disclose their chrome in place. */
 .tasks-map-task-node-shell--compact .tasks-map-task-background {
+  box-sizing: border-box;
   height: auto;
   min-height: 56px;
   max-height: 76px;
