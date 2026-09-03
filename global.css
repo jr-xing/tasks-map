@@ -307,8 +307,7 @@ If your plugin does not need CSS, delete this file.
   transform: translateY(-50%);
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-background,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-background {
   height: auto;
   min-height: 120px;
@@ -318,8 +317,7 @@ If your plugin does not need CSS, delete this file.
   overflow: visible;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-header,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-node-header {
   position: static;
   width: calc(100% + 24px);
@@ -329,30 +327,24 @@ If your plugin does not need CSS, delete this file.
   border-radius: var(--radius-m) var(--radius-m) 0 0;
 }
 
-.tasks-map-task-node-shell--compact:hover
-  .tasks-map-task-node-header
-  > :not(.tasks-map-status-container),
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-node-header
   > :not(.tasks-map-status-container) {
   display: flex;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-status-container,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-status-container {
   width: auto;
   border-radius: var(--radius-m) 0 0 0;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-status-toggle,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-status-toggle {
   width: 40px;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-content,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-node-content {
   display: block;
   height: auto;
@@ -360,8 +352,7 @@ If your plugin does not need CSS, delete this file.
   padding: 0 0 4px;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-summary,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-node-summary {
   display: block;
   margin-bottom: 6px;
@@ -370,26 +361,22 @@ If your plugin does not need CSS, delete this file.
   -webkit-line-clamp: unset;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-quick-update,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-quick-update {
   display: block;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-footer,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-node-footer {
   display: block;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-attachments,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-attachments {
   display: flex;
 }
 
-.tasks-map-task-node-shell--compact:hover .tasks-map-task-node-projects,
-.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--selected
+.tasks-map-task-node-shell--compact.tasks-map-task-node-shell--revealed
   .tasks-map-task-node-projects {
   position: static;
   padding: 4px 8px 6px;

@@ -4,6 +4,7 @@ const React = {
   Fragment: "Fragment",
   useState: jest.fn(),
   useEffect: jest.fn(),
+  useLayoutEffect: jest.fn(),
   useCallback: jest.fn(),
   useMemo: jest.fn(),
   useRef: jest.fn(),
@@ -19,6 +20,7 @@ export const createElement = React.createElement;
 export const Fragment = React.Fragment;
 export const useState = React.useState;
 export const useEffect = React.useEffect;
+export const useLayoutEffect = React.useLayoutEffect;
 export const useCallback = React.useCallback;
 export const useMemo = React.useMemo;
 export const useRef = React.useRef;

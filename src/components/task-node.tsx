@@ -1,4 +1,11 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, {
+  useState,
+  useContext,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import {
   ChevronDown,
@@ -42,6 +49,10 @@ import {
 export const NODEWIDTH = 250;
 
 export const NODEHEIGHT = 120;
+
+const COMPACT_REVEAL_DURATION_MS = 160;
+const COMPACT_REVEAL_EASING = "cubic-bezier(0.2, 0, 0, 1)";
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 interface TaskAttachmentsProps {
   task: BaseTask;
@@ -126,8 +137,14 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const [tags, setTags] = useState(task.tags || []);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [tagError, setTagError] = useState(false);
+  const [compactHovered, setCompactHovered] = useState(false);
+  const compactCardRef = useRef<HTMLDivElement>(null);
+  const compactAnimationRef = useRef<Animation | null>(null);
+  const compactAnimationStartHeightRef = useRef<number | null>(null);
   const app = useApp();
   const summaryRef = useSummaryRenderer(task.summary, app);
+  const compactRevealed =
+    nodeDensity === "compact" && (compactHovered || selected);
 
   // status/starred/tags are mirrored into local state for optimistic updates.
   // ReactFlow reuses this component instance across reloads (the node id is
@@ -140,6 +157,107 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     setStarred(task.starred);
     setTags(task.tags || []);
   }, [task]);
+
+  const stopCompactAnimation = useCallback(() => {
+    const animation = compactAnimationRef.current;
+    compactAnimationRef.current = null;
+    animation?.cancel();
+
+    const background = compactCardRef.current?.querySelector<HTMLElement>(
+      ".tasks-map-task-background"
+    );
+    background?.style.removeProperty("overflow");
+  }, []);
+
+  const updateCompactHover = useCallback(
+    (hovered: boolean) => {
+      if (nodeDensity !== "compact") {
+        if (!hovered) setCompactHovered(false);
+        return;
+      }
+
+      const currentlyRevealed = compactHovered || selected;
+      const nextRevealed = hovered || selected;
+      setCompactHovered(hovered);
+
+      if (currentlyRevealed === nextRevealed) return;
+
+      const background = compactCardRef.current?.querySelector<HTMLElement>(
+        ".tasks-map-task-background"
+      );
+      compactAnimationStartHeightRef.current =
+        background?.getBoundingClientRect().height ?? null;
+      stopCompactAnimation();
+    },
+    [compactHovered, nodeDensity, selected, stopCompactAnimation]
+  );
+
+  const handleCompactMouseEnter = useCallback(() => {
+    updateCompactHover(true);
+  }, [updateCompactHover]);
+
+  const handleCompactMouseLeave = useCallback(() => {
+    updateCompactHover(false);
+  }, [updateCompactHover]);
+
+  useLayoutEffect(() => {
+    const background = compactCardRef.current?.querySelector<HTMLElement>(
+      ".tasks-map-task-background"
+    );
+    const startHeight = compactAnimationStartHeightRef.current;
+    compactAnimationStartHeightRef.current = null;
+
+    if (!background || startHeight === null) return;
+
+    const targetHeight = background.getBoundingClientRect().height;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    if (
+      reduceMotion ||
+      typeof background.animate !== "function" ||
+      Math.abs(startHeight - targetHeight) < 1
+    ) {
+      background.style.removeProperty("overflow");
+      return;
+    }
+
+    background.style.setProperty("overflow", "hidden");
+    const animation = background.animate(
+      [
+        {
+          height: `${startHeight}px`,
+          minHeight: `${startHeight}px`,
+          maxHeight: `${startHeight}px`,
+        },
+        {
+          height: `${targetHeight}px`,
+          minHeight: `${targetHeight}px`,
+          maxHeight: `${targetHeight}px`,
+        },
+      ],
+      {
+        duration: COMPACT_REVEAL_DURATION_MS,
+        easing: COMPACT_REVEAL_EASING,
+      }
+    );
+    compactAnimationRef.current = animation;
+
+    const finish = () => {
+      if (compactAnimationRef.current !== animation) return;
+      compactAnimationRef.current = null;
+      background.style.removeProperty("overflow");
+    };
+    animation.onfinish = finish;
+    animation.oncancel = finish;
+
+    return () => {
+      if (compactAnimationRef.current !== animation) return;
+      compactAnimationRef.current = null;
+      animation.cancel();
+      background.style.removeProperty("overflow");
+    };
+  }, [compactRevealed]);
 
   const isVertical = layoutDirection === "Vertical";
   const targetPosition = isVertical ? Position.Top : Position.Left;
@@ -291,12 +409,15 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
       className={[
         "tasks-map-task-node-shell",
         `tasks-map-task-node-shell--${nodeDensity}`,
+        compactRevealed && "tasks-map-task-node-shell--revealed",
         selected && "tasks-map-task-node-shell--selected",
       ]
         .filter(Boolean)
         .join(" ")}
+      onMouseEnter={handleCompactMouseEnter}
+      onMouseLeave={handleCompactMouseLeave}
     >
-      <div className="tasks-map-task-node-card">
+      <div ref={compactCardRef} className="tasks-map-task-node-card">
         <TaskBackground
           status={status}
           priority={showPriorities ? priority : ""}
