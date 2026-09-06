@@ -29,6 +29,7 @@ export abstract class BaseTask {
   link: string;
   incomingLinks: string[];
   starred: boolean;
+  today: boolean;
   projects: string[];
   attachments: TaskAttachment[];
   quickComments: string;
@@ -49,6 +50,7 @@ export abstract class BaseTask {
     link: string;
     incomingLinks: string[];
     starred: boolean;
+    today?: boolean;
     projects?: string[];
     attachments?: TaskAttachment[];
     quickComments?: string;
@@ -66,6 +68,7 @@ export abstract class BaseTask {
     this.link = data.link;
     this.incomingLinks = data.incomingLinks;
     this.starred = data.starred;
+    this.today = data.today ?? false;
     this.projects = data.projects ?? [];
     this.attachments = data.attachments ?? [];
     this.quickComments = data.quickComments ?? "";
@@ -157,6 +160,7 @@ export abstract class BaseTask {
       link: this.link,
       incomingLinks: this.incomingLinks,
       starred: this.starred,
+      today: this.today,
       projects: this.projects,
       attachments: this.attachments,
       quickComments: this.quickComments,

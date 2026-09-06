@@ -248,6 +248,11 @@
     "due": "Vervalt op {{date}}"
   },
   "kanban": {
+    "today": "Vandaag",
+    "today_empty": "Sleep notitietaken hierheen om je dag te plannen zonder hun status te wijzigen.",
+    "remove_from_today": "Verwijderen uit Vandaag",
+    "today_note_tasks_only": "Alleen notitietaken kunnen aan Vandaag worden toegevoegd. Inline selectievakjestaken worden niet ondersteund.",
+    "today_update_failed": "De selectie voor Vandaag kon niet worden bijgewerkt. De vorige selectie is hersteld.",
     "title": "Kanban",
     "pin": "Kanban vastzetten",
     "unpin": "Kanban losmaken",

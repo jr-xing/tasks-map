@@ -248,6 +248,11 @@
     "due": "截止日期：{{date}}"
   },
   "kanban": {
+    "today": "今天",
+    "today_empty": "将笔记任务拖到此处来安排今天的工作，不会更改任务状态。",
+    "remove_from_today": "从今天移除",
+    "today_note_tasks_only": "只有笔记任务可以添加到今天，不支持行内复选框任务。",
+    "today_update_failed": "无法更新今天的任务选择，已恢复之前的选择。",
     "title": "看板",
     "pin": "固定看板",
     "unpin": "取消固定看板",

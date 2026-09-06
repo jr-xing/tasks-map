@@ -1114,6 +1114,7 @@ function parseTaskNote(
   }
 
   task.dueDate = normalizeDueDate(frontmatter.due);
+  task.today = frontmatter["task-today"] === true;
 
   const quickCommentsProperty =
     displaySettings?.quickCommentsPropertyName?.trim() ||

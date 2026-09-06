@@ -29,6 +29,15 @@ interface DependencyEntry {
 export class NoteTask extends BaseTask {
   readonly type = "note" as const;
 
+  async updateToday(value: boolean, app: App): Promise<void> {
+    const file = this.link ? app.vault.getFileByPath(this.link) : null;
+    if (!file) throw new Error("Today task note could not be found.");
+
+    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+      frontmatter["task-today"] = value;
+    });
+  }
+
   async updateQuickComments(
     newValue: string,
     propertyName: string,

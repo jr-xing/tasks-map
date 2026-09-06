@@ -6,6 +6,7 @@ import {
   GripVertical,
   Pin,
   Settings2,
+  Sun,
   X,
 } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
@@ -23,9 +24,12 @@ import {
 } from "src/lib/priority-config";
 import {
   buildKanbanColumns,
+  dropKanbanTask,
+  getKanbanColumnKey,
   getKanbanCardTitle,
   moveKanbanColumn,
   type KanbanColumnDropPosition,
+  type KanbanColumn,
   type KanbanFocusOption,
   type KanbanSection,
   type KanbanTaskRow,
@@ -56,6 +60,7 @@ interface KanbanPanelProps {
   onFocusProject: (_rootTaskId: string) => void;
   onTaskStatusChange: (_taskId: string, _status: TaskStatus) => void;
   onTaskStatusMove: (_taskId: string, _status: TaskStatus) => Promise<void>;
+  onTaskTodayChange: (_taskId: string, _today: boolean) => Promise<void>;
   onPreferencesChange: (_patch: Partial<KanbanDisplayPreferences>) => void;
   onColumnOrderChange: (_columnOrder: string[]) => void;
   trackVaultWrite?: VaultWriteTracker;
@@ -114,6 +119,7 @@ export default function KanbanPanel({
   onFocusProject,
   onTaskStatusChange,
   onTaskStatusMove,
+  onTaskTodayChange,
   onPreferencesChange,
   onColumnOrderChange,
   trackVaultWrite,
@@ -179,27 +185,33 @@ export default function KanbanPanel({
   }, []);
 
   const handleDragOver = useCallback(
-    (event: React.DragEvent<HTMLElement>, statusId: string) => {
+    (event: React.DragEvent<HTMLElement>, column: KanbanColumn) => {
       event.preventDefault();
       event.stopPropagation();
       event.dataTransfer.dropEffect = "move";
 
       if (draggedColumnId) {
+        if (column.kind === "today") {
+          event.dataTransfer.dropEffect = "none";
+          setColumnDropTarget(null);
+          setDragOverStatus(null);
+          return;
+        }
         const rect = event.currentTarget.getBoundingClientRect();
         const position: KanbanColumnDropPosition =
           event.clientX < rect.left + rect.width / 2 ? "before" : "after";
-        setColumnDropTarget({ statusId, position });
+        setColumnDropTarget({ statusId: column.status.id, position });
         setDragOverStatus(null);
         return;
       }
-      setDragOverStatus(statusId);
+      setDragOverStatus(getKanbanColumnKey(column));
       setColumnDropTarget(null);
     },
     [draggedColumnId]
   );
 
   const handleDrop = useCallback(
-    async (event: React.DragEvent<HTMLElement>, statusId: string) => {
+    async (event: React.DragEvent<HTMLElement>, column: KanbanColumn) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -207,6 +219,10 @@ export default function KanbanPanel({
         event.dataTransfer.getData(KANBAN_COLUMN_DRAG_DATA_KEY) ||
         draggedColumnId;
       if (columnId) {
+        setDraggedColumnId(null);
+        setColumnDropTarget(null);
+        if (column.kind === "today") return;
+        const statusId = column.status.id;
         const position =
           columnDropTarget?.statusId === statusId
             ? columnDropTarget.position
@@ -220,8 +236,6 @@ export default function KanbanPanel({
             position
           )
         );
-        setDraggedColumnId(null);
-        setColumnDropTarget(null);
         return;
       }
 
@@ -229,13 +243,14 @@ export default function KanbanPanel({
       setDraggedTaskId(null);
       setDragOverStatus(null);
       if (!taskId) return;
-      await onTaskStatusMove(taskId, statusId);
+      await dropKanbanTask(taskId, column, onTaskStatusMove, onTaskTodayChange);
     },
     [
       columnDropTarget,
       draggedColumnId,
       onColumnOrderChange,
       onTaskStatusMove,
+      onTaskTodayChange,
       preferences.columnOrder,
       statuses,
     ]
@@ -386,8 +401,16 @@ export default function KanbanPanel({
     [app, taskHoverPreview]
   );
 
+  const handleRemoveToday = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, taskId: string) => {
+      event.stopPropagation();
+      void onTaskTodayChange(taskId, false);
+    },
+    [onTaskTodayChange]
+  );
+
   const renderCard = useCallback(
-    (row: KanbanTaskRow, section: KanbanSection) => {
+    (row: KanbanTaskRow, section: KanbanSection, isToday: boolean) => {
       const { task } = row;
       const projectOptions = focusOptions.get(task.id) ?? [];
       const projectLabels =
@@ -436,6 +459,23 @@ export default function KanbanPanel({
             <span className="tasks-map-kanban__card-title" title={cardTitle}>
               {cardTitle}
             </span>
+            {isToday && (
+              <button
+                className="tasks-map-kanban__remove-today-button"
+                type="button"
+                draggable={false}
+                onClick={(event) => handleRemoveToday(event, task.id)}
+                onMouseDown={(event) => event.stopPropagation()}
+                onDragStart={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                aria-label={t("kanban.remove_from_today")}
+                title={t("kanban.remove_from_today")}
+              >
+                <X size={15} />
+              </button>
+            )}
             <button
               className="tasks-map-kanban__open-button"
               type="button"
@@ -517,6 +557,7 @@ export default function KanbanPanel({
       handleFocus,
       handleOpenNoteAuxClick,
       handleOpenNoteClick,
+      handleRemoveToday,
       handleTaskDragEnd,
       handleTaskDragStart,
       notePriorityOptions,
@@ -564,15 +605,19 @@ export default function KanbanPanel({
 
       <div className="tasks-map-kanban__columns">
         {columns.map((column) => {
-          const isDragOver = dragOverStatus === column.status.id;
-          const isColumnDragging = draggedColumnId === column.status.id;
+          const columnKey = getKanbanColumnKey(column);
+          const isToday = column.kind === "today";
+          const isDragOver = dragOverStatus === columnKey;
+          const isColumnDragging =
+            column.kind === "status" && draggedColumnId === column.status.id;
           const dropPosition =
+            column.kind === "status" &&
             columnDropTarget?.statusId === column.status.id
               ? columnDropTarget.position
               : null;
           return (
             <section
-              key={column.status.id}
+              key={columnKey}
               className={`tasks-map-kanban__column${
                 isDragOver ? " tasks-map-kanban__column--drag-over" : ""
               }${
@@ -582,37 +627,45 @@ export default function KanbanPanel({
                   ? ` tasks-map-kanban__column--drop-${dropPosition}`
                   : ""
               }`}
-              onDragOver={(event) => handleDragOver(event, column.status.id)}
-              onDrop={(event) => void handleDrop(event, column.status.id)}
+              onDragOver={(event) => handleDragOver(event, column)}
+              onDrop={(event) => void handleDrop(event, column)}
             >
               <div className="tasks-map-kanban__column-header">
-                <button
-                  className="tasks-map-kanban__column-grip"
-                  draggable
-                  onDragStart={(event) =>
-                    handleColumnDragStart(event, column.status.id)
-                  }
-                  onDragEnd={handleColumnDragEnd}
-                  aria-label={t("kanban.move_column", {
-                    column: column.status.label,
-                  })}
-                  title={t("kanban.move_column", {
-                    column: column.status.label,
-                  })}
-                >
-                  <GripVertical size={14} />
-                </button>
-                <span
-                  className="tasks-map-kanban__status-dot"
-                  ref={(element) => {
-                    element?.style.setProperty(
-                      "--tasks-map-status-color",
-                      column.status.color
-                    );
-                  }}
-                />
+                {column.kind === "status" ? (
+                  <>
+                    <button
+                      className="tasks-map-kanban__column-grip"
+                      draggable
+                      onDragStart={(event) =>
+                        handleColumnDragStart(event, column.status.id)
+                      }
+                      onDragEnd={handleColumnDragEnd}
+                      aria-label={t("kanban.move_column", {
+                        column: column.status.label,
+                      })}
+                      title={t("kanban.move_column", {
+                        column: column.status.label,
+                      })}
+                    >
+                      <GripVertical size={14} />
+                    </button>
+                    <span
+                      className="tasks-map-kanban__status-dot"
+                      ref={(element) => {
+                        element?.style.setProperty(
+                          "--tasks-map-status-color",
+                          column.status.color
+                        );
+                      }}
+                    />
+                  </>
+                ) : (
+                  <Sun size={16} aria-hidden="true" />
+                )}
                 <span className="tasks-map-kanban__column-label">
-                  {column.status.label}
+                  {column.kind === "today"
+                    ? t("kanban.today")
+                    : column.status.label}
                 </span>
                 <span className="tasks-map-kanban__column-count">
                   {column.tasks.length}
@@ -633,13 +686,15 @@ export default function KanbanPanel({
                       </div>
                     )}
                     <div className="tasks-map-kanban__section-cards">
-                      {section.rows.map((row) => renderCard(row, section))}
+                      {section.rows.map((row) =>
+                        renderCard(row, section, isToday)
+                      )}
                     </div>
                   </div>
                 ))}
                 {column.tasks.length === 0 && (
                   <div className="tasks-map-kanban__column-empty">
-                    {t("kanban.empty_column")}
+                    {t(isToday ? "kanban.today_empty" : "kanban.empty_column")}
                   </div>
                 )}
               </div>

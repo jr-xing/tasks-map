@@ -2,6 +2,8 @@ import {
   buildKanbanColumns,
   buildKanbanFocusOptions,
   buildKanbanSections,
+  dropKanbanTask,
+  getKanbanColumnKey,
   getKanbanCardTitle,
   getKanbanTasks,
   moveKanbanColumn,
@@ -53,6 +55,7 @@ interface TaskOverrides {
   status?: string;
   priority?: string;
   starred?: boolean;
+  today?: boolean;
   tags?: string[];
   link?: string;
   projects?: string[];
@@ -74,6 +77,7 @@ function makeTask(overrides: TaskOverrides): BaseTask {
     link: overrides.link ?? `Tasks/${overrides.id}.md`,
     incomingLinks: overrides.incomingLinks ?? [],
     starred: overrides.starred ?? false,
+    today: overrides.today,
     projects: overrides.projects ?? [],
     isProject: overrides.isProject ?? false,
     noteFilename: overrides.noteFilename,
@@ -93,12 +97,13 @@ describe("buildKanbanColumns", () => {
       PRIORITIES
     );
 
-    expect(columns.map((column) => column.status.id)).toEqual([
-      "todo",
-      "active",
-      "done",
+    expect(columns.map(getKanbanColumnKey)).toEqual([
+      "today",
+      "status:todo",
+      "status:active",
+      "status:done",
     ]);
-    expect(columns.map((column) => column.tasks.length)).toEqual([0, 1, 0]);
+    expect(columns.map((column) => column.tasks.length)).toEqual([0, 0, 1, 0]);
   });
 
   it("uses starred, priority, and stable title ordering", () => {
@@ -112,7 +117,7 @@ describe("buildKanbanColumns", () => {
       PRIORITIES
     );
 
-    expect(columns[0].tasks.map((task) => task.id)).toEqual([
+    expect(columns[1].tasks.map((task) => task.id)).toEqual([
       "starred",
       "high",
       "normal",
@@ -127,12 +132,113 @@ describe("buildKanbanColumns", () => {
       { columnOrder: ["done", "todo", "active"] }
     );
 
-    expect(columns.map((column) => column.status.id)).toEqual([
-      "done",
-      "todo",
-      "active",
+    expect(columns.map(getKanbanColumnKey)).toEqual([
+      "today",
+      "status:done",
+      "status:todo",
+      "status:active",
     ]);
-    expect(columns[2].tasks.map((task) => task.id)).toEqual(["one"]);
+    expect(columns[3].tasks.map((task) => task.id)).toEqual(["one"]);
+  });
+});
+
+describe("Today column", () => {
+  it("duplicates selected note tasks across Today and their status, including done", () => {
+    const selected = makeTask({ id: "selected", today: true, status: "done" });
+    const inline = new DataviewTask({
+      ...selected.toPlainObject(),
+      id: "inline",
+    });
+    const tasks = getKanbanTasks(
+      [selected, inline, makeTask({ id: "other" })],
+      filter()
+    );
+    const columns = buildKanbanColumns(tasks, STATUSES);
+    expect(tasks).toHaveLength(3);
+    expect(columns[0].tasks).toEqual([selected]);
+    expect(columns[3].tasks).toContain(selected);
+    expect(columns[3].tasks).toContain(inline);
+    expect(selected.status).toBe("done");
+  });
+
+  it("uses the board's filtered tasks, sorting and project sections", () => {
+    const tasks = getKanbanTasks(
+      [
+        makeTask({
+          id: "normal",
+          today: true,
+          tags: ["work"],
+          projects: ["Alpha"],
+        }),
+        makeTask({
+          id: "starred",
+          today: true,
+          starred: true,
+          tags: ["work"],
+          projects: ["Alpha"],
+        }),
+        makeTask({ id: "filtered", today: true }),
+        makeTask({
+          id: "project",
+          today: true,
+          isProject: true,
+          tags: ["work"],
+        }),
+      ],
+      filter({ selectedTags: ["work"] }),
+      { showProjectTasks: false }
+    );
+    const today = buildKanbanColumns(tasks, STATUSES, PRIORITIES, {
+      groupByProject: true,
+    })[0];
+    expect(today.tasks.map((task) => task.id)).toEqual(["starred", "normal"]);
+    expect(today.sections).toHaveLength(1);
+    expect(today.sections[0].label).toBe("Alpha");
+    expect(today.sections[0].rows.map((row) => row.task.id)).toEqual([
+      "starred",
+      "normal",
+    ]);
+  });
+
+  it("keeps Today leftmost on empty boards and distinct from a custom today status", () => {
+    const statuses = [{ ...STATUSES[0], id: "today" }, STATUSES[1]];
+    const columns = buildKanbanColumns([], statuses, [], {
+      columnOrder: ["active", "today"],
+    });
+    expect(columns.map(getKanbanColumnKey)).toEqual([
+      "today",
+      "status:active",
+      "status:today",
+    ]);
+    expect(columns.every((column) => column.tasks.length === 0)).toBe(true);
+    expect(buildKanbanColumns([], [])[0].kind).toBe("today");
+  });
+
+  it("routes Today drops only to Today persistence and status drops only to status persistence", async () => {
+    const columns = buildKanbanColumns([], STATUSES);
+    const status = jest.fn(async () => undefined);
+    const today = jest.fn(async () => undefined);
+    await dropKanbanTask("task", columns[0], status, today);
+    expect(today).toHaveBeenCalledWith("task", true);
+    expect(status).not.toHaveBeenCalled();
+    today.mockClear();
+    await dropKanbanTask("task", columns[2], status, today);
+    expect(status).toHaveBeenCalledWith("task", "active");
+    expect(today).not.toHaveBeenCalled();
+  });
+
+  it("preserves Today when changing status", async () => {
+    const task = makeTask({ id: "task", today: true });
+    await moveKanbanTaskStatus(
+      task,
+      "done",
+      (_id, status) => {
+        task.status = status;
+      },
+      async () => undefined
+    );
+    expect(task.today).toBe(true);
+    expect(task.status).toBe("done");
   });
 });
 

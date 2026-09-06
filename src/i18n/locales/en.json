@@ -248,6 +248,11 @@
     "due": "Due {{date}}"
   },
   "kanban": {
+    "today": "Today",
+    "today_empty": "Drag note tasks here to plan your day without changing their status.",
+    "remove_from_today": "Remove from Today",
+    "today_note_tasks_only": "Only note tasks can be added to Today. Inline checkbox tasks are not supported.",
+    "today_update_failed": "Could not update Today selection. The previous selection was restored.",
     "title": "Kanban",
     "pin": "Pin Kanban",
     "unpin": "Unpin Kanban",

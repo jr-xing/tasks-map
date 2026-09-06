@@ -79,6 +79,7 @@ import {
   moveKanbanTaskStatus,
 } from "src/lib/kanban";
 import { kanbanPreferencePatchToSettings } from "src/lib/kanban-preferences";
+import { changeKanbanTaskToday } from "src/lib/kanban-today";
 import { getVisibleMapViewport } from "src/lib/visible-map-viewport";
 import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
 import { normalizeTaskNotesTypeSchemaPath } from "src/lib/tasknotes-type-schema";
@@ -723,6 +724,42 @@ export default function TaskMapGraphView({
       new Notice(t("kanban.status_update_failed"));
     },
     [app, handleTaskStatusChange, settings.taskStatuses, tasks, trackVaultWrite]
+  );
+
+  const pendingTodayWritesRef = useRef(new Set<string>());
+  const handleTaskTodayChange = useCallback(
+    (taskId: string, today: boolean) => {
+      skipFitViewRef.current = true;
+      setTasks((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === taskId ? cloneTaskWithUpdates(task, { today }) : task
+        )
+      );
+    },
+    []
+  );
+
+  const handleKanbanTodayChange = useCallback(
+    async (taskId: string, today: boolean) => {
+      const task = tasks.find((candidate) => candidate.id === taskId);
+      if (!task) return;
+      if (!(task instanceof NoteTask)) {
+        new Notice(t("kanban.today_note_tasks_only"));
+        return;
+      }
+
+      const result = await changeKanbanTaskToday(
+        task,
+        today,
+        pendingTodayWritesRef.current,
+        handleTaskTodayChange,
+        () => trackVaultWrite(task.link, () => task.updateToday(today, app))
+      );
+      if (result.kind !== "rolled_back") return;
+      console.error("Failed to update Today selection:", result.error);
+      new Notice(t("kanban.today_update_failed"));
+    },
+    [app, handleTaskTodayChange, tasks, trackVaultWrite]
   );
 
   const handleKanbanPreferencesChange = useCallback(
@@ -2197,6 +2234,7 @@ export default function TaskMapGraphView({
                 onClose={closeKanban}
                 onFocusProject={handleTreeTaskFocus}
                 onTaskStatusChange={handleTaskStatusChange}
+                onTaskTodayChange={handleKanbanTodayChange}
                 onTaskStatusMove={handleKanbanStatusMove}
                 onPreferencesChange={handleKanbanPreferencesChange}
                 onColumnOrderChange={handleKanbanColumnOrderChange}

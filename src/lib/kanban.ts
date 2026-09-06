@@ -37,10 +37,31 @@ export interface KanbanSection {
   rows: KanbanTaskRow[];
 }
 
-export interface KanbanColumn {
-  status: TaskStatusConfig;
+interface KanbanColumnContent {
   tasks: BaseTask[];
   sections: KanbanSection[];
+}
+
+export type KanbanColumn = KanbanColumnContent &
+  ({ kind: "today" } | { kind: "status"; status: TaskStatusConfig });
+
+/** Keep board identities distinct even when a user defines a "today" status. */
+export function getKanbanColumnKey(column: KanbanColumn): string {
+  return column.kind === "today" ? "today" : `status:${column.status.id}`;
+}
+
+/** Dispatch a card drop without ever treating Today as a task status. */
+export async function dropKanbanTask(
+  taskId: string,
+  column: KanbanColumn,
+  moveStatus: (_taskId: string, _status: string) => Promise<void>,
+  changeToday: (_taskId: string, _today: boolean) => Promise<void>
+): Promise<void> {
+  if (column.kind === "today") {
+    await changeToday(taskId, true);
+    return;
+  }
+  await moveStatus(taskId, column.status.id);
 }
 
 export interface KanbanColumnOptions {
@@ -314,7 +335,7 @@ export function buildKanbanSections(
   return sections.map(({ bestTask: _bestTask, ...section }) => section);
 }
 
-/** Build every configured status column, including empty drop targets. */
+/** Prepend Today to every configured status column, including empty targets. */
 export function buildKanbanColumns(
   tasks: BaseTask[],
   statuses: TaskStatusConfig[],
@@ -338,11 +359,25 @@ export function buildKanbanColumns(
     grouped.get(target.id)?.push(task);
   }
 
-  return orderedStatuses.map((status) => {
+  const todayTasks = tasks
+    .filter((task) => task.type === "note" && task.today)
+    .sort((left, right) => compareTasks(left, right, notePriorityOptions));
+  const todayColumn: KanbanColumn = {
+    kind: "today",
+    tasks: todayTasks,
+    sections: buildKanbanSections(
+      todayTasks,
+      options.focusOptions ?? new Map(),
+      notePriorityOptions,
+      options.groupByProject ?? false
+    ),
+  };
+  const statusColumns = orderedStatuses.map((status): KanbanColumn => {
     const columnTasks = [...(grouped.get(status.id) ?? [])].sort(
       (left, right) => compareTasks(left, right, notePriorityOptions)
     );
     return {
+      kind: "status",
       status,
       tasks: columnTasks,
       sections: buildKanbanSections(
@@ -353,6 +388,7 @@ export function buildKanbanColumns(
       ),
     };
   });
+  return [todayColumn, ...statusColumns];
 }
 
 /** Map every structured task to each project-tree root that contains it. */
