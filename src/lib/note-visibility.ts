@@ -46,6 +46,7 @@ export interface NoteVisibilityReason {
 }
 
 export interface LiveMapVisibilityContext {
+  projectRootTaskIds?: string[];
   tasks: BaseTask[];
   filter: FilterState;
   hideUnlinkedTasks: boolean;
@@ -242,12 +243,15 @@ export function buildNoteVisibilityReport({
         (task) => !unlinkedIds.has(task.id) || droppedTaskIds.has(task.id)
       )
     : tasks;
-  const visibleIds = new Set(getFilteredNodeIds(graphTasks, filter));
+  const visibleIds = new Set(
+    getFilteredNodeIds(graphTasks, filter, liveContext?.projectRootTaskIds)
+  );
   if (!visibleIds.has(currentTask.id)) {
     const filterReasons = getTaskFilterReasonCodes(
       currentTask,
       graphTasks,
-      filter
+      filter,
+      liveContext?.projectRootTaskIds
     );
     reasons.push(
       ...filterReasons.map((code) => filterReason(code, currentTask, filter))

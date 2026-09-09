@@ -66,6 +66,16 @@ import KanbanPanel, {
 import LeftRail, { RailPanelId } from "src/components/left-rail";
 import { GraphEmptyState } from "src/components/graph-empty-state";
 import ControlsPanel from "src/components/controls-panel";
+import {
+  buildProjectRootOptions,
+  getNavigationTaskId,
+  getProjectScopeTaskIds,
+  createOverviewState,
+  TaskMapReturnState,
+  TaskMapNavigationContext,
+  selectProjectRoots,
+  survivingProjectRoots,
+} from "src/lib/project-navigation";
 import { createTaskFocusFilter } from "src/lib/task-focus-picker";
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState } from "src/types/filter-state";
@@ -73,11 +83,7 @@ import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { TaskPriorityConfig } from "src/lib/priority-config";
-import {
-  buildKanbanFocusOptions,
-  getKanbanTasks,
-  moveKanbanTaskStatus,
-} from "src/lib/kanban";
+import { getKanbanTasks, moveKanbanTaskStatus } from "src/lib/kanban";
 import { kanbanPreferencePatchToSettings } from "src/lib/kanban-preferences";
 import { changeKanbanTaskToday } from "src/lib/kanban-today";
 import { getVisibleMapViewport } from "src/lib/visible-map-viewport";
@@ -173,6 +179,7 @@ interface TaskMapGraphViewProps {
     _context: LiveMapVisibilityContext | null
   ) => void;
   onReloadHandlerChange?: (_handler: (() => void) | null) => void;
+  onNavigationContextChange?: (_context: TaskMapNavigationContext) => void;
 }
 
 export default function TaskMapGraphView({
@@ -185,6 +192,7 @@ export default function TaskMapGraphView({
   onFocusRequestHandled,
   onVisibilityContextChange,
   onReloadHandlerChange,
+  onNavigationContextChange,
 }: TaskMapGraphViewProps) {
   const embed = { ...DEFAULT_EMBED_CONFIG, ...embedConfig };
   const app = useApp();
@@ -198,6 +206,19 @@ export default function TaskMapGraphView({
   const [selectedEdge, setSelectedEdge] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const reactFlowInstance = useReactFlow();
+  const [overviewRootIds, setOverviewRootIds] = React.useState<string[] | null>(
+    null
+  );
+  const [overviewSourceId, setOverviewSourceId] = React.useState<string | null>(
+    null
+  );
+  const [returnState, setReturnState] =
+    React.useState<TaskMapReturnState | null>(null);
+  const pendingRestoreRef = React.useRef<TaskMapReturnState | null>(null);
+  const afterLayoutRef = React.useRef<(() => void) | null>(null);
+  const pendingOverviewPulseRef = React.useRef<string | null>(null);
+  const overviewStripRef = React.useRef<HTMLDivElement>(null);
+  const pulseTimerRef = React.useRef<number | null>(null);
   const skipFitViewRef = React.useRef(false);
   const loadGenerationRef = React.useRef(0);
   const reloadTimerRef = React.useRef<number | null>(null);
@@ -305,17 +326,23 @@ export default function TaskMapGraphView({
   }, [openPanel]);
 
   const getTopOverlayInset = useCallback((): number => {
-    if (openPanel !== "kanban") return 0;
     const container = containerRef.current;
-    const panel = kanbanPanelRef.current;
-    if (!container || !panel) return 0;
-    const containerRect = container.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
+    if (!container) return 0;
+    const top = container.getBoundingClientRect().top;
+    const bottoms = [
+      returnState
+        ? overviewStripRef.current?.getBoundingClientRect().bottom
+        : undefined,
+      openPanel === "kanban"
+        ? kanbanPanelRef.current?.getBoundingClientRect().bottom
+        : undefined,
+    ].filter((value): value is number => value !== undefined);
+    if (bottoms.length === 0) return 0;
     return Math.min(
-      Math.max(0, panelRect.bottom - containerRect.top + 16),
+      Math.max(0, Math.max(...bottoms) - top + 16),
       Math.max(0, container.clientHeight - 120)
     );
-  }, [openPanel]);
+  }, [openPanel, returnState]);
 
   const getVisibleMapArea = useCallback(() => {
     const container = containerRef.current;
@@ -340,16 +367,19 @@ export default function TaskMapGraphView({
   );
 
   const fitNodesToVisibleArea = useCallback(
-    (currentNodes: ReturnType<typeof reactFlowInstance.getNodes>) => {
+    (
+      currentNodes: ReturnType<typeof reactFlowInstance.getNodes>,
+      duration = 400
+    ) => {
       const visibleArea = getVisibleMapArea();
       if (visibleArea.left <= 0 && visibleArea.top <= 0) {
-        reactFlowInstance.fitView({ duration: 400 });
+        reactFlowInstance.fitView({ duration });
         return;
       }
 
       const container = containerRef.current;
       if (!container || currentNodes.length === 0) {
-        reactFlowInstance.fitView({ duration: 400 });
+        reactFlowInstance.fitView({ duration });
         return;
       }
 
@@ -368,7 +398,7 @@ export default function TaskMapGraphView({
           x: viewport.x + visibleArea.left,
           y: viewport.y + visibleArea.top,
         },
-        { duration: 400 }
+        { duration }
       );
     },
     [getVisibleMapArea, reactFlowInstance]
@@ -393,7 +423,6 @@ export default function TaskMapGraphView({
         const currentNodes = reactFlowInstance.getNodes();
         const ready =
           currentNodes.length === expectedIds.size &&
-          currentNodes.length > 0 &&
           currentNodes.every(
             (node) =>
               expectedIds.has(node.id) &&
@@ -405,7 +434,55 @@ export default function TaskMapGraphView({
           );
         if (ready || frames >= 40) {
           fitRafRef.current = null;
-          fitNodesToVisibleArea(currentNodes);
+          const restore = pendingRestoreRef.current;
+          if (restore) {
+            pendingRestoreRef.current = null;
+            reactFlowInstance.setViewport(restore.viewport, { duration: 0 });
+            const selected = new Set(restore.selectedTaskIds);
+            setNodes((current) =>
+              current.map((node) => ({
+                ...node,
+                selected: selected.has(node.id),
+              }))
+            );
+          } else {
+            const afterLayout = afterLayoutRef.current;
+            afterLayoutRef.current = null;
+            fitNodesToVisibleArea(currentNodes, afterLayout ? 0 : 400);
+            if (afterLayout) {
+              fitRafRef.current = requestAnimationFrame(() => {
+                fitRafRef.current = null;
+                afterLayout();
+              });
+            }
+            const pulseId = pendingOverviewPulseRef.current;
+            pendingOverviewPulseRef.current = null;
+            if (pulseId) {
+              setNodes((current) =>
+                current.map((node) => ({
+                  ...node,
+                  selected: node.id === pulseId,
+                  className:
+                    node.id === pulseId
+                      ? "tasks-map-node--focused"
+                      : node.className,
+                }))
+              );
+              if (pulseTimerRef.current !== null)
+                window.clearTimeout(pulseTimerRef.current);
+              pulseTimerRef.current = window.setTimeout(() => {
+                setNodes((current) =>
+                  current.map((node) => ({
+                    ...node,
+                    className: node.className
+                      ?.replace(/\btasks-map-node--focused\b/g, "")
+                      .trim(),
+                  }))
+                );
+                pulseTimerRef.current = null;
+              }, 1600);
+            }
+          }
           return;
         }
         frames += 1;
@@ -413,7 +490,7 @@ export default function TaskMapGraphView({
       };
       fitRafRef.current = requestAnimationFrame(tick);
     },
-    [fitNodesToVisibleArea, reactFlowInstance]
+    [fitNodesToVisibleArea, reactFlowInstance, setNodes]
   );
 
   // Tracks which unlinked task IDs have been dropped onto the canvas this session
@@ -842,8 +919,13 @@ export default function TaskMapGraphView({
     const filteredIds = new Set(
       getFilteredNodeIds(undroppedUnlinked, filterState)
     );
-    return undroppedUnlinked.filter((t) => filteredIds.has(t.id));
-  }, [allUnlinkedTasks, droppedTaskIds, filterState]);
+    const scope = overviewRootIds
+      ? getProjectScopeTaskIds(tasks, overviewRootIds)
+      : null;
+    return undroppedUnlinked.filter(
+      (t) => filteredIds.has(t.id) && (!scope || scope.has(t.id))
+    );
+  }, [allUnlinkedTasks, droppedTaskIds, filterState, overviewRootIds, tasks]);
 
   // Tasks that are linked OR have been dropped onto the canvas this session
   // OR all tasks when hideUnlinkedTasks is disabled (unlinked appear as isolated nodes)
@@ -856,8 +938,9 @@ export default function TaskMapGraphView({
   }, [tasks, allUnlinkedTasks, droppedTaskIds, hideUnlinkedTasks]);
 
   const filteredGraphNodeIds = useMemo(
-    () => getFilteredNodeIds(graphTasks, filterState),
-    [graphTasks, filterState]
+    () =>
+      getFilteredNodeIds(graphTasks, filterState, overviewRootIds ?? undefined),
+    [graphTasks, filterState, overviewRootIds]
   );
 
   const foldedGraphVisibility = useMemo(
@@ -873,6 +956,7 @@ export default function TaskMapGraphView({
   useEffect(() => {
     onVisibilityContextChange?.({
       tasks,
+      projectRootTaskIds: overviewRootIds ?? undefined,
       filter: filterState,
       hideUnlinkedTasks,
       droppedTaskIds: [...droppedTaskIds],
@@ -890,6 +974,7 @@ export default function TaskMapGraphView({
     isLoading,
     nodes,
     onVisibilityContextChange,
+    overviewRootIds,
     tasks,
   ]);
 
@@ -1378,24 +1463,189 @@ export default function TaskMapGraphView({
     }
   }, [nodes, focusNode]);
 
+  const projectOptions = useMemo(() => buildProjectRootOptions(tasks), [tasks]);
+  const navigationTaskId = useMemo(
+    () =>
+      getNavigationTaskId({
+        selectedTaskIds: nodes
+          .filter((node) => node.type === "task" && node.selected)
+          .map((node) => node.id),
+        focusedTaskId: filterState.selectedRootTask ?? overviewSourceId,
+      }),
+    [nodes, filterState.selectedRootTask, overviewSourceId]
+  );
+  const navigationTask = tasks.find((task) => task.id === navigationTaskId);
+  const canShowFullProject =
+    !isLoading &&
+    !!navigationTaskId &&
+    !!projectOptions.get(navigationTaskId)?.length;
+
   useEffect(() => {
-    if (!focusRequest) return;
-    if (isLoading) return;
+    onNavigationContextChange?.({
+      selectedTaskIds: nodes
+        .filter((node) => node.type === "task" && node.selected)
+        .map((node) => node.id),
+      focusedTaskId: filterState.selectedRootTask ?? overviewSourceId,
+    });
+  }, [
+    nodes,
+    filterState.selectedRootTask,
+    overviewSourceId,
+    onNavigationContextChange,
+  ]);
+
+  const restoreTaskView = useCallback(() => {
+    if (!returnState) return;
+    if (fitRafRef.current !== null) cancelAnimationFrame(fitRafRef.current);
+    afterLayoutRef.current = null;
+    pendingTreeFocusRef.current = null;
+    pendingOverviewPulseRef.current = null;
+    pendingRestoreRef.current = returnState;
+    skipFitViewRef.current = false;
+    setOverviewRootIds(null);
+    setOverviewSourceId(null);
+    setFilterState(structuredClone(returnState.filter));
+    setCollapsedTaskIds(new Set(returnState.collapsedTaskIds));
+    setHideUnlinkedTasks(returnState.hideUnlinkedTasks);
+    setReturnState(null);
+  }, [returnState, setFilterState]);
+
+  const beginProjectOverview = useCallback(
+    (
+      taskId: string,
+      requestedRoots?: string[],
+      taskReturnFilter?: FilterState
+    ) => {
+      const options = projectOptions.get(taskId) ?? [];
+      const roots = selectProjectRoots(options, requestedRoots);
+      if (!tasks.some((task) => task.id === taskId) || roots.length === 0) {
+        new Notice(t("project_overview.no_project"));
+        return;
+      }
+      const overview = createOverviewState(
+        {
+          filter: taskReturnFilter ?? filterState,
+          collapsedTaskIds: [...collapsedTaskIds],
+          selectedTaskIds: taskReturnFilter
+            ? [taskId]
+            : reactFlowInstance
+                .getNodes()
+                .filter((node) => node.selected)
+                .map((node) => node.id),
+          hideUnlinkedTasks,
+          viewport: reactFlowInstance.getViewport(),
+        },
+        returnState
+      );
+      pendingRestoreRef.current = null;
+      afterLayoutRef.current = null;
+      pendingTreeFocusRef.current = null;
+      pendingOverviewPulseRef.current = taskId;
+      skipFitViewRef.current = false;
+      setReturnState(overview.returnState);
+      setOverviewSourceId(taskId);
+      setOverviewRootIds(roots.map((root) => root.rootTaskId));
+      setFilterState(overview.filter);
+      setCollapsedTaskIds(overview.collapsedTaskIds);
+      setHideUnlinkedTasks(overview.hideUnlinkedTasks);
+    },
+    [
+      projectOptions,
+      tasks,
+      filterState,
+      collapsedTaskIds,
+      hideUnlinkedTasks,
+      reactFlowInstance,
+      returnState,
+      setFilterState,
+    ]
+  );
+
+  const handleShowFullProject = useCallback(() => {
+    if (navigationTaskId) beginProjectOverview(navigationTaskId);
+  }, [navigationTaskId, beginProjectOverview]);
+
+  useEffect(() => {
+    if (!focusRequest || isLoading) return;
     if (!tasks.some((task) => task.id === focusRequest.taskId)) {
+      new Notice(t("project_overview.task_missing"));
       onFocusRequestHandled?.();
       return;
     }
-
-    skipFitViewRef.current = false;
-    setFilterState((prev) =>
-      createTaskFocusFilter(
-        focusRequest.baseFilter ?? prev,
-        focusRequest.taskId
-      )
-    );
-
+    if (focusRequest.kind === "project-overview") {
+      if (
+        selectProjectRoots(
+          projectOptions.get(focusRequest.taskId) ?? [],
+          focusRequest.rootTaskIds
+        ).length === 0
+      ) {
+        new Notice(t("project_overview.no_project"));
+        onFocusRequestHandled?.();
+        return;
+      }
+      if (
+        focusRequest.establishTaskReturnView &&
+        projectOptions.get(focusRequest.taskId)?.length
+      ) {
+        const taskFilter = createTaskFocusFilter(
+          focusRequest.baseFilter ?? filterState,
+          focusRequest.taskId
+        );
+        setFilterState(taskFilter);
+        skipFitViewRef.current = false;
+        afterLayoutRef.current = () =>
+          beginProjectOverview(
+            focusRequest.taskId,
+            focusRequest.rootTaskIds,
+            taskFilter
+          );
+      } else {
+        beginProjectOverview(focusRequest.taskId, focusRequest.rootTaskIds);
+      }
+    } else {
+      afterLayoutRef.current = null;
+      pendingRestoreRef.current = null;
+      setOverviewRootIds(null);
+      setOverviewSourceId(null);
+      skipFitViewRef.current = false;
+      setFilterState(
+        createTaskFocusFilter(
+          focusRequest.baseFilter ?? filterState,
+          focusRequest.taskId
+        )
+      );
+    }
     onFocusRequestHandled?.();
-  }, [isLoading, tasks, focusRequest, onFocusRequestHandled, setFilterState]);
+  }, [
+    isLoading,
+    tasks,
+    focusRequest,
+    onFocusRequestHandled,
+    setFilterState,
+    filterState,
+    projectOptions,
+    beginProjectOverview,
+  ]);
+
+  useEffect(() => {
+    if (isLoading || !overviewRootIds) return;
+    const surviving = survivingProjectRoots(tasks, overviewRootIds);
+    if (surviving.length === 0) {
+      new Notice(t("project_overview.projects_missing"));
+      restoreTaskView();
+    } else if (surviving.length !== overviewRootIds.length) {
+      setOverviewRootIds(surviving);
+    }
+  }, [tasks, isLoading, overviewRootIds, restoreTaskView]);
+
+  useEffect(
+    () => () => {
+      if (pulseTimerRef.current !== null)
+        window.clearTimeout(pulseTimerRef.current);
+      afterLayoutRef.current = null;
+    },
+    []
+  );
 
   const handleTreeTaskClick = useCallback(
     (taskId: string, rootTaskId: string) => {
@@ -1404,6 +1654,8 @@ export default function TaskMapGraphView({
 
       pendingTreeFocusRef.current = taskId;
       skipFitViewRef.current = true;
+      setOverviewRootIds(null);
+      setOverviewSourceId(null);
       setFilterState((prev) => ({
         ...prev,
         selectedRootTask: rootTaskId,
@@ -1414,6 +1666,8 @@ export default function TaskMapGraphView({
 
   const handleTreeTaskFocus = useCallback(
     (taskId: string) => {
+      setOverviewRootIds(null);
+      setOverviewSourceId(null);
       setFilterState((prev) => ({ ...prev, selectedRootTask: taskId }));
     },
     [setFilterState]
@@ -2031,32 +2285,39 @@ export default function TaskMapGraphView({
   );
 
   const preSearchFilteredTasks = useMemo(() => {
-    const filteredIds = getFilteredNodeIds(graphTasks, {
-      ...filterState,
-      searchQuery: "",
-      traversalMode: "match",
-    });
+    const filteredIds = getFilteredNodeIds(
+      graphTasks,
+      {
+        ...filterState,
+        searchQuery: "",
+        traversalMode: "match",
+      },
+      overviewRootIds ?? undefined
+    );
     const idSet = new Set(filteredIds);
     return graphTasks.filter((t) => idSet.has(t.id));
-  }, [graphTasks, filterState]);
+  }, [graphTasks, filterState, overviewRootIds]);
 
   const filteredTasks = useMemo(() => {
-    const idSet = new Set(filteredGraphNodeIds);
+    const idSet = foldedGraphVisibility.visibleNodeIds;
     return graphTasks.filter((t) => idSet.has(t.id));
-  }, [filteredGraphNodeIds, graphTasks]);
+  }, [foldedGraphVisibility.visibleNodeIds, graphTasks]);
+
+  const projectScopedTasks = useMemo(() => {
+    if (!overviewRootIds) return tasks;
+    const ids = getProjectScopeTaskIds(tasks, overviewRootIds);
+    return tasks.filter((task) => ids.has(task.id));
+  }, [tasks, overviewRootIds]);
 
   const kanbanTasks = useMemo(
     () =>
-      getKanbanTasks(tasks, filterState, {
+      getKanbanTasks(projectScopedTasks, filterState, {
         showProjectTasks: settings.kanbanShowProjectTasks,
       }),
-    [tasks, filterState, settings.kanbanShowProjectTasks]
+    [projectScopedTasks, filterState, settings.kanbanShowProjectTasks]
   );
 
-  const kanbanFocusOptions = useMemo(
-    () => buildKanbanFocusOptions(tasks),
-    [tasks]
-  );
+  const kanbanFocusOptions = projectOptions;
 
   const kanbanPreferences = useMemo<KanbanDisplayPreferences>(
     () => ({
@@ -2078,10 +2339,14 @@ export default function TaskMapGraphView({
   );
 
   const treeTasks = useMemo(() => {
-    const filteredIds = getVisibilityFilteredNodeIds(graphTasks, filterState);
+    const filteredIds = getVisibilityFilteredNodeIds(
+      graphTasks,
+      filterState,
+      overviewRootIds ?? undefined
+    );
     const idSet = new Set(filteredIds);
     return graphTasks.filter((t) => idSet.has(t.id));
-  }, [graphTasks, filterState]);
+  }, [graphTasks, filterState, overviewRootIds]);
 
   const selectedRootLabel = useMemo(() => {
     if (!filterState.selectedRootTask) return null;
@@ -2135,6 +2400,27 @@ export default function TaskMapGraphView({
           onFocusCapture={onRefreshBlockingFocus}
           onBlurCapture={onRefreshBlockingBlur}
         >
+          {returnState && (
+            <div className="tasks-map-project-overview" ref={overviewStripRef}>
+              <span className="tasks-map-project-overview__label">
+                {overviewRootIds
+                  ? t("project_overview.title", {
+                      projects: overviewRootIds
+                        .map((id) => {
+                          const task = tasks.find(
+                            (candidate) => candidate.id === id
+                          );
+                          return task?.summary || task?.text || id;
+                        })
+                        .join(", "),
+                    })
+                  : t("project_overview.return_available")}
+              </span>
+              <button type="button" onClick={restoreTaskView}>
+                {t("project_overview.back")}
+              </button>
+            </div>
+          )}
           <div className="tasks-map-corner" ref={cornerRef}>
             <div className="tasks-map-rail-row">
               <LeftRail
@@ -2147,6 +2433,23 @@ export default function TaskMapGraphView({
                 showUnlinked={embed.showUnlinkedPanel}
                 showTree={embed.showUnlinkedPanel}
                 unlinkedCount={sidebarTasks.length}
+                onShowFullProject={handleShowFullProject}
+                canShowFullProject={canShowFullProject}
+                projectActionLabel={
+                  navigationTask
+                    ? t(
+                        canShowFullProject
+                          ? "project_overview.show_for"
+                          : "project_overview.no_project_for",
+                        {
+                          task:
+                            navigationTask.summary ||
+                            navigationTask.text ||
+                            navigationTask.id,
+                        }
+                      )
+                    : t("project_overview.select_task")
+                }
               />
               {openPanel && openPanel !== "kanban" && (
                 <div className="tasks-map-flyout">

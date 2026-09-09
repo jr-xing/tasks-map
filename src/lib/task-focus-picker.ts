@@ -76,11 +76,11 @@ export function buildTaskFocusCandidates(
   tasks: BaseTask[],
   filter: FilterState
 ): TaskFocusCandidate[] {
-  return flattenTree(
-    buildProjectTree(visibleTasksForFilter(tasks, filter)),
-    0,
-    [],
-    []
+  const visibleIds = new Set(
+    visibleTasksForFilter(tasks, filter).map((task) => task.id)
+  );
+  return flattenTree(buildProjectTree(tasks), 0, [], []).filter((candidate) =>
+    visibleIds.has(candidate.taskId)
   );
 }
 

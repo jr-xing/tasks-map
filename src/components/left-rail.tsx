@@ -7,6 +7,7 @@ import {
   Kanban,
   ListTree,
   RefreshCw,
+  FolderTree,
 } from "lucide-react";
 import { t } from "../i18n";
 
@@ -32,6 +33,9 @@ interface LeftRailProps {
   showTree: boolean;
   /** Count shown as a badge on the unlinked-tasks icon. */
   unlinkedCount: number;
+  onShowFullProject: () => void;
+  projectActionLabel: string;
+  canShowFullProject: boolean;
 }
 
 interface RailItem {
@@ -57,6 +61,9 @@ export default function LeftRail({
   showUnlinked,
   showTree,
   unlinkedCount,
+  onShowFullProject,
+  projectActionLabel,
+  canShowFullProject,
 }: LeftRailProps) {
   const items: RailItem[] = [
     {
@@ -135,6 +142,15 @@ export default function LeftRail({
           </button>
         );
       })}
+      <button
+        className="tasks-map-left-rail__btn"
+        onClick={onShowFullProject}
+        disabled={!canShowFullProject}
+        aria-label={projectActionLabel}
+        title={projectActionLabel}
+      >
+        <FolderTree size={16} />
+      </button>
     </div>
   );
 }

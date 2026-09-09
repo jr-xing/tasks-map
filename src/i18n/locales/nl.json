@@ -384,7 +384,8 @@
       "search_scope": "De notitie valt buiten de resultaten en traversering voor zoekopdracht ‘{{query}}’.",
       "filters_pass": "De notitie voldoet aan alle huidige filters en grafiekregels.",
       "rendered": "Er bestaat een weergegeven taakknooppunt voor deze notitie.",
-      "render_missing": "Er bestaat geen weergegeven taakknooppunt, hoewel de notitie aan de huidige regels voldoet."
+      "render_missing": "Er bestaat geen weergegeven taakknooppunt, hoewel de notitie aan de huidige regels voldoet.",
+      "project_scope": "De taak valt buiten het huidige projectoverzicht."
     }
   },
   "task_node": {
@@ -442,5 +443,25 @@
     "layout_side": "Indeling naast elkaar",
     "body_font_smaller": "Kleinere tekst",
     "body_font_larger": "Grotere tekst"
+  },
+  "project_overview": {
+    "show": "Volledig project tonen",
+    "show_for": "Volledig project van {{task}} tonen",
+    "select_task": "Selecteer of focus een taak om het volledige project te tonen",
+    "no_project_for": "Geen bovenliggend project voor {{task}}",
+    "no_project": "Er is geen bovenliggend project gevonden.",
+    "task_missing": "De taak is niet meer beschikbaar.",
+    "projects_missing": "De projecten zijn niet meer beschikbaar. Terug naar de vorige taakweergave.",
+    "title": "Projectoverzicht: {{projects}}",
+    "return_available": "Vorige taakweergave beschikbaar",
+    "back": "Terug naar taakweergave",
+    "navigate": "Taak selecteren",
+    "focus_task": "Taak focussen",
+    "projects": "Projecten",
+    "projects_action": "Projecten →",
+    "all_projects": "Alle projecten",
+    "choose_project": "Kies een project…",
+    "open_project": "Project tonen",
+    "back_to_results": "Terug naar taakresultaten"
   }
 }

@@ -1,6 +1,7 @@
 import { BaseTask } from "src/types/base-task";
 import { traverseGraph } from "src/lib/traverse-graph";
 import { FilterState } from "src/types/filter-state";
+import { getProjectScopeTaskIds } from "./project-navigation";
 
 export const NO_TAGS_VALUE = "__NO_TAGS__";
 
@@ -12,6 +13,7 @@ export type TaskFilterReasonCode =
   | "selected_projects"
   | "only_starred"
   | "root_scope"
+  | "project_scope"
   | "search_scope";
 
 const getNonSearchReasonCodes = (
@@ -109,9 +111,16 @@ const applyRootTaskScope = (
 
 export const getFilteredNodeIds = (
   tasks: BaseTask[],
-  filter: FilterState
+  filter: FilterState,
+  projectRootTaskIds?: readonly string[]
 ): string[] => {
-  let allowed = applyNonSearchFilters(tasks, filter);
+  const scope = projectRootTaskIds
+    ? getProjectScopeTaskIds(tasks, projectRootTaskIds)
+    : null;
+  let allowed = applyNonSearchFilters(
+    scope ? tasks.filter((task) => scope.has(task.id)) : tasks,
+    filter
+  );
 
   if (filter.selectedRootTask) {
     allowed = applyRootTaskScope(tasks, allowed, filter.selectedRootTask);
@@ -130,22 +139,34 @@ export const getFilteredNodeIds = (
 
 export const getVisibilityFilteredNodeIds = (
   tasks: BaseTask[],
-  filter: FilterState
+  filter: FilterState,
+  projectRootTaskIds?: readonly string[]
 ): string[] =>
-  getFilteredNodeIds(tasks, {
-    ...filter,
-    searchQuery: "",
-    selectedRootTask: null,
-    traversalMode: "match",
-  });
+  getFilteredNodeIds(
+    tasks,
+    {
+      ...filter,
+      searchQuery: "",
+      selectedRootTask: null,
+      traversalMode: "match",
+    },
+    projectRootTaskIds
+  );
 
 /** Explain the active filters that exclude one task from the final result. */
 export function getTaskFilterReasonCodes(
   task: BaseTask,
   tasks: BaseTask[],
-  filter: FilterState
+  filter: FilterState,
+  projectRootTaskIds?: readonly string[]
 ): TaskFilterReasonCode[] {
   const reasons = getNonSearchReasonCodes(task, filter);
+  if (
+    projectRootTaskIds &&
+    !getProjectScopeTaskIds(tasks, projectRootTaskIds).has(task.id)
+  ) {
+    reasons.push("project_scope");
+  }
 
   if (
     filter.selectedRootTask &&

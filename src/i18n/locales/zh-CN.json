@@ -384,7 +384,8 @@
       "search_scope": "此笔记不在搜索“{{query}}”的结果和遍历范围中。",
       "filters_pass": "此笔记通过了所有当前筛选器和图范围规则。",
       "rendered": "此笔记存在已渲染的任务节点。",
-      "render_missing": "尽管此笔记符合当前规则，但不存在已渲染的任务节点。"
+      "render_missing": "尽管此笔记符合当前规则，但不存在已渲染的任务节点。",
+      "project_scope": "该任务不在当前项目概览范围内。"
     }
   },
   "task_node": {
@@ -442,5 +443,25 @@
     "layout_side": "左右布局",
     "body_font_smaller": "缩小正文字号",
     "body_font_larger": "放大正文字号"
+  },
+  "project_overview": {
+    "show": "显示完整项目",
+    "show_for": "显示「{{task}}」所属的完整项目",
+    "select_task": "选择或聚焦一个任务，以显示其完整项目",
+    "no_project_for": "「{{task}}」没有所属项目",
+    "no_project": "未找到所属项目。",
+    "task_missing": "该任务已不存在。",
+    "projects_missing": "这些项目已不存在，正在返回之前的任务视图。",
+    "title": "项目概览：{{projects}}",
+    "return_available": "可返回之前的任务视图",
+    "back": "返回任务视图",
+    "navigate": "选择任务",
+    "focus_task": "聚焦任务",
+    "projects": "所属项目",
+    "projects_action": "所属项目 →",
+    "all_projects": "所有项目",
+    "choose_project": "选择项目…",
+    "open_project": "显示项目",
+    "back_to_results": "返回任务搜索结果"
   }
 }

@@ -74,6 +74,26 @@ function input(
 }
 
 describe("buildNoteVisibilityReport", () => {
+  it("explains project overview exclusions without reporting a rendering failure", () => {
+    const task = makeTask();
+    const other = makeTask({ id: "Other.md", link: "Other.md" });
+    const report = buildNoteVisibilityReport(
+      input(task, {
+        freshTasks: [task, other],
+        liveContext: liveContext(task, {
+          tasks: [task, other],
+          projectRootTaskIds: [other.id],
+          visibleNodeIds: [other.id],
+        }),
+      })
+    );
+    expect(report.verdict).toBe("hidden");
+    expect(report.reasons.map((reason) => reason.code)).toContain(
+      "project_scope"
+    );
+    expect(report.canReload).toBe(false);
+  });
+
   it("reports a recognized active project as shown in a live map", () => {
     const task = makeTask();
 

@@ -11,6 +11,8 @@ import { FilterState, createDefaultFilterState } from "src/types/filter-state";
 import { TaskMapFocusRequest } from "src/types/focus-request";
 import { t } from "../i18n";
 import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
+import type { TaskMapNavigationContext } from "src/lib/project-navigation";
+import { TaskFocusRequests } from "src/lib/task-focus-requests";
 
 // Wrapper component that manages settings updates and filter state for the graph view
 function TaskMapGraphWrapper({
@@ -22,6 +24,7 @@ function TaskMapGraphWrapper({
   onFocusRequestHandlerChange,
   onVisibilityContextChange,
   onReloadHandlerChange,
+  onNavigationContextChange,
   hoverParent,
 }: {
   pluginSettings: TasksMapSettings;
@@ -36,6 +39,7 @@ function TaskMapGraphWrapper({
     _context: LiveMapVisibilityContext | null
   ) => void;
   onReloadHandlerChange: (_handler: (() => void) | null) => void;
+  onNavigationContextChange: (_context: TaskMapNavigationContext) => void;
   hoverParent: HoverParent;
 }) {
   const [settings, setSettings] = useState<TasksMapSettings>({
@@ -95,6 +99,7 @@ function TaskMapGraphWrapper({
           }}
           onVisibilityContextChange={onVisibilityContextChange}
           onReloadHandlerChange={onReloadHandlerChange}
+          onNavigationContextChange={onNavigationContextChange}
         />
       </ReactFlowProvider>
     </TaskHoverPreviewContext.Provider>
@@ -107,12 +112,17 @@ export default class TaskMapGraphItemView extends ItemView {
   root: Root | null = null;
   private filterState: FilterState;
   private plugin: TasksMapPlugin;
-  private focusRequest: TaskMapFocusRequest | null = null;
-  private focusRequestHandler:
-    | ((_request: TaskMapFocusRequest) => void)
-    | null = null;
+  private focusRequests = new TaskFocusRequests();
   private visibilityContext: LiveMapVisibilityContext | null = null;
   private reloadHandler: (() => void) | null = null;
+  private navigationContext: TaskMapNavigationContext = {
+    selectedTaskIds: [],
+    focusedTaskId: null,
+  };
+
+  getNavigationContext(): TaskMapNavigationContext {
+    return structuredClone(this.navigationContext);
+  }
 
   constructor(leaf: WorkspaceLeaf, plugin: TasksMapPlugin) {
     super(leaf);
@@ -144,6 +154,7 @@ export default class TaskMapGraphItemView extends ItemView {
       droppedTaskIds: [...this.visibilityContext.droppedTaskIds],
       visibleNodeIds: [...this.visibilityContext.visibleNodeIds],
       foldedNodeIds: [...this.visibilityContext.foldedNodeIds],
+      projectRootTaskIds: this.visibilityContext.projectRootTaskIds?.slice(),
     };
   }
 
@@ -154,8 +165,7 @@ export default class TaskMapGraphItemView extends ItemView {
   }
 
   focus(request: TaskMapFocusRequest): void {
-    this.focusRequest = request;
-    this.focusRequestHandler?.(request);
+    this.focusRequests.send(request);
   }
 
   async onOpen() {
@@ -166,21 +176,24 @@ export default class TaskMapGraphItemView extends ItemView {
         <TaskMapGraphWrapper
           pluginSettings={this.plugin.settings}
           plugin={this.plugin}
-          initialFocusRequest={this.focusRequest}
+          initialFocusRequest={this.focusRequests.pending}
           onFilterStateChange={(state) => {
             this.filterState = state;
           }}
           onFocusRequestHandled={() => {
-            this.focusRequest = null;
+            this.focusRequests.handled();
           }}
           onFocusRequestHandlerChange={(handler) => {
-            this.focusRequestHandler = handler;
+            this.focusRequests.attach(handler);
           }}
           onVisibilityContextChange={(context) => {
             this.visibilityContext = context;
           }}
           onReloadHandlerChange={(handler) => {
             this.reloadHandler = handler;
+          }}
+          onNavigationContextChange={(context) => {
+            this.navigationContext = context;
           }}
           hoverParent={this.leaf}
         />
@@ -189,7 +202,8 @@ export default class TaskMapGraphItemView extends ItemView {
   }
 
   async onClose() {
-    this.focusRequestHandler = null;
+    this.focusRequests.attach(null);
+    this.focusRequests.handled();
     this.visibilityContext = null;
     this.reloadHandler = null;
     this.root?.unmount();

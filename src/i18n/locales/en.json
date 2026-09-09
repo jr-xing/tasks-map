@@ -384,7 +384,8 @@
       "search_scope": "The note is outside the results and traversal for search ‘{{query}}’.",
       "filters_pass": "The note passes all current filters and graph scope rules.",
       "rendered": "A rendered task node exists for this note.",
-      "render_missing": "No rendered task node exists even though the note passes the current rules."
+      "render_missing": "No rendered task node exists even though the note passes the current rules.",
+      "project_scope": "The task is outside the current project overview."
     }
   },
   "task_node": {
@@ -442,5 +443,25 @@
     "layout_side": "Side-by-side layout",
     "body_font_smaller": "Smaller body text",
     "body_font_larger": "Larger body text"
+  },
+  "project_overview": {
+    "show": "Show full project",
+    "show_for": "Show full project of {{task}}",
+    "select_task": "Select or focus a task to show its full project",
+    "no_project_for": "No containing project for {{task}}",
+    "no_project": "No containing project was found.",
+    "task_missing": "The task is no longer available.",
+    "projects_missing": "The projects are no longer available. Returning to the previous task view.",
+    "title": "Project overview: {{projects}}",
+    "return_available": "Previous task view available",
+    "back": "Back to task view",
+    "navigate": "Select a task",
+    "focus_task": "Focus task",
+    "projects": "Projects",
+    "projects_action": "Projects →",
+    "all_projects": "All projects",
+    "choose_project": "Choose a project…",
+    "open_project": "Show project",
+    "back_to_results": "Back to task results"
   }
 }

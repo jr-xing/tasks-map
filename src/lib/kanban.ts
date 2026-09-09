@@ -1,9 +1,5 @@
 import { getFilteredNodeIds } from "src/lib/filter-tasks";
-import {
-  buildProjectTree,
-  getTaskTreeLabel,
-  type TreeNode,
-} from "src/lib/project-tree";
+import { buildProjectRootOptions } from "src/lib/project-navigation";
 import {
   DEFAULT_TASK_STATUSES,
   type TaskStatusConfig,
@@ -395,30 +391,7 @@ export function buildKanbanColumns(
 export function buildKanbanFocusOptions(
   tasks: BaseTask[]
 ): Map<string, KanbanFocusOption[]> {
-  const options = new Map<string, KanbanFocusOption[]>();
-
-  const visit = (node: TreeNode, root: KanbanFocusOption): void => {
-    const current = options.get(node.task.id) ?? [];
-    if (!current.some((option) => option.rootTaskId === root.rootTaskId)) {
-      current.push(root);
-      current.sort((left, right) =>
-        left.label.localeCompare(right.label, undefined, {
-          sensitivity: "base",
-        })
-      );
-      options.set(node.task.id, current);
-    }
-    node.children.forEach((child) => visit(child, root));
-  };
-
-  for (const rootNode of buildProjectTree(tasks)) {
-    visit(rootNode, {
-      rootTaskId: rootNode.task.id,
-      label: getTaskTreeLabel(rootNode.task),
-    });
-  }
-
-  return options;
+  return buildProjectRootOptions(tasks);
 }
 
 /** Apply an optimistic status move and restore the previous value on failure. */
