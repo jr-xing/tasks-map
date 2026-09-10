@@ -25,6 +25,7 @@ function TaskMapGraphWrapper({
   onVisibilityContextChange,
   onReloadHandlerChange,
   onNavigationContextChange,
+  onResizeHandlerChange,
   hoverParent,
 }: {
   pluginSettings: TasksMapSettings;
@@ -40,6 +41,7 @@ function TaskMapGraphWrapper({
   ) => void;
   onReloadHandlerChange: (_handler: (() => void) | null) => void;
   onNavigationContextChange: (_context: TaskMapNavigationContext) => void;
+  onResizeHandlerChange: (_handler: (() => void) | null) => void;
   hoverParent: HoverParent;
 }) {
   const [settings, setSettings] = useState<TasksMapSettings>({
@@ -100,6 +102,7 @@ function TaskMapGraphWrapper({
           onVisibilityContextChange={onVisibilityContextChange}
           onReloadHandlerChange={onReloadHandlerChange}
           onNavigationContextChange={onNavigationContextChange}
+          onResizeHandlerChange={onResizeHandlerChange}
         />
       </ReactFlowProvider>
     </TaskHoverPreviewContext.Provider>
@@ -115,6 +118,7 @@ export default class TaskMapGraphItemView extends ItemView {
   private focusRequests = new TaskFocusRequests();
   private visibilityContext: LiveMapVisibilityContext | null = null;
   private reloadHandler: (() => void) | null = null;
+  private resizeHandler: (() => void) | null = null;
   private navigationContext: TaskMapNavigationContext = {
     selectedTaskIds: [],
     focusedTaskId: null,
@@ -168,6 +172,10 @@ export default class TaskMapGraphItemView extends ItemView {
     this.focusRequests.send(request);
   }
 
+  onResize(): void {
+    this.resizeHandler?.();
+  }
+
   async onOpen() {
     this.root = createRoot(this.containerEl.children[1]);
 
@@ -195,6 +203,9 @@ export default class TaskMapGraphItemView extends ItemView {
           onNavigationContextChange={(context) => {
             this.navigationContext = context;
           }}
+          onResizeHandlerChange={(handler) => {
+            this.resizeHandler = handler;
+          }}
           hoverParent={this.leaf}
         />
       </AppContext.Provider>
@@ -206,6 +217,7 @@ export default class TaskMapGraphItemView extends ItemView {
     this.focusRequests.handled();
     this.visibilityContext = null;
     this.reloadHandler = null;
+    this.resizeHandler = null;
     this.root?.unmount();
   }
 }

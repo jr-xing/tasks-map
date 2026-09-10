@@ -5,6 +5,7 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   useReactFlow,
+  useStoreApi,
   getNodesBounds,
   getViewportForBounds,
   PanOnScrollMode,
@@ -100,6 +101,14 @@ import {
   type LayoutSnapshot,
   type LayoutViewport,
 } from "src/lib/layout";
+import {
+  GraphViewportSync,
+  readGraphViewport,
+} from "src/lib/graph-viewport-sync";
+import {
+  areGraphNodesReady,
+  synchronizeReactFlowMeasurements,
+} from "src/lib/react-flow-measurement";
 import { t } from "../i18n";
 import TasksMapPlugin from "../main";
 
@@ -108,8 +117,6 @@ interface ReloadTasksOptions {
 }
 
 type NodePosition = Node["position"];
-
-const RESIZE_PACKING_DEBOUNCE_MS = 300;
 
 const REFRESH_BLOCKING_SELECTOR = [
   ".tasks-map-tag-select__control",
@@ -138,11 +145,7 @@ function cloneTaskWithUpdates(
 function getLayoutViewport(
   container: HTMLDivElement | null
 ): LayoutViewport | undefined {
-  if (!container) return undefined;
-  return {
-    width: container.clientWidth,
-    height: container.clientHeight,
-  };
+  return readGraphViewport(container);
 }
 
 function getTopLevelPositions(
@@ -180,6 +183,7 @@ interface TaskMapGraphViewProps {
   ) => void;
   onReloadHandlerChange?: (_handler: (() => void) | null) => void;
   onNavigationContextChange?: (_context: TaskMapNavigationContext) => void;
+  onResizeHandlerChange?: (_handler: (() => void) | null) => void;
 }
 
 export default function TaskMapGraphView({
@@ -193,6 +197,7 @@ export default function TaskMapGraphView({
   onVisibilityContextChange,
   onReloadHandlerChange,
   onNavigationContextChange,
+  onResizeHandlerChange,
 }: TaskMapGraphViewProps) {
   const embed = { ...DEFAULT_EMBED_CONFIG, ...embedConfig };
   const app = useApp();
@@ -206,6 +211,7 @@ export default function TaskMapGraphView({
   const [selectedEdge, setSelectedEdge] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const reactFlowInstance = useReactFlow();
+  const flowStore = useStoreApi();
   const [overviewRootIds, setOverviewRootIds] = React.useState<string[] | null>(
     null
   );
@@ -229,15 +235,14 @@ export default function TaskMapGraphView({
   const pendingTreeFocusRef = React.useRef<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const cornerRef = React.useRef<HTMLDivElement>(null);
-  // Holds the in-flight requestAnimationFrame id for the camera-fit poll.
-  const fitRafRef = React.useRef<number | null>(null);
+  const viewportSyncRef = React.useRef<GraphViewportSync | null>(null);
+  const resizeHandlerRef = React.useRef<
+    ((_viewport: LayoutViewport) => void) | null
+  >(null);
   const layoutSnapshotRef = React.useRef<LayoutSnapshot | null>(null);
   const lastPackedPositionsRef = React.useRef<Map<string, NodePosition>>(
     new Map()
   );
-  const latestResizeViewportRef = React.useRef<LayoutViewport | null>(null);
-  const resizePackingTimerRef = React.useRef<number | null>(null);
-  const pendingResizePackingRef = React.useRef(false);
 
   const connectStartRef = React.useRef<{
     nodeId: string;
@@ -371,14 +376,11 @@ export default function TaskMapGraphView({
       currentNodes: ReturnType<typeof reactFlowInstance.getNodes>,
       duration = 400
     ) => {
+      const container = containerRef.current;
+      if (!readGraphViewport(container) || currentNodes.length === 0) return;
+      if (currentNodes.some((node) => !node.width || !node.height)) return;
       const visibleArea = getVisibleMapArea();
       if (visibleArea.left <= 0 && visibleArea.top <= 0) {
-        reactFlowInstance.fitView({ duration });
-        return;
-      }
-
-      const container = containerRef.current;
-      if (!container || currentNodes.length === 0) {
         reactFlowInstance.fitView({ duration });
         return;
       }
@@ -404,60 +406,52 @@ export default function TaskMapGraphView({
     [getVisibleMapArea, reactFlowInstance]
   );
 
-  // Fit the camera to a freshly built node set once ReactFlow has caught up.
-  // `expectedIds` is the id set just handed to setNodes; the poll waits until
-  // ReactFlow's store holds exactly those nodes (so it never fits to the
-  // previous selection), every one has been measured, and any expected
-  // positions have landed. Polls per animation frame and bails out after ~40
-  // frames so an unmeasured node cannot stall the camera forever.
+  // Remeasure even camera-preserving updates: rebuilding nodes discards their
+  // measured dimensions, so relying on another resize can leave them hidden.
   const scheduleFitView = useCallback(
     (
       expectedIds: Set<string>,
-      expectedPositions?: Map<string, NodePosition>
+      expectedPositions?: Map<string, NodePosition>,
+      fit = true
     ) => {
-      if (fitRafRef.current !== null) {
-        cancelAnimationFrame(fitRafRef.current);
-      }
-      let frames = 0;
-      const tick = () => {
-        const currentNodes = reactFlowInstance.getNodes();
-        const ready =
-          currentNodes.length === expectedIds.size &&
-          currentNodes.every(
-            (node) =>
-              expectedIds.has(node.id) &&
-              node.width != null &&
-              node.height != null &&
-              (expectedPositions === undefined ||
-                (node.position.x === expectedPositions.get(node.id)?.x &&
-                  node.position.y === expectedPositions.get(node.id)?.y))
-          );
-        if (ready || frames >= 40) {
-          fitRafRef.current = null;
-          const restore = pendingRestoreRef.current;
-          if (restore) {
-            pendingRestoreRef.current = null;
-            reactFlowInstance.setViewport(restore.viewport, { duration: 0 });
-            const selected = new Set(restore.selectedTaskIds);
-            setNodes((current) =>
-              current.map((node) => ({
-                ...node,
-                selected: selected.has(node.id),
-              }))
-            );
-          } else {
-            const afterLayout = afterLayoutRef.current;
-            afterLayoutRef.current = null;
-            fitNodesToVisibleArea(currentNodes, afterLayout ? 0 : 400);
-            if (afterLayout) {
-              fitRafRef.current = requestAnimationFrame(() => {
-                fitRafRef.current = null;
-                afterLayout();
-              });
-            }
-            const pulseId = pendingOverviewPulseRef.current;
-            pendingOverviewPulseRef.current = null;
-            if (pulseId) {
+      viewportSyncRef.current?.requestMeasurement({
+        isReady: () =>
+          areGraphNodesReady(
+            reactFlowInstance.getNodes(),
+            expectedIds,
+            expectedPositions
+          ),
+        onReady: fit
+          ? () => {
+              const currentNodes = reactFlowInstance.getNodes();
+              const restore = pendingRestoreRef.current;
+              if (restore) {
+                pendingRestoreRef.current = null;
+                void reactFlowInstance.setViewport(restore.viewport, {
+                  duration: 0,
+                });
+                const selected = new Set(restore.selectedTaskIds);
+                setNodes((current) =>
+                  current.map((node) => ({
+                    ...node,
+                    selected: selected.has(node.id),
+                  }))
+                );
+                return;
+              }
+              const afterLayout = afterLayoutRef.current;
+              afterLayoutRef.current = null;
+              // Immediate fitting also avoids d3's main-window animation clock.
+              fitNodesToVisibleArea(currentNodes, 0);
+              if (afterLayout) {
+                viewportSyncRef.current?.requestMeasurement({
+                  isReady: () => true,
+                  onReady: afterLayout,
+                });
+              }
+              const pulseId = pendingOverviewPulseRef.current;
+              pendingOverviewPulseRef.current = null;
+              if (!pulseId) return;
               setNodes((current) =>
                 current.map((node) => ({
                   ...node,
@@ -482,16 +476,29 @@ export default function TaskMapGraphView({
                 pulseTimerRef.current = null;
               }, 1600);
             }
-          }
-          return;
-        }
-        frames += 1;
-        fitRafRef.current = requestAnimationFrame(tick);
-      };
-      fitRafRef.current = requestAnimationFrame(tick);
+          : undefined,
+      });
     },
     [fitNodesToVisibleArea, reactFlowInstance, setNodes]
   );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const sync = new GraphViewportSync(container, {
+      synchronize: () => synchronizeReactFlowMeasurements(flowStore),
+      onResize: (viewport) => resizeHandlerRef.current?.(viewport),
+      isInteracting: () => dragInteractionDepthRef.current > 0,
+    });
+    viewportSyncRef.current = sync;
+    sync.start();
+    onResizeHandlerChange?.(sync.resize);
+    return () => {
+      onResizeHandlerChange?.(null);
+      sync.stop();
+      viewportSyncRef.current = null;
+    };
+  }, [flowStore, onResizeHandlerChange]);
 
   // Tracks which unlinked task IDs have been dropped onto the canvas this session
   const [droppedTaskIds, setDroppedTaskIds] = React.useState<Set<string>>(
@@ -589,6 +596,7 @@ export default function TaskMapGraphView({
     (options: ReloadTasksOptions = {}) => {
       const auto = options.auto === true;
       const generation = ++loadGenerationRef.current;
+      viewportSyncRef.current?.cancel();
       if (!auto) {
         setIsLoading(true);
         // A manual reload resets session-only dropped nodes as before.
@@ -621,10 +629,7 @@ export default function TaskMapGraphView({
             if (generation !== loadGenerationRef.current) return;
 
             if (auto) {
-              if (fitRafRef.current !== null) {
-                cancelAnimationFrame(fitRafRef.current);
-                fitRafRef.current = null;
-              }
+              viewportSyncRef.current?.cancel();
               skipFitViewRef.current = true;
             }
             setTasks(newTasks);
@@ -1134,11 +1139,11 @@ export default function TaskMapGraphView({
       void plugin.updateSettings({
         kanbanPanelHeight: kanbanHeightRef.current,
       });
-      window.requestAnimationFrame(() => {
-        fitNodesToVisibleArea(reactFlowInstance.getNodes());
-      });
+      scheduleFitView(
+        new Set(reactFlowInstance.getNodes().map((node) => node.id))
+      );
     },
-    [fitNodesToVisibleArea, plugin, reactFlowInstance]
+    [scheduleFitView, plugin, reactFlowInstance]
   );
 
   useEffect(() => {
@@ -1232,13 +1237,9 @@ export default function TaskMapGraphView({
     const expectedPositions = new Map(
       finalNodes.map((node) => [node.id, { ...node.position }])
     );
-    if (skipFitViewRef.current) {
-      skipFitViewRef.current = false;
-    } else {
-      // Fit the camera once the rebuilt nodes have been measured. Skipped for
-      // edits that should leave the camera where it is.
-      scheduleFitView(expectedIds, expectedPositions);
-    }
+    const fit = !skipFitViewRef.current;
+    skipFitViewRef.current = false;
+    scheduleFitView(expectedIds, expectedPositions, fit);
   }, [
     graphTasks,
     collapsedTaskIds,
@@ -1269,10 +1270,10 @@ export default function TaskMapGraphView({
 
       const packedNodes = packLayoutSnapshot(snapshot, viewport);
       const packedPositions = getTopLevelPositions(snapshot, packedNodes);
-      if (positionsEqual(packedPositions, lastPackedPositionsRef.current)) {
-        return;
-      }
-
+      const packingChanged = !positionsEqual(
+        packedPositions,
+        lastPackedPositionsRef.current
+      );
       lastPackedPositionsRef.current = packedPositions;
       const currentNodes = reactFlowInstance.getNodes();
       const expectedPositions = new Map(
@@ -1282,12 +1283,15 @@ export default function TaskMapGraphView({
         expectedPositions.set(id, { ...position });
       });
 
-      setNodes((previousNodes) =>
-        previousNodes.map((node) => {
-          const position = packedPositions.get(node.id);
-          return position ? { ...node, position: { ...position } } : node;
-        })
-      );
+      if (packingChanged) {
+        setNodes((previousNodes) =>
+          previousNodes.map((node) => {
+            const position = packedPositions.get(node.id);
+            return position ? { ...node, position: { ...position } } : node;
+          })
+        );
+      }
+      // A viewport change still needs a fit when packing stays identical.
       scheduleFitView(
         new Set(currentNodes.map((node) => node.id)),
         expectedPositions
@@ -1296,51 +1300,12 @@ export default function TaskMapGraphView({
     [reactFlowInstance, scheduleFitView, setNodes]
   );
 
-  const scheduleViewportPacking = useCallback(() => {
-    const viewport = getLayoutViewport(containerRef.current);
-    if (!viewport) return;
-    latestResizeViewportRef.current = viewport;
-
-    if (resizePackingTimerRef.current !== null) {
-      window.clearTimeout(resizePackingTimerRef.current);
-    }
-    resizePackingTimerRef.current = window.setTimeout(() => {
-      resizePackingTimerRef.current = null;
-      if (dragInteractionDepthRef.current > 0) {
-        pendingResizePackingRef.current = true;
-        return;
-      }
-
-      pendingResizePackingRef.current = false;
-      const latestViewport = latestResizeViewportRef.current;
-      if (latestViewport) applyViewportPacking(latestViewport);
-    }, RESIZE_PACKING_DEBOUNCE_MS);
-  }, [applyViewportPacking]);
-
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver(() => scheduleViewportPacking());
-    observer.observe(container);
+    resizeHandlerRef.current = applyViewportPacking;
     return () => {
-      observer.disconnect();
-      if (resizePackingTimerRef.current !== null) {
-        window.clearTimeout(resizePackingTimerRef.current);
-        resizePackingTimerRef.current = null;
-      }
+      resizeHandlerRef.current = null;
     };
-  }, [scheduleViewportPacking]);
-
-  // Cancel any in-flight camera-fit poll when the view unmounts.
-  useEffect(
-    () => () => {
-      if (fitRafRef.current !== null) {
-        cancelAnimationFrame(fitRafRef.current);
-      }
-    },
-    []
-  );
+  }, [applyViewportPacking]);
 
   const nodeTypes = useMemo(
     () => ({ task: TaskNode, projectGroup: ProjectGroupNode }),
@@ -1496,7 +1461,7 @@ export default function TaskMapGraphView({
 
   const restoreTaskView = useCallback(() => {
     if (!returnState) return;
-    if (fitRafRef.current !== null) cancelAnimationFrame(fitRafRef.current);
+    viewportSyncRef.current?.cancel();
     afterLayoutRef.current = null;
     pendingTreeFocusRef.current = null;
     pendingOverviewPulseRef.current = null;
@@ -2018,12 +1983,9 @@ export default function TaskMapGraphView({
     );
     if (dragInteractionDepthRef.current === 0) {
       vaultWatcherRef.current?.resume();
-      if (pendingResizePackingRef.current) {
-        pendingResizePackingRef.current = false;
-        scheduleViewportPacking();
-      }
+      viewportSyncRef.current?.resume();
     }
-  }, [scheduleViewportPacking]);
+  }, []);
 
   // Highlight project group nodes while multiple selected task nodes are dragged
   const onSelectionDrag: SelectionDragHandler = useCallback(
