@@ -9,13 +9,17 @@
     "focus_project_or_task_new_tab": "Project of taak in nieuw kaarttabblad focussen",
     "insert_filter_as_code_block": "Huidig filter invoegen als ingesloten Taken Kaart",
     "organize_task_notes": "Organize task notes",
-    "check_note_map_visibility": "Controleren waarom notitie wel/niet op de kaart staat"
+    "check_note_map_visibility": "Controleren waarom notitie wel/niet op de kaart staat",
+    "toggle_tree_layout": "Boomindeling in huidige kaart wisselen",
+    "toggle_layout_direction": "Indelingsrichting in huidige kaart wisselen"
   },
   "ribbon": {
     "open_tasks_map": "Taken kaartweergave openen"
   },
   "view": {
-    "title": "Taken kaart"
+    "title": "Taken kaart",
+    "switch_to_tree": "Naar boomindeling wisselen",
+    "switch_to_graph": "Naar grafiekindeling wisselen"
   },
   "settings": {
     "display_options": "Weergaveopties",
@@ -171,7 +175,9 @@
     "debug_visualization": "Debug visualisatie",
     "debug_visualization_desc": "Toon aanvullende debug-informatie in de grafiekweergave",
     "language": "Taal",
-    "language_desc": "Selecteer de taal voor de plugin-interface"
+    "language_desc": "Selecteer de taal voor de plugin-interface",
+    "layout_mode": "Standaardindeling",
+    "layout_mode_desc": "Indeling voor nieuwe kaarttabbladen. Elk tabblad kan zelf wisselen tussen grafiek en boom."
   },
   "filters": {
     "status": "Status",
@@ -207,7 +213,11 @@
     "expand": "Weergavebediening uitvouwen",
     "minimize": "Weergavebediening minimaliseren",
     "group_by_project": "Groeperen op project",
-    "arrange_mode": "Rangschikmodus"
+    "arrange_mode": "Rangschikmodus",
+    "layout": "Indeling",
+    "layout_graph": "Grafiek",
+    "layout_tree": "Boom",
+    "direction": "Richting"
   },
   "multiselect": {
     "select": "Selecteer...",

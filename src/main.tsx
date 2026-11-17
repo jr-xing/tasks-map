@@ -189,6 +189,28 @@ export default class TasksMapPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "toggle-tree-layout",
+      name: t("commands.toggle_tree_layout"),
+      checkCallback: (checking) => {
+        const view = this.getActiveMapView();
+        if (!view) return false;
+        if (!checking) view.toggleLayoutMode();
+        return true;
+      },
+    });
+
+    this.addCommand({
+      id: "toggle-layout-direction",
+      name: t("commands.toggle_layout_direction"),
+      checkCallback: (checking) => {
+        const view = this.getActiveMapView();
+        if (!view) return false;
+        if (!checking) view.toggleLayoutDirection();
+        return true;
+      },
+    });
+
+    this.addCommand({
       id: "check-note-map-visibility",
       name: t("commands.check_note_map_visibility"),
       callback: () => {
@@ -607,6 +629,12 @@ export default class TasksMapPlugin extends Plugin {
       return;
     }
     await this.openFocusPicker(true, this.app.workspace.getActiveFile()?.path);
+  }
+
+  /** The map tab the user is in, if the active tab is a map. */
+  private getActiveMapView(): TaskMapGraphItemView | null {
+    const view = this.app.workspace.getMostRecentLeaf()?.view;
+    return view instanceof TaskMapGraphItemView ? view : null;
   }
 
   private getNavigationLeaf(): WorkspaceLeaf | null {

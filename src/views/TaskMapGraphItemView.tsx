@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { ItemView, WorkspaceLeaf } from "obsidian";
-import type { HoverParent } from "obsidian";
+import type { HoverParent, ViewStateResult } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import { ReactFlowProvider } from "reactflow";
 import { AppContext, TaskHoverPreviewContext } from "src/contexts/context";
@@ -13,6 +13,15 @@ import { t } from "../i18n";
 import type { LiveMapVisibilityContext } from "src/lib/note-visibility";
 import type { TaskMapNavigationContext } from "src/lib/project-navigation";
 import { TaskFocusRequests } from "src/lib/task-focus-requests";
+import {
+  MapLayoutOptions,
+  MapLayoutOverrides,
+  applyMapLayout,
+  parseMapLayoutState,
+  resolveMapLayout,
+  toggledLayoutDirection,
+  toggledLayoutMode,
+} from "src/lib/map-layout-options";
 
 // Wrapper component that manages settings updates and filter state for the graph view
 function TaskMapGraphWrapper({
@@ -27,6 +36,9 @@ function TaskMapGraphWrapper({
   onNavigationContextChange,
   onResizeHandlerChange,
   hoverParent,
+  initialLayout,
+  onLayoutChange,
+  onLayoutListenerChange,
 }: {
   pluginSettings: TasksMapSettings;
   plugin: TasksMapPlugin;
@@ -43,13 +55,29 @@ function TaskMapGraphWrapper({
   onNavigationContextChange: (_context: TaskMapNavigationContext) => void;
   onResizeHandlerChange: (_handler: (() => void) | null) => void;
   hoverParent: HoverParent;
+  initialLayout: MapLayoutOverrides;
+  onLayoutChange: (_patch: Partial<MapLayoutOptions>) => void;
+  onLayoutListenerChange: (
+    _listener: ((_layout: MapLayoutOverrides) => void) | null
+  ) => void;
 }) {
-  const [settings, setSettings] = useState<TasksMapSettings>({
+  const [baseSettings, setBaseSettings] = useState<TasksMapSettings>({
     ...pluginSettings,
   });
+  const [layoutOverrides, setLayoutOverrides] =
+    useState<MapLayoutOverrides>(initialLayout);
+  const settings = useMemo(
+    () => applyMapLayout(baseSettings, layoutOverrides),
+    [baseSettings, layoutOverrides]
+  );
 
   useEffect(() => {
-    const handler = () => setSettings({ ...plugin.settings });
+    onLayoutListenerChange((layout) => setLayoutOverrides({ ...layout }));
+    return () => onLayoutListenerChange(null);
+  }, [onLayoutListenerChange]);
+
+  useEffect(() => {
+    const handler = () => setBaseSettings({ ...plugin.settings });
     window.addEventListener("tasks-map:settings-changed", handler);
     return () =>
       window.removeEventListener("tasks-map:settings-changed", handler);
@@ -103,6 +131,7 @@ function TaskMapGraphWrapper({
           onReloadHandlerChange={onReloadHandlerChange}
           onNavigationContextChange={onNavigationContextChange}
           onResizeHandlerChange={onResizeHandlerChange}
+          onLayoutChange={onLayoutChange}
         />
       </ReactFlowProvider>
     </TaskHoverPreviewContext.Provider>
@@ -123,6 +152,9 @@ export default class TaskMapGraphItemView extends ItemView {
     selectedTaskIds: [],
     focusedTaskId: null,
   };
+  private layoutOverrides: MapLayoutOverrides = {};
+  private layoutListener: ((_layout: MapLayoutOverrides) => void) | null = null;
+  private layoutActionEl: HTMLElement | null = null;
 
   getNavigationContext(): TaskMapNavigationContext {
     return structuredClone(this.navigationContext);
@@ -176,7 +208,61 @@ export default class TaskMapGraphItemView extends ItemView {
     this.resizeHandler?.();
   }
 
+  getState(): Record<string, unknown> {
+    return { ...super.getState(), ...this.layoutOverrides };
+  }
+
+  async setState(state: unknown, result: ViewStateResult): Promise<void> {
+    this.layoutOverrides = parseMapLayoutState(state);
+    this.publishLayout();
+    await super.setState(state, result);
+  }
+
+  /** The layout this tab renders with (its overrides over the defaults). */
+  getLayout(): MapLayoutOptions {
+    return resolveMapLayout(this.plugin.settings, this.layoutOverrides);
+  }
+
+  /** Change this tab's layout only; other map tabs keep theirs. */
+  setLayout(patch: Partial<MapLayoutOptions>): void {
+    this.layoutOverrides = { ...this.layoutOverrides, ...patch };
+    this.publishLayout();
+    this.app.workspace.requestSaveLayout();
+  }
+
+  toggleLayoutMode(): void {
+    this.setLayout({
+      layoutMode: toggledLayoutMode(this.getLayout().layoutMode),
+    });
+  }
+
+  toggleLayoutDirection(): void {
+    this.setLayout({
+      layoutDirection: toggledLayoutDirection(this.getLayout().layoutDirection),
+    });
+  }
+
+  private publishLayout(): void {
+    this.layoutListener?.(this.layoutOverrides);
+    this.updateLayoutAction();
+  }
+
+  private updateLayoutAction(): void {
+    const actionEl = this.layoutActionEl;
+    if (!actionEl) return;
+    const isTree = this.getLayout().layoutMode === "tree";
+    const label = t(isTree ? "view.switch_to_graph" : "view.switch_to_tree");
+    actionEl.setAttribute("aria-label", label);
+    actionEl.toggleClass("is-active", isTree);
+  }
+
   async onOpen() {
+    this.layoutActionEl = this.addAction(
+      "git-branch",
+      t("view.switch_to_tree"),
+      () => this.toggleLayoutMode()
+    );
+    this.updateLayoutAction();
     this.root = createRoot(this.containerEl.children[1]);
 
     this.root.render(
@@ -207,6 +293,12 @@ export default class TaskMapGraphItemView extends ItemView {
             this.resizeHandler = handler;
           }}
           hoverParent={this.leaf}
+          initialLayout={this.layoutOverrides}
+          onLayoutChange={(patch) => this.setLayout(patch)}
+          onLayoutListenerChange={(listener) => {
+            this.layoutListener = listener;
+            listener?.(this.layoutOverrides);
+          }}
         />
       </AppContext.Provider>
     );
@@ -218,6 +310,8 @@ export default class TaskMapGraphItemView extends ItemView {
     this.visibilityContext = null;
     this.reloadHandler = null;
     this.resizeHandler = null;
+    this.layoutListener = null;
+    this.layoutActionEl = null;
     this.root?.unmount();
   }
 }

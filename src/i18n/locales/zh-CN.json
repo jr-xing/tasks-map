@@ -9,13 +9,17 @@
     "focus_project_or_task": "聚焦地图中的项目或任务",
     "focus_project_or_task_new_tab": "在新地图标签页中聚焦项目或任务",
     "insert_filter_as_code_block": "将当前筛选器插入为嵌入式任务地图",
-    "check_note_map_visibility": "检查笔记为何显示或未显示在地图中"
+    "check_note_map_visibility": "检查笔记为何显示或未显示在地图中",
+    "toggle_tree_layout": "切换当前地图的树形布局",
+    "toggle_layout_direction": "切换当前地图的布局方向"
   },
   "ribbon": {
     "open_tasks_map": "打开任务地图视图"
   },
   "view": {
-    "title": "任务地图"
+    "title": "任务地图",
+    "switch_to_tree": "切换到树形布局",
+    "switch_to_graph": "切换到图形布局"
   },
   "settings": {
     "display_options": "显示选项",
@@ -171,7 +175,9 @@
     "debug_visualization": "调试可视化",
     "debug_visualization_desc": "在图形视图中显示附加调试信息",
     "language": "语言",
-    "language_desc": "选择插件界面的语言"
+    "language_desc": "选择插件界面的语言",
+    "layout_mode": "默认布局",
+    "layout_mode_desc": "新地图标签页使用的布局。每个标签页都可以单独在图形和树形之间切换。"
   },
   "filters": {
     "status": "状态",
@@ -207,7 +213,11 @@
     "expand": "展开视图控制",
     "minimize": "最小化视图控制",
     "group_by_project": "按项目分组",
-    "arrange_mode": "排列模式"
+    "arrange_mode": "排列模式",
+    "layout": "布局",
+    "layout_graph": "图形",
+    "layout_tree": "树形",
+    "direction": "方向"
   },
   "multiselect": {
     "select": "选择...",

@@ -11,6 +11,9 @@ import type { TaskAttachmentKind } from "./base-task";
 
 export type PriorityAccentPosition = "top" | "right";
 export type NodeDensity = "comfortable" | "compact";
+/** "graph" is the dagre dependency graph; "tree" is the git-style lane view. */
+export type LayoutMode = "graph" | "tree";
+export type LayoutDirectionSetting = "Horizontal" | "Vertical";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
 export type TaskOrganizerAiProvider = "openai" | "anthropic" | "google";
 export type TaskOrganizerOrphans = "skip" | "unassigned";
@@ -32,7 +35,9 @@ export interface TasksMapSettings {
   visibleAttachmentKinds: TaskAttachmentKind[];
   nodeDensity: NodeDensity;
 
-  layoutDirection: "Horizontal" | "Vertical";
+  // Defaults for new map tabs; each tab can override both.
+  layoutMode: LayoutMode;
+  layoutDirection: LayoutDirectionSetting;
   edgeStyle: "Bezier" | "Straight" | "SmoothStep";
   smoothStepRadius: number;
   linkingStyle: "individual" | "csv" | "dataview";
@@ -133,6 +138,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   visibleAttachmentKinds: [...DEFAULT_VISIBLE_ATTACHMENT_KINDS],
   nodeDensity: "comfortable",
 
+  layoutMode: "graph",
   layoutDirection: "Horizontal",
   edgeStyle: "Bezier",
   smoothStepRadius: 10,

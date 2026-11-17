@@ -1,6 +1,50 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import type { MapLayoutOptions } from "src/lib/map-layout-options";
 import { t } from "../i18n";
+
+interface SegmentOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+interface SegmentedControlProps<T extends string> {
+  label: string;
+  value: T;
+  options: SegmentOption<T>[];
+  onChange: (_value: T) => void;
+}
+
+function SegmentedControl<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: SegmentedControlProps<T>) {
+  return (
+    <div className="tasks-map-filter-item tasks-map-segmented">
+      <span className="tasks-map-segmented__label">{label}</span>
+      <div className="tasks-map-segmented__options" role="radiogroup">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={option.value === value}
+            className={`tasks-map-segmented__option${
+              option.value === value
+                ? " tasks-map-segmented__option--active"
+                : ""
+            }`}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface ControlsPanelProps {
   showTags: boolean;
@@ -15,6 +59,9 @@ interface ControlsPanelProps {
   setGroupByProject: (_val: boolean) => void;
   arrangeMode: boolean;
   setArrangeMode: (_val: boolean) => void;
+  /** This tab's layout; omitted where the layout is fixed (e.g. embeds). */
+  layout?: MapLayoutOptions;
+  onLayoutChange?: (_patch: Partial<MapLayoutOptions>) => void;
 }
 
 export default function ControlsPanel({
@@ -30,6 +77,8 @@ export default function ControlsPanel({
   setGroupByProject,
   arrangeMode,
   setArrangeMode,
+  layout,
+  onLayoutChange,
 }: ControlsPanelProps) {
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -59,6 +108,33 @@ export default function ControlsPanel({
 
       {!isMinimized && (
         <div className="tasks-map-filter-panel__content">
+          {layout && onLayoutChange && (
+            <div className="tasks-map-filter-section">
+              <SegmentedControl
+                label={t("controls.layout")}
+                value={layout.layoutMode}
+                options={[
+                  { value: "graph", label: t("controls.layout_graph") },
+                  { value: "tree", label: t("controls.layout_tree") },
+                ]}
+                onChange={(layoutMode) => onLayoutChange({ layoutMode })}
+              />
+              <SegmentedControl
+                label={t("controls.direction")}
+                value={layout.layoutDirection}
+                options={[
+                  {
+                    value: "Horizontal",
+                    label: t("settings.layout_horizontal"),
+                  },
+                  { value: "Vertical", label: t("settings.layout_vertical") },
+                ]}
+                onChange={(layoutDirection) =>
+                  onLayoutChange({ layoutDirection })
+                }
+              />
+            </div>
+          )}
           <div className="tasks-map-filter-section">
             {showUnlinkedPanel && (
               <div className="tasks-map-filter-item">

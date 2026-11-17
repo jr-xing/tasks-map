@@ -1235,6 +1235,47 @@ If your plugin does not need CSS, delete this file.
   gap: 6px;
 }
 
+.tasks-map-segmented {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tasks-map-segmented__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tasks-map-segmented__options {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+}
+
+.tasks-map-segmented__option {
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tasks-map-segmented__option:hover {
+  color: var(--text-normal);
+}
+
+.tasks-map-segmented__option--active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 .tasks-map-filter-label {
   font-size: 11px;
   font-weight: 600;

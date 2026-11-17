@@ -79,6 +79,7 @@ import {
 } from "src/lib/project-navigation";
 import { createTaskFocusFilter } from "src/lib/task-focus-picker";
 import { TasksMapSettings } from "src/types/settings";
+import type { MapLayoutOptions } from "src/lib/map-layout-options";
 import { FilterState } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
 import { TaskInsertPosition } from "src/types/base-task";
@@ -184,6 +185,8 @@ interface TaskMapGraphViewProps {
   onReloadHandlerChange?: (_handler: (() => void) | null) => void;
   onNavigationContextChange?: (_context: TaskMapNavigationContext) => void;
   onResizeHandlerChange?: (_handler: (() => void) | null) => void;
+  /** Present for map tabs, whose layout can change per tab. */
+  onLayoutChange?: (_patch: Partial<MapLayoutOptions>) => void;
 }
 
 export default function TaskMapGraphView({
@@ -198,6 +201,7 @@ export default function TaskMapGraphView({
   onReloadHandlerChange,
   onNavigationContextChange,
   onResizeHandlerChange,
+  onLayoutChange,
 }: TaskMapGraphViewProps) {
   const embed = { ...DEFAULT_EMBED_CONFIG, ...embedConfig };
   const app = useApp();
@@ -2453,6 +2457,11 @@ export default function TaskMapGraphView({
                       setGroupByProject={setGroupByProject}
                       arrangeMode={arrangeMode}
                       setArrangeMode={setArrangeMode}
+                      layout={{
+                        layoutMode: settings.layoutMode,
+                        layoutDirection: settings.layoutDirection,
+                      }}
+                      onLayoutChange={onLayoutChange}
                     />
                   )}
                   {openPanel === "unlinked" && (

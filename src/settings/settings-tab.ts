@@ -8,6 +8,7 @@ import { cloneDefaultStatuses } from "../lib/status-config";
 import { moveKanbanColumn, resolveKanbanColumnOrder } from "../lib/kanban";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
+  LayoutMode,
   NodeDensity,
   NoteTaskTitleSource,
   PriorityAccentPosition,
@@ -721,6 +722,20 @@ export class TasksMapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl).setHeading().setName(t("settings.layout"));
+
+    new Setting(containerEl)
+      .setName(t("settings.layout_mode"))
+      .setDesc(t("settings.layout_mode_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("graph", t("controls.layout_graph"))
+          .addOption("tree", t("controls.layout_tree"))
+          .setValue(this.plugin.settings.layoutMode)
+          .onChange(async (value) => {
+            this.plugin.settings.layoutMode = value as LayoutMode;
+            await this.plugin.saveSettings();
+          })
+      );
 
     new Setting(containerEl)
       .setName(t("settings.layout_direction"))

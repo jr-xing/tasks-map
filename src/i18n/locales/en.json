@@ -9,13 +9,17 @@
     "focus_project_or_task_new_tab": "Focus project or task in new map tab",
     "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map",
     "organize_task_notes": "Organize task notes",
-    "check_note_map_visibility": "Check why note is (not) shown in map"
+    "check_note_map_visibility": "Check why note is (not) shown in map",
+    "toggle_tree_layout": "Toggle tree layout in current map",
+    "toggle_layout_direction": "Toggle layout direction in current map"
   },
   "ribbon": {
     "open_tasks_map": "Open tasks map view"
   },
   "view": {
-    "title": "Tasks map"
+    "title": "Tasks map",
+    "switch_to_tree": "Switch to tree layout",
+    "switch_to_graph": "Switch to graph layout"
   },
   "settings": {
     "display_options": "Display Options",
@@ -171,7 +175,9 @@
     "debug_visualization": "Debug visualization",
     "debug_visualization_desc": "Show additional debug information in the graph view",
     "language": "Language",
-    "language_desc": "Select the language for the plugin interface"
+    "language_desc": "Select the language for the plugin interface",
+    "layout_mode": "Default layout",
+    "layout_mode_desc": "Layout for new map tabs. Each tab can switch between graph and tree on its own."
   },
   "filters": {
     "status": "Status",
@@ -207,7 +213,11 @@
     "expand": "Expand view controls",
     "minimize": "Minimize view controls",
     "group_by_project": "Group by project",
-    "arrange_mode": "Arrange mode"
+    "arrange_mode": "Arrange mode",
+    "layout": "Layout",
+    "layout_graph": "Graph",
+    "layout_tree": "Tree",
+    "direction": "Direction"
   },
   "multiselect": {
     "select": "Select...",
