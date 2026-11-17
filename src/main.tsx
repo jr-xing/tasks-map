@@ -60,6 +60,16 @@ import { buildTaskOrganizerPlan } from "./lib/tasknotes-organizer";
 import { TaskOrganizerPreviewModal } from "./lib/tasknotes-organizer-modal";
 import { buildNoteVisibilityReport } from "./lib/note-visibility";
 import { NoteVisibilityModal } from "./lib/note-visibility-modal";
+import {
+  createTasksMapCliCommands,
+  runCliCommand,
+  TasksMapCliDeps,
+} from "./lib/cli/tasks-map-cli";
+import {
+  createTaskNotesTask,
+  getTaskNotesConfig,
+} from "./lib/tasknotes-bridge";
+import { getTodayDate } from "./lib/utils";
 
 const EMBED_CODE_BLOCK = "tasks-map";
 
@@ -233,6 +243,8 @@ export default class TasksMapPlugin extends Plugin {
         void this.openTaskOrganizerPreview();
       },
     });
+
+    this.registerCli();
 
     this.addRibbonIcon("map", t("ribbon.open_tasks_map"), () => {
       void this.activateViewInMainArea();
@@ -631,6 +643,108 @@ export default class TasksMapPlugin extends Plugin {
     await this.openFocusPicker(true, this.app.workspace.getActiveFile()?.path);
   }
 
+  /** Settings that decide which notes are tasks and how they link. */
+  getNoteTaskSettings() {
+    return {
+      noteTaskPropertyName: this.settings.noteTaskPropertyName,
+      noteTaskPropertyValue: this.settings.noteTaskPropertyValue,
+      noteTaskTitleSource: this.settings.noteTaskTitleSource,
+      noteTaskTitleProperty: this.settings.noteTaskTitleProperty,
+      noteTaskDatePrefixEnabled: this.settings.noteTaskDatePrefixEnabled,
+      noteTaskCreatedDateProperty: this.settings.noteTaskCreatedDateProperty,
+      quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
+      noteDependencyProperty: this.settings.noteDependencyProperty,
+    };
+  }
+
+  /**
+   * Register `obsidian <plugin-id>:<action>` commands (Obsidian 1.12.2+) so
+   * AI agents can read and edit tasks exactly as the map interprets them.
+   */
+  private registerCli(): void {
+    if (typeof this.registerCliHandler !== "function") return;
+    const vault = this.app.vault;
+    const fileOrThrow = (path: string) => {
+      const file = vault.getFileByPath(path);
+      if (!file) throw new Error(`File not found: ${path}`);
+      return file;
+    };
+    const deps: TasksMapCliDeps = {
+      loadTasks: () =>
+        getAllTasks(
+          this.app,
+          this.getNoteTaskSettings(),
+          this.settings.taskStatuses
+        ),
+      statuses: () => this.settings.taskStatuses,
+      defaultStatusIds: () =>
+        this.settings.defaultStatusFilter.length > 0
+          ? [...this.settings.defaultStatusFilter]
+          : this.settings.taskStatuses.map((status) => status.id),
+      dependencyProperty: () =>
+        this.settings.noteDependencyProperty.trim() || "blockedBy",
+      priorities: () =>
+        this.getTaskPriorityOptions(getTaskNotesConfig(this.app).priorities)
+          .filter((priority) => priority.value)
+          .map((priority) => ({ id: priority.value, label: priority.label })),
+      today: getTodayDate,
+      linkTarget: (path) => {
+        const file = vault.getFileByPath(path);
+        if (!file) return path.replace(/\.md$/i, "");
+        return this.app.metadataCache.fileToLinktext(file, "", true);
+      },
+      processNote: async (path, transform) => {
+        await vault.process(fileOrThrow(path), transform);
+      },
+      processFrontmatter: async (path, mutate) => {
+        await this.app.fileManager.processFrontMatter(
+          fileOrThrow(path),
+          mutate
+        );
+      },
+      setStatus: (task, statusId) =>
+        task.updateStatus(statusId, this.app, this.settings.taskStatuses),
+      setPriority: (task, priority) => task.updatePriority(priority, this.app),
+      createTask: async (data) =>
+        (await createTaskNotesTask(this.app, data))?.path ?? null,
+      focus: async (taskId, { overview, newTab, layout }) => {
+        const leaf = await this.activateViewInMainArea(
+          {
+            kind: overview ? "project-overview" : "task",
+            taskId,
+            baseFilter: this.getFocusBaseFilter(),
+          },
+          { newTab }
+        );
+        if (
+          Object.keys(layout).length > 0 &&
+          leaf.view instanceof TaskMapGraphItemView
+        ) {
+          leaf.view.setLayout(layout);
+        }
+      },
+    };
+
+    for (const command of createTasksMapCliCommands(deps, this.manifest.id)) {
+      const id = command.action
+        ? `${this.manifest.id}:${command.action}`
+        : this.manifest.id;
+      try {
+        this.registerCliHandler(
+          id,
+          command.description,
+          command.flags,
+          (params) => runCliCommand(command, params)
+        );
+      } catch (error) {
+        console.warn(
+          `[tasks-map] Could not register CLI command ${id}:`,
+          error
+        );
+      }
+    }
+  }
+
   /** The map tab the user is in, if the active tab is a map. */
   private getActiveMapView(): TaskMapGraphItemView | null {
     const view = this.app.workspace.getMostRecentLeaf()?.view;
@@ -770,6 +884,7 @@ export default class TasksMapPlugin extends Plugin {
           : focusRequest
       );
     }
+    return leaf;
   }
 
   onunload(): void {
