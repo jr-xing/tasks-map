@@ -384,6 +384,10 @@ export function createTasksMapCliCommands(
         due: { value: "<date>", description: "Due date (YYYY-MM-DD)" },
         scheduled: { value: "<date>", description: "Scheduled date" },
         tags: { value: "<tag,...>", description: "Comma-separated tags" },
+        contexts: {
+          value: "<context,...>",
+          description: "Comma-separated contexts (without @)",
+        },
         details: { value: "<text>", description: "Body text above the log" },
         log: { value: "<text>", description: "Text of the first log entry" },
       },
@@ -410,6 +414,13 @@ export function createTasksMapCliCommands(
           data.tags = tags
             .split(",")
             .map((tag) => tag.trim().replace(/^#/, ""))
+            .filter(Boolean);
+        }
+        const contexts = param(params, "contexts");
+        if (contexts) {
+          data.contexts = contexts
+            .split(",")
+            .map((context) => context.trim().replace(/^@/, ""))
             .filter(Boolean);
         }
         const property = deps.dependencyProperty();

@@ -199,12 +199,14 @@ describe("tasks map CLI", () => {
       parent: "Alpha",
       status: "in progress",
       priority: "High",
+      contexts: "@writing, email",
       log: "Asked by user.",
     });
     expect(deps.createTask).toHaveBeenCalledWith({
       title: "New",
       status: "in-progress",
       priority: "high",
+      contexts: ["writing", "email"],
       projects: ["[[P Alpha]]"],
       details: "## Log\n\n### 2026-02-01 — Created\nAsked by user.\n",
     });

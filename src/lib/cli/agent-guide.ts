@@ -34,7 +34,8 @@ Never write a wikilink you have not seen in \`resolve\` or \`show\` output.
 ## Changing tasks
 
 - Create: \`${cmd("create")} title="<title>" parent="<project>" status=<status>
-  priority=<id> due=YYYY-MM-DD scheduled=YYYY-MM-DD tags=a,b log="<context>"\`.
+  priority=<id> due=YYYY-MM-DD scheduled=YYYY-MM-DD tags=a,b contexts=x,y
+  log="<context>"\`.
   TaskNotes names the file; the note gets a \`## Log\` section whose first
   entry is \`### <today> — Created\` followed by \`log\`.
 - Update: \`${cmd("update")} task="<task>" status=<status> priority=<id>
