@@ -28,3 +28,22 @@ export {
   type LayoutDirection,
   type LayoutViewport,
 } from "./packing";
+export {
+  fitTreeViewport,
+  layoutTree,
+  orderTreeRows,
+  TREE_BLOCK_GAP,
+  TREE_GUTTER_PADDING,
+  TREE_LANE_WIDTH,
+  TREE_ROW_GAP,
+  type TreeDot,
+  type TreeLayout,
+  type TreeLine,
+  type TreeRow,
+} from "./tree";
+export {
+  createTreeLayoutElements,
+  TREE_GUTTER_NODE_ID,
+  TREE_GUTTER_NODE_TYPE,
+  treeSortKey,
+} from "./tree-elements";

@@ -45,6 +45,7 @@ import FilterPresetsPanel from "src/components/filter-presets-panel";
 import StatusCountsOverlay from "src/components/status-counts-overlay";
 import TaskNode from "src/components/task-node";
 import ProjectGroupNode from "src/components/project-group-node";
+import TreeGutterNode from "src/components/tree-gutter-node";
 import {
   getFilteredNodeIds,
   getVisibilityFilteredNodeIds,
@@ -98,7 +99,10 @@ import {
 } from "src/lib/vault-watcher";
 import {
   createLayoutSnapshot,
+  createTreeLayoutElements,
+  fitTreeViewport,
   packLayoutSnapshot,
+  TREE_GUTTER_NODE_TYPE,
   type LayoutSnapshot,
   type LayoutViewport,
 } from "src/lib/layout";
@@ -384,6 +388,19 @@ export default function TaskMapGraphView({
       if (!readGraphViewport(container) || currentNodes.length === 0) return;
       if (currentNodes.some((node) => !node.width || !node.height)) return;
       const visibleArea = getVisibleMapArea();
+      if (settings.layoutMode === "tree") {
+        // A long tree shrunk to fit would be unreadable: fit the cross axis
+        // (at most 100%) and start at the top, then the user scrolls.
+        void reactFlowInstance.setViewport(
+          fitTreeViewport(
+            getNodesBounds(currentNodes),
+            visibleArea,
+            settings.layoutDirection
+          ),
+          { duration }
+        );
+        return;
+      }
       if (visibleArea.left <= 0 && visibleArea.top <= 0) {
         reactFlowInstance.fitView({ duration });
         return;
@@ -407,7 +424,12 @@ export default function TaskMapGraphView({
         { duration }
       );
     },
-    [getVisibleMapArea, reactFlowInstance]
+    [
+      getVisibleMapArea,
+      reactFlowInstance,
+      settings.layoutMode,
+      settings.layoutDirection,
+    ]
   );
 
   // Remeasure even camera-preserving updates: rebuilding nodes discards their
@@ -1201,6 +1223,32 @@ export default function TaskMapGraphView({
       )
     );
 
+    if (settings.layoutMode === "tree") {
+      const tree = createTreeLayoutElements({
+        nodes: newNodes,
+        edges: newEdges,
+        tasks: visibleTasks,
+        direction: settings.layoutDirection,
+        statuses: settings.taskStatuses,
+        showTags: settings.showTags,
+        visibleAttachmentKinds: settings.visibleAttachmentKinds,
+        nodeDensity: settings.nodeDensity,
+      });
+      // Tree rows do not depend on the viewport, so resizes need no repacking.
+      layoutSnapshotRef.current = null;
+      lastPackedPositionsRef.current = new Map();
+      setNodes(tree.nodes);
+      setEdges(tree.edges);
+      const fitTree = !skipFitViewRef.current;
+      skipFitViewRef.current = false;
+      scheduleFitView(
+        new Set(tree.nodes.map((node) => node.id)),
+        new Map(tree.nodes.map((node) => [node.id, { ...node.position }])),
+        fitTree
+      );
+      return;
+    }
+
     // Separate dropped (unlinked) nodes from linked nodes for layout
     const droppedNodes = newNodes.filter((n) => droppedTaskIds.has(n.id));
     const linkedNodes = newNodes.filter((n) => !droppedTaskIds.has(n.id));
@@ -1312,7 +1360,11 @@ export default function TaskMapGraphView({
   }, [applyViewportPacking]);
 
   const nodeTypes = useMemo(
-    () => ({ task: TaskNode, projectGroup: ProjectGroupNode }),
+    () => ({
+      task: TaskNode,
+      projectGroup: ProjectGroupNode,
+      [TREE_GUTTER_NODE_TYPE]: TreeGutterNode,
+    }),
     []
   );
   const edgeTypes = useMemo(() => ({ hash: HashEdge }), []);
@@ -2550,7 +2602,12 @@ export default function TaskMapGraphView({
             zoomOnPinch
             zoomActivationKeyCode="Control"
             panOnScroll
-            panOnScrollMode={PanOnScrollMode.Free}
+            panOnScrollMode={
+              settings.layoutMode === "tree" &&
+              settings.layoutDirection === "Vertical"
+                ? PanOnScrollMode.Vertical
+                : PanOnScrollMode.Free
+            }
             fitView
             onConnect={(params) => void onConnect(params)}
             onConnectStart={onConnectStart}

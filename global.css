@@ -4327,3 +4327,42 @@ If your plugin does not need CSS, delete this file.
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Tree layout: git-style lanes drawn behind the task cards. */
+.react-flow__node.tasks-map-tree-gutter-node {
+  pointer-events: none;
+  cursor: default;
+}
+
+.tasks-map-tree-gutter {
+  display: block;
+  overflow: visible;
+}
+
+.tasks-map-tree-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tasks-map-tree-line--branch {
+  stroke: var(--text-faint);
+  stroke-width: 2;
+}
+
+.tasks-map-tree-line--tick {
+  stroke: var(--background-modifier-border);
+  stroke-width: 1.5;
+}
+
+.tasks-map-tree-line--link {
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+}
+
+.tasks-map-tree-dot {
+  stroke: var(--background-primary);
+  stroke-width: 2;
+}
