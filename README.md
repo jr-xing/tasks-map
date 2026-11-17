@@ -18,6 +18,8 @@
 ### Highlights
 
 - 📊 **Graph Visualization** — See all your tasks as draggable nodes in a React Flow graph
+- 🌿 **Tree Layout** — A git-style view with one task per row, the project on top and subtasks on branch lanes. It can run vertically for narrow tabs or horizontally as a timeline, and each map tab keeps its own layout
+- 🤖 **AI Agent CLI** — `obsidian tasks-map-jrxing:*` commands (Obsidian 1.12.2+) let AI agents list, create, update and log tasks exactly as the map sees them
 - 📝 **Dual Task Sources** — Supports inline `- [ ]` checkbox tasks and file-based NoteTask notes (frontmatter with `tags: [task]`)
 - 🔗 **Task Relationships** — Edges based on 🆔 / ⛔ emoji/link syntax (inline) or `blockedBy` / `dependsOn` frontmatter (NoteTask)
 - 🏷️ **Tag Filtering** — Focus your view with multi-select tag filtering
@@ -31,6 +33,29 @@
 Tasks Map has no required plugin dependencies. The optional [Tasks](https://github.com/obsidian-tasks-group/obsidian-tasks) plugin enables its inline-task creation and editing modals.
 
 Install through the Obsidian plugin manager: https://obsidian.md/plugins?id=tasks-map
+
+### Tree Layout And Map Tabs
+
+Switch a map tab between **Graph** and **Tree** with the branch icon in the tab
+header, the **View** panel, or the *Toggle tree layout in current map* command.
+Direction (horizontal or vertical) is also per tab, and the settings only choose
+the defaults for new tabs. *Focus project or task in new map tab* (or
+Ctrl/Cmd+Enter in the focus picker) opens a focus in a fresh tab instead of
+retargeting the current one.
+
+### AI Agents (Obsidian CLI)
+
+With Obsidian 1.12.2+ running, agents can use:
+
+```bash
+obsidian tasks-map-jrxing:skill        # the full guide for agents
+obsidian tasks-map-jrxing:tree task="My Project"
+obsidian tasks-map-jrxing:create title="Draft intro" parent="My Project" log="Context"
+obsidian tasks-map-jrxing:log task="Draft intro" text="Finished outline"
+```
+
+Commands: `skill`, `schema`, `list`, `tree`, `show`, `resolve`, `create`
+(through TaskNotes), `update`, `log`, `link`, `focus`.
 
 ### 📖 Documentation
 
