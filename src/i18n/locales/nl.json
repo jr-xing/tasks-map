@@ -6,6 +6,7 @@
   "commands": {
     "open_map_view": "Kaartweergave openen",
     "focus_project_or_task": "Project of taak in kaart focussen",
+    "focus_project_or_task_new_tab": "Project of taak in nieuw kaarttabblad focussen",
     "insert_filter_as_code_block": "Huidig filter invoegen als ingesloten Taken Kaart",
     "organize_task_notes": "Organize task notes",
     "check_note_map_visibility": "Controleren waarom notitie wel/niet op de kaart staat"
@@ -457,6 +458,7 @@
     "back": "Terug naar taakweergave",
     "navigate": "Taak selecteren",
     "focus_task": "Taak focussen",
+    "open_in_new_tab": "In nieuw tabblad openen",
     "projects": "Projecten",
     "projects_action": "Projecten →",
     "all_projects": "Alle projecten",

@@ -181,6 +181,14 @@ export default class TasksMapPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "focus-project-or-task-new-tab",
+      name: t("commands.focus_project_or_task_new_tab"),
+      callback: () => {
+        void this.openFocusPicker(false, undefined, true);
+      },
+    });
+
+    this.addCommand({
       id: "check-note-map-visibility",
       name: t("commands.check_note_map_visibility"),
       callback: () => {
@@ -488,7 +496,8 @@ export default class TasksMapPlugin extends Plugin {
 
   private async openFocusPicker(
     overview = false,
-    activeNotePath?: string
+    activeNotePath?: string,
+    newTabOnEnter = false
   ): Promise<void> {
     const baseFilter = this.getFocusBaseFilter();
     let tasks;
@@ -527,11 +536,14 @@ export default class TasksMapPlugin extends Plugin {
           new Notice(t("project_overview.no_project"));
           return;
         }
-        await this.activateViewInMainArea({
-          kind: "project-overview",
-          taskId: task.id,
-          baseFilter,
-        });
+        await this.activateViewInMainArea(
+          {
+            kind: "project-overview",
+            taskId: task.id,
+            baseFilter,
+          },
+          { newTab: newTabOnEnter }
+        );
         return;
       }
     }
@@ -546,30 +558,38 @@ export default class TasksMapPlugin extends Plugin {
         this.app,
         items,
         projects,
-        (item) => {
-          void this.activateViewInMainArea({
-            kind: overview ? "project-overview" : "task",
-            taskId: item.taskId,
-            baseFilter,
-          });
+        (item, newTab) => {
+          void this.activateViewInMainArea(
+            {
+              kind: overview ? "project-overview" : "task",
+              taskId: item.taskId,
+              baseFilter,
+            },
+            { newTab }
+          );
         },
         (item: TaskFocusCandidate, search: string) => {
           openTaskProjects(
             this.app,
             projects.get(item.taskId) ?? [],
-            (rootTaskIds) => {
-              void this.activateViewInMainArea({
-                kind: "project-overview",
-                taskId: item.taskId,
-                rootTaskIds,
-                baseFilter,
-              });
+            (rootTaskIds, newTab) => {
+              void this.activateViewInMainArea(
+                {
+                  kind: "project-overview",
+                  taskId: item.taskId,
+                  rootTaskIds,
+                  baseFilter,
+                },
+                { newTab }
+              );
             },
-            () => showPicker(search)
+            () => showPicker(search),
+            newTabOnEnter
           );
         },
         query,
-        overview
+        overview,
+        newTabOnEnter
       ).open();
     };
     showPicker();
@@ -700,8 +720,16 @@ export default class TasksMapPlugin extends Plugin {
     await this.app.vault.process(file, (content) => content + block);
   }
 
-  async activateViewInMainArea(focusRequest?: TaskMapFocusRequest) {
-    const existingLeaf = focusRequest ? this.getNavigationLeaf() : null;
+  /**
+   * Show a map. Focus requests normally retarget the current map; `newTab`
+   * opens a fresh map tab (in the active window) for the request instead.
+   */
+  async activateViewInMainArea(
+    focusRequest?: TaskMapFocusRequest,
+    { newTab = false }: { newTab?: boolean } = {}
+  ) {
+    const existingLeaf =
+      focusRequest && !newTab ? this.getNavigationLeaf() : null;
     const leaf = existingLeaf ?? this.app.workspace.getLeaf(true); // true = main area
     if (!existingLeaf) {
       await leaf.setViewState({ type: VIEW_TYPE, active: true });

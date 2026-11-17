@@ -7,6 +7,7 @@
     "organize_task_notes": "Organize task notes",
     "open_map_view": "打开地图视图",
     "focus_project_or_task": "聚焦地图中的项目或任务",
+    "focus_project_or_task_new_tab": "在新地图标签页中聚焦项目或任务",
     "insert_filter_as_code_block": "将当前筛选器插入为嵌入式任务地图",
     "check_note_map_visibility": "检查笔记为何显示或未显示在地图中"
   },
@@ -457,6 +458,7 @@
     "back": "返回任务视图",
     "navigate": "选择任务",
     "focus_task": "聚焦任务",
+    "open_in_new_tab": "在新标签页中打开",
     "projects": "所属项目",
     "projects_action": "所属项目 →",
     "all_projects": "所有项目",

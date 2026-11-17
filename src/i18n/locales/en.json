@@ -6,6 +6,7 @@
   "commands": {
     "open_map_view": "Open map view",
     "focus_project_or_task": "Focus project or task in map",
+    "focus_project_or_task_new_tab": "Focus project or task in new map tab",
     "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map",
     "organize_task_notes": "Organize task notes",
     "check_note_map_visibility": "Check why note is (not) shown in map"
@@ -457,6 +458,7 @@
     "back": "Back to task view",
     "navigate": "Select a task",
     "focus_task": "Focus task",
+    "open_in_new_tab": "Open in new tab",
     "projects": "Projects",
     "projects_action": "Projects →",
     "all_projects": "All projects",

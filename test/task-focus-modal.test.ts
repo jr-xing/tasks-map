@@ -64,7 +64,7 @@ describe("task picker navigation", () => {
     modal.onOpen();
     expect(modal.inputEl.value).toBe("Child");
     modal.onChooseItem(item);
-    expect(choose).toHaveBeenCalledWith(item);
+    expect(choose).toHaveBeenCalledWith(item, false);
     expect(project).not.toHaveBeenCalled();
     modal.inputEl.selectionStart = 5;
     modal.inputEl.selectionEnd = 5;
@@ -108,7 +108,7 @@ describe("task picker navigation", () => {
     const choose = jest.fn();
     const back = jest.fn();
     openTaskProjects(new App(), options.slice(0, 1), choose, back);
-    expect(choose).toHaveBeenCalledWith(["a"]);
+    expect(choose).toHaveBeenCalledWith(["a"], false);
     expect(back).not.toHaveBeenCalled();
     openTaskProjects(new App(), [], choose, back);
     expect(back).toHaveBeenCalledTimes(1);
@@ -126,7 +126,7 @@ describe("task picker navigation", () => {
     modal.close(); // Native close-before-choice ordering.
     modal.onChooseItem(modal.getItems()[0]);
     await Promise.resolve();
-    expect(choose).toHaveBeenCalledWith(undefined);
+    expect(choose).toHaveBeenCalledWith(undefined, false);
     expect(back).not.toHaveBeenCalled();
   });
 
@@ -138,5 +138,82 @@ describe("task picker navigation", () => {
     await Promise.resolve();
     expect(back).toHaveBeenCalledTimes(1);
     expect(choose).not.toHaveBeenCalled();
+  });
+
+  describe("open in new tab", () => {
+    function modHandler(modal: { scope: { register: unknown } }) {
+      const register = modal.scope.register as jest.Mock;
+      const call = register.mock.calls.find(
+        ([modifiers, key]) => modifiers[0] === "Mod" && key === "Enter"
+      );
+      return call?.[2];
+    }
+
+    it("opens a task in a new tab with Ctrl/Cmd+Enter only", () => {
+      const choose = jest.fn();
+      const modal = new TaskFocusSuggestModal(
+        new App(),
+        [item],
+        new Map(),
+        choose,
+        jest.fn()
+      );
+      jest
+        .spyOn(modal, "selectActiveSuggestion")
+        .mockImplementation(() => modal.onChooseItem(item));
+      expect(modHandler(modal)({ key: "Enter", ctrlKey: true })).toBe(false);
+      expect(choose).toHaveBeenLastCalledWith(item, true);
+      // The modifier must not leak into a following plain Enter.
+      modal.onChooseItem(item);
+      expect(choose).toHaveBeenLastCalledWith(item, false);
+    });
+
+    it("treats Ctrl/Cmd+click as a new-tab pick", () => {
+      const choose = jest.fn();
+      const modal = new TaskFocusSuggestModal(
+        new App(),
+        [item],
+        new Map(),
+        choose,
+        jest.fn()
+      );
+      modal.onChooseItem(item, { ctrlKey: false, metaKey: true } as MouseEvent);
+      expect(choose).toHaveBeenLastCalledWith(item, true);
+    });
+
+    it("uses a new tab for plain Enter when opened from the new-tab command", () => {
+      const choose = jest.fn();
+      const modal = new TaskFocusSuggestModal(
+        new App(),
+        [item],
+        new Map(),
+        choose,
+        jest.fn(),
+        "",
+        false,
+        true
+      );
+      modal.onChooseItem(item);
+      expect(choose).toHaveBeenCalledWith(item, true);
+    });
+
+    it("carries new-tab intent through the project chooser", async () => {
+      const choose = jest.fn();
+      const modal = new TaskProjectSuggestModal(
+        new App(),
+        options,
+        choose,
+        jest.fn()
+      );
+      jest
+        .spyOn(modal, "selectActiveSuggestion")
+        .mockImplementation(() => modal.onChooseItem(modal.getItems()[1]));
+      modHandler(modal)({ key: "Enter", ctrlKey: true });
+      expect(choose).toHaveBeenCalledWith(["a"], true);
+
+      const single = jest.fn();
+      openTaskProjects(new App(), options.slice(0, 1), single, jest.fn(), true);
+      expect(single).toHaveBeenCalledWith(["a"], true);
+    });
   });
 });
