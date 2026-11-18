@@ -69,8 +69,12 @@ export function applyMapLayout<T extends TasksMapSettings>(
   return { ...settings, ...layout };
 }
 
+const LAYOUT_MODE_CYCLE: LayoutMode[] = ["graph", "tree", "branches"];
+
+/** The next layout in the cycle graph → tree → branches → graph. */
 export function toggledLayoutMode(mode: LayoutMode): LayoutMode {
-  return mode === "tree" ? "graph" : "tree";
+  const index = LAYOUT_MODE_CYCLE.indexOf(mode);
+  return LAYOUT_MODE_CYCLE[(index + 1) % LAYOUT_MODE_CYCLE.length];
 }
 
 export function toggledLayoutDirection(

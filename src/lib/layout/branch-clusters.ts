@@ -9,10 +9,13 @@ import {
   MINIMAL_ROW_WIDTH,
   NodeDimensions,
 } from "./dimensions";
+import type { ProjectMember } from "./project-groups";
 
 /** A parent needs at least this many task rows before they are clustered. */
 export const CLUSTER_MIN_ROWS = 5;
 export const CLUSTER_NODE_TYPE = "taskCluster";
+/** An inert node holding one parent's clusters (Graph layout). */
+export const CLUSTER_BLOCK_NODE_TYPE = "taskClusterBlock";
 export const CLUSTER_PAD_X = 8;
 export const CLUSTER_HEADER_HEIGHT = 28;
 export const CLUSTER_FOOTER_HEIGHT = 28;
@@ -87,6 +90,8 @@ interface ClusterBlock {
   width: number;
   height: number;
   clusters: ClusterLayout[];
+  /** The rows' project, when they all share the same one(s). */
+  projects: string[];
 }
 
 export interface ClusterPlan {
@@ -371,8 +376,12 @@ export function planBranchClusters(
       }
     });
 
+    const projectKeys = new Set(
+      rows.map((row) => JSON.stringify(row.data.task.projects))
+    );
     const blockId = getBlockId(parentId);
     plan.blocks.push({
+      projects: projectKeys.size === 1 ? [...rows[0].data.task.projects] : [],
       id: blockId,
       width: firstWidth + (secondWidth > 0 ? CLUSTER_GAP + secondWidth : 0),
       height: Math.max(
@@ -422,28 +431,103 @@ export function getClusterBlockNodes(plan: ClusterPlan): {
   };
 }
 
+interface PlacedClusters {
+  clusters: Node<TaskClusterNodeData>[];
+  rows: TaskNode[];
+}
+
+function placeBlock(
+  block: ClusterBlock,
+  origin: { x: number; y: number },
+  placed: PlacedClusters,
+  parentNode?: string
+): void {
+  for (const cluster of block.clusters) {
+    const x = origin.x + cluster.dx;
+    const y = origin.y + cluster.dy;
+    placed.clusters.push({ ...cluster.node, parentNode, position: { x, y } });
+    for (const row of cluster.rows) {
+      placed.rows.push({
+        ...row.node,
+        parentNode,
+        position: { x: x + row.dx, y: y + row.dy },
+      });
+    }
+  }
+}
+
 /** Place each block's clusters, and their rows, where dagre put the block. */
 export function placeClusterBlocks(
   plan: ClusterPlan,
   layouted: Node[]
-): { clusters: Node<TaskClusterNodeData>[]; rows: TaskNode[] } {
+): PlacedClusters {
   const positions = new Map(layouted.map((node) => [node.id, node.position]));
-  const clusters: Node<TaskClusterNodeData>[] = [];
-  const rows: TaskNode[] = [];
+  const placed: PlacedClusters = { clusters: [], rows: [] };
   for (const block of plan.blocks) {
     const origin = positions.get(block.id);
-    if (!origin) continue;
-    for (const cluster of block.clusters) {
-      const x = origin.x + cluster.dx;
-      const y = origin.y + cluster.dy;
-      clusters.push({ ...cluster.node, position: { x, y } });
-      for (const row of cluster.rows) {
-        rows.push({
-          ...row.node,
-          position: { x: x + row.dx, y: y + row.dy },
-        });
-      }
-    }
+    if (origin) placeBlock(block, origin, placed);
   }
-  return { clusters, rows };
+  return placed;
+}
+
+/**
+ * Blocks as nodes of their own, for the Graph layout: each is an empty,
+ * inert frame the size of its clusters, laid out (and repacked on resize)
+ * like a card. `members` puts a block in its rows' project frame.
+ */
+export function getClusterBlockFrames(plan: ClusterPlan): {
+  nodes: Node[];
+  dimensions: Map<string, NodeDimensions>;
+  members: ProjectMember[];
+} {
+  return {
+    nodes: plan.blocks.map((block) => ({
+      id: block.id,
+      type: CLUSTER_BLOCK_NODE_TYPE,
+      position: { x: 0, y: 0 },
+      data: {},
+      style: { width: block.width, height: block.height },
+      selectable: false,
+      draggable: false,
+      connectable: false,
+      focusable: false,
+    })),
+    dimensions: getClusterBlockNodes(plan).dimensions,
+    members: plan.blocks.map((block) => ({
+      id: block.id,
+      projects: block.projects,
+    })),
+  };
+}
+
+/**
+ * The clusters and rows of block frames (see getClusterBlockFrames), as
+ * children of their block so they move with it.
+ */
+export function getClusterBlockChildren(plan: ClusterPlan): PlacedClusters {
+  const placed: PlacedClusters = { clusters: [], rows: [] };
+  for (const block of plan.blocks) {
+    placeBlock(block, { x: 0, y: 0 }, placed, block.id);
+  }
+  return placed;
+}
+
+/**
+ * The edges to draw once rows are clustered: the unclustered links, one per
+ * cluster, and each shown row's own parent link, hidden (kept for selection
+ * and deletion; the cluster's edge stands in for it).
+ */
+export function getClusteredEdges(
+  plan: ClusterPlan,
+  edges: Edge[],
+  shownRows: Node[]
+): Edge[] {
+  const shownIds = new Set(shownRows.map((row) => row.id));
+  return [
+    ...edges.filter((edge) => !plan.clusteredIds.has(edge.target)),
+    ...plan.clusterEdges,
+    ...edges
+      .filter((edge) => shownIds.has(edge.target))
+      .map((edge) => ({ ...edge, hidden: true })),
+  ];
 }

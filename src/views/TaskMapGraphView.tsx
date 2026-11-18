@@ -47,7 +47,9 @@ import StatusCountsOverlay from "src/components/status-counts-overlay";
 import TaskNode from "src/components/task-node";
 import ProjectGroupNode from "src/components/project-group-node";
 import TreeGutterNode from "src/components/tree-gutter-node";
-import TaskClusterNode from "src/components/task-cluster-node";
+import TaskClusterNode, {
+  TaskClusterBlockNode,
+} from "src/components/task-cluster-node";
 import TaskGroupZoneNode from "src/components/task-group-zone-node";
 import {
   getFilteredNodeIds,
@@ -63,7 +65,15 @@ import {
   getDependencyConnections,
 } from "src/lib/branch-model";
 import { createBranchViewElements } from "src/lib/layout/branch-elements";
-import { CLUSTER_NODE_TYPE } from "src/lib/layout/branch-clusters";
+import {
+  CLUSTER_BLOCK_NODE_TYPE,
+  CLUSTER_NODE_TYPE,
+  ClusterOptions,
+  getClusterBlockChildren,
+  getClusterBlockFrames,
+  getClusteredEdges,
+  planBranchClusters,
+} from "src/lib/layout/branch-clusters";
 import {
   createTaskGroupZoning,
   TASK_GROUP_ZONE_TYPE,
@@ -1539,18 +1549,20 @@ export default function TaskMapGraphView({
         settings.smoothStepRadius
       );
 
+    const clusterOptions: ClusterOptions = {
+      statuses: settings.taskStatuses,
+      expandedClusterIds,
+      onToggleCluster: handleToggleCluster,
+      tagColorPalette: settings.tagColorPalette,
+    };
+
     if (settings.layoutMode === "branches") {
       const branchView = createBranchViewElements(
         newNodes,
         layoutEdges,
         settings.layoutDirection,
         getLayoutViewport(containerRef.current),
-        {
-          statuses: settings.taskStatuses,
-          expandedClusterIds,
-          onToggleCluster: handleToggleCluster,
-          tagColorPalette: settings.tagColorPalette,
-        },
+        clusterOptions,
         zoning?.zones
       );
       const branchNodes = branchView.nodes;
@@ -1574,11 +1586,10 @@ export default function TaskMapGraphView({
       return;
     }
 
-    const dependencyEdges = getDependencyEdges(
-      new Set(newNodes.map((node) => node.id))
-    );
-
     if (settings.layoutMode === "tree") {
+      const dependencyEdges = getDependencyEdges(
+        new Set(newNodes.map((node) => node.id))
+      );
       const tree = createTreeLayoutElements({
         nodes: newNodes,
         edges: newEdges,
@@ -1611,18 +1622,38 @@ export default function TaskMapGraphView({
     const droppedNodes = newNodes.filter((n) => droppedTaskIds.has(n.id));
     const linkedNodes = newNodes.filter((n) => !droppedTaskIds.has(n.id));
 
+    // With minimal cards, long sibling lists are grouped as in the Branches
+    // layout. Each parent's clusters sit in one block node, laid out like a
+    // card; classic cards are never clustered.
+    const clusterPlan = planBranchClusters(linkedNodes, layoutEdges, {
+      ...clusterOptions,
+      minRows: settings.nodeDensity === "minimal" ? undefined : Infinity,
+    });
+    const isClustered = (id: string) => clusterPlan.clusteredIds.has(id);
+    const blockFrames = getClusterBlockFrames(clusterPlan);
+
     // Run dagre once and retain its component-local geometry so a later
     // container resize only needs to recompute the outer packing offsets.
     const layoutSnapshot: LayoutSnapshot = {
       ...createLayoutSnapshot(
-        linkedNodes,
-        layoutEdges,
+        [
+          ...linkedNodes.filter((node) => !isClustered(node.id)),
+          ...blockFrames.nodes,
+        ],
+        [
+          ...layoutEdges.filter((edge) => !isClustered(edge.target)),
+          ...clusterPlan.blockEdges,
+        ],
         settings.layoutDirection,
         settings.showTags,
         groupByProject,
-        visibleTasks,
+        [
+          ...visibleTasks.filter((task) => !isClustered(task.id)),
+          ...blockFrames.members,
+        ],
         settings.visibleAttachmentKinds,
-        settings.nodeDensity
+        settings.nodeDensity,
+        blockFrames.dimensions
       ),
       zones: zoning?.zones,
     };
@@ -1642,10 +1673,21 @@ export default function TaskMapGraphView({
       return pos ? { ...n, position: pos } : n;
     });
 
-    const finalNodes = [...layoutedLinkedNodes, ...layoutedDroppedNodes];
-    setEdges([...layoutEdges, ...crossEdges, ...dependencyEdges]);
-
+    // Blocks come before their clusters, and clusters before their rows.
+    const blockChildren = getClusterBlockChildren(clusterPlan);
+    const finalNodes = [
+      ...layoutedLinkedNodes,
+      ...blockChildren.clusters,
+      ...blockChildren.rows,
+      ...layoutedDroppedNodes,
+    ];
     const expectedIds = new Set(finalNodes.map((n) => n.id));
+    setEdges([
+      ...getClusteredEdges(clusterPlan, layoutEdges, blockChildren.rows),
+      ...getCrossEdges(expectedIds),
+      ...getDependencyEdges(expectedIds),
+    ]);
+
     const expectedPositions = new Map(
       finalNodes.map((node) => [node.id, { ...node.position }])
     );
@@ -1745,6 +1787,7 @@ export default function TaskMapGraphView({
       projectGroup: ProjectGroupNode,
       [TREE_GUTTER_NODE_TYPE]: TreeGutterNode,
       [CLUSTER_NODE_TYPE]: TaskClusterNode,
+      [CLUSTER_BLOCK_NODE_TYPE]: TaskClusterBlockNode,
       [TASK_GROUP_ZONE_TYPE]: TaskGroupZoneNode,
     }),
     []

@@ -10,7 +10,7 @@
     "insert_filter_as_code_block": "Huidig filter invoegen als ingesloten Taken Kaart",
     "organize_task_notes": "Organize task notes",
     "check_note_map_visibility": "Controleren waarom notitie wel/niet op de kaart staat",
-    "toggle_tree_layout": "Boomindeling in huidige kaart wisselen",
+    "toggle_tree_layout": "Indeling in huidige kaart wisselen (grafiek, boom, takken)",
     "toggle_layout_direction": "Indelingsrichting in huidige kaart wisselen"
   },
   "ribbon": {
@@ -19,7 +19,8 @@
   "view": {
     "title": "Taken kaart",
     "switch_to_tree": "Naar boomindeling wisselen",
-    "switch_to_graph": "Naar grafiekindeling wisselen"
+    "switch_to_graph": "Naar grafiekindeling wisselen",
+    "switch_to_branches": "Naar takkenweergave wisselen"
   },
   "settings": {
     "display_options": "Weergaveopties",
@@ -177,7 +178,7 @@
     "language": "Taal",
     "language_desc": "Selecteer de taal voor de plugin-interface",
     "layout_mode": "Standaardindeling",
-    "layout_mode_desc": "Indeling voor nieuwe kaarttabbladen. Elk tabblad kan zelf wisselen tussen grafiek en boom.",
+    "layout_mode_desc": "Indeling voor nieuwe kaarttabbladen. Elk tabblad kan zelf wisselen tussen grafiek, boom en takken.",
     "branches_heading": "Takken",
     "branches_desc": "Optionele notitie-eigenschappen die de takken van een project beschrijven. Zonder deze worden directe subtaken van een project die zelf subtaken hebben als takken behandeld.",
     "fold_to_branches": "Kaarten ingeklapt tot takken openen",
@@ -195,7 +196,7 @@
     "branch_related_property": "Gerelateerd-eigenschap",
     "branch_related_property_desc": "Eigenschap die een notitie aan andere notities koppelt zonder ze ouder te maken, bijv. \"related\".",
     "branch_group_property": "Groeperingseigenschap",
-    "branch_group_property_desc": "In de takkenweergave worden lange lijsten met taken op hetzelfde niveau gegroepeerd op de eerste waarde van deze eigenschap, bijv. \"contexts\".",
+    "branch_group_property_desc": "In de takkenweergave, en in de grafiekindeling met minimale kaarten, worden lange lijsten met taken op hetzelfde niveau gegroepeerd op de eerste waarde van deze eigenschap, bijv. \"contexts\".",
     "task_group_property": "Eigenschap voor taakgroep",
     "task_group_property_desc": "Eigenschap met de groep waartoe een project hoort, bijv. \"taskGroup: Yale core\". Subtaken gebruiken de groep van hun project, tenzij ze er zelf een noemen.",
     "show_task_groups": "Taakgroepen tonen",

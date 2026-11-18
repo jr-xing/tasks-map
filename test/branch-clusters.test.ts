@@ -1,14 +1,23 @@
 import { buildBranchModel } from "../src/lib/branch-model";
 import { createBranchViewElements } from "../src/lib/layout/branch-elements";
 import {
+  CLUSTER_BLOCK_NODE_TYPE,
   CLUSTER_GAP,
   CLUSTER_HEADER_HEIGHT,
   CLUSTER_NODE_TYPE,
   CLUSTER_PAD_X,
+  getClusterBlockChildren,
+  getClusterBlockFrames,
+  getClusteredEdges,
   getClusterId,
+  planBranchClusters,
   splitIntoTwoColumns,
   TaskClusterNodeData,
 } from "../src/lib/layout/branch-clusters";
+import {
+  createLayoutSnapshot,
+  packLayoutSnapshot,
+} from "../src/lib/layout/layout";
 import { MINIMAL_ROW_WIDTH } from "../src/lib/layout/dimensions";
 import { DEFAULT_TASK_STATUSES } from "../src/lib/status-config";
 import { createEdgesFromTasks, createNodesFromTasks } from "../src/lib/utils";
@@ -34,9 +43,9 @@ function makeTask(
   return Object.assign(task, overrides);
 }
 
-function layout(tasks: NoteTask[], expanded: string[] = []) {
+function makeNodes(tasks: NoteTask[]) {
   const model = buildBranchModel(tasks, DEFAULT_TASK_STATUSES);
-  const nodes = createNodesFromTasks(
+  return createNodesFromTasks(
     tasks,
     "Horizontal",
     true,
@@ -60,8 +69,11 @@ function layout(tasks: NoteTask[], expanded: string[] = []) {
     undefined,
     model
   );
+}
+
+function layout(tasks: NoteTask[], expanded: string[] = []) {
   return createBranchViewElements(
-    nodes,
+    makeNodes(tasks),
     createEdgesFromTasks(tasks),
     "Horizontal",
     undefined,
@@ -222,6 +234,130 @@ describe("branch clusters", () => {
       expect(
         nested.edges.some((edge) => edge.target === "C-backlog" && !edge.hidden)
       ).toBe(true);
+    });
+  });
+});
+
+describe("cluster blocks in the graph layout", () => {
+  const options = { statuses: DEFAULT_TASK_STATUSES };
+  const blockId = (parent: string) => `tasks-map-cluster-block:${parent}`;
+
+  function graph(input: NoteTask[], groupByProject = false) {
+    const nodes = makeNodes(input);
+    const edges = createEdgesFromTasks(input);
+    const plan = planBranchClusters(nodes, edges, options);
+    const frames = getClusterBlockFrames(plan);
+    const clustered = (id: string) => plan.clusteredIds.has(id);
+    const snapshot = createLayoutSnapshot(
+      [...nodes.filter((node) => !clustered(node.id)), ...frames.nodes],
+      [...edges.filter((edge) => !clustered(edge.target)), ...plan.blockEdges],
+      "Horizontal",
+      true,
+      groupByProject,
+      [...input.filter((task) => !clustered(task.id)), ...frames.members],
+      [],
+      "minimal",
+      frames.dimensions
+    );
+    return {
+      plan,
+      frames,
+      laidOut: packLayoutSnapshot(snapshot),
+      children: getClusterBlockChildren(plan),
+      edges,
+    };
+  }
+
+  it("lays each parent's clusters out as one inert block node", () => {
+    const { frames, laidOut } = graph(tasks);
+    expect(frames.nodes).toHaveLength(1);
+    expect(frames.nodes[0]).toMatchObject({
+      id: blockId("B"),
+      type: CLUSTER_BLOCK_NODE_TYPE,
+      selectable: false,
+      draggable: false,
+    });
+    expect(laidOut.some((node) => node.id === blockId("B"))).toBe(true);
+    expect(laidOut.some((node) => node.id === "C-next")).toBe(false);
+  });
+
+  it("sizes the block from its clusters, not as a task card", () => {
+    const { plan, frames } = graph(tasks);
+    const block = plan.blocks[0];
+    expect(frames.dimensions.get(block.id)).toMatchObject({
+      width: block.width,
+      height: block.height,
+    });
+    expect(block.width).toBeGreaterThan(MINIMAL_ROW_WIDTH);
+  });
+
+  it("makes clusters and rows children of their block", () => {
+    const { children } = graph(tasks);
+    const code = children.clusters.find(
+      (node) => node.id === getClusterId("B", "code")
+    )!;
+    const next = children.rows.find((node) => node.id === "C-next")!;
+    expect(code.parentNode).toBe(blockId("B"));
+    expect(next.parentNode).toBe(blockId("B"));
+    expect(next.position).toEqual({
+      x: code.position.x + CLUSTER_PAD_X,
+      y: code.position.y + CLUSTER_HEADER_HEIGHT,
+    });
+  });
+
+  it("draws cluster edges and hides the shown rows' own edges", () => {
+    const { plan, children, edges } = graph(tasks);
+    const drawn = getClusteredEdges(plan, edges, children.rows);
+    const visible = drawn.filter((edge) => !edge.hidden);
+    expect(visible.map((edge) => edge.target)).toEqual([
+      "B",
+      getClusterId("B", "code"),
+    ]);
+    expect(drawn.find((edge) => edge.target === "C-next")?.hidden).toBe(true);
+    // Folded-away rows are not drawn, so neither are their edges.
+    expect(drawn.some((edge) => edge.target === "C-backlog")).toBe(false);
+  });
+
+  describe("project frames", () => {
+    const inProject = (input: NoteTask[], project: (id: string) => string[]) =>
+      input.map((task) =>
+        task.id === "P"
+          ? task
+          : Object.assign(Object.create(Object.getPrototypeOf(task)), task, {
+              projects: project(task.id),
+            })
+      );
+
+    it("puts the block in its rows' project frame", () => {
+      const { laidOut } = graph(
+        inProject(tasks, () => ["P"]),
+        true
+      );
+      const block = laidOut.find((node) => node.id === blockId("B"))!;
+      expect(block.parentNode).toBe("project-group-P");
+    });
+
+    it("leaves the block outside frames when its rows' projects differ", () => {
+      const { frames } = graph(
+        inProject(tasks, (id) => (id === "Loose" ? ["Q"] : ["P"])),
+        true
+      );
+      expect(frames.members).toEqual([{ id: blockId("B"), projects: [] }]);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("clusters nothing when disabled with minRows: Infinity", () => {
+      const plan = planBranchClusters(
+        makeNodes(tasks),
+        createEdgesFromTasks(tasks),
+        { ...options, minRows: Infinity }
+      );
+      expect(plan.blocks).toEqual([]);
+      expect(getClusterBlockChildren(plan)).toEqual({
+        clusters: [],
+        rows: [],
+      });
     });
   });
 });

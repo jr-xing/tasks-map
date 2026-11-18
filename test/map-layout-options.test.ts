@@ -71,7 +71,8 @@ describe("map layout options", () => {
 
   it("toggles mode and direction", () => {
     expect(toggledLayoutMode("graph")).toBe("tree");
-    expect(toggledLayoutMode("tree")).toBe("graph");
+    expect(toggledLayoutMode("tree")).toBe("branches");
+    expect(toggledLayoutMode("branches")).toBe("graph");
     expect(toggledLayoutDirection("Horizontal")).toBe("Vertical");
     expect(toggledLayoutDirection("Vertical")).toBe("Horizontal");
   });

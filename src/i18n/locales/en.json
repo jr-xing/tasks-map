@@ -10,7 +10,7 @@
     "insert_filter_as_code_block": "Insert current filter as embedded Tasks Map",
     "organize_task_notes": "Organize task notes",
     "check_note_map_visibility": "Check why note is (not) shown in map",
-    "toggle_tree_layout": "Toggle tree layout in current map",
+    "toggle_tree_layout": "Switch layout in current map (graph, tree, branches)",
     "toggle_layout_direction": "Toggle layout direction in current map"
   },
   "ribbon": {
@@ -19,7 +19,8 @@
   "view": {
     "title": "Tasks map",
     "switch_to_tree": "Switch to tree layout",
-    "switch_to_graph": "Switch to graph layout"
+    "switch_to_graph": "Switch to graph layout",
+    "switch_to_branches": "Switch to branches layout"
   },
   "settings": {
     "display_options": "Display Options",
@@ -177,7 +178,7 @@
     "language": "Language",
     "language_desc": "Select the language for the plugin interface",
     "layout_mode": "Default layout",
-    "layout_mode_desc": "Layout for new map tabs. Each tab can switch between graph and tree on its own.",
+    "layout_mode_desc": "Layout for new map tabs. Each tab can switch between graph, tree and branches on its own.",
     "branches_heading": "Branches",
     "branches_desc": "Optional note properties that describe a project's branches. Without them, a project's direct subtasks that have subtasks of their own are treated as branches.",
     "fold_to_branches": "Open maps folded to branches",
@@ -195,7 +196,7 @@
     "branch_related_property": "Related property",
     "branch_related_property_desc": "Property linking a note to other notes that also use it, without making them parents, e.g. \"related\".",
     "branch_group_property": "Group-by property",
-    "branch_group_property_desc": "In the Branches layout, a long list of sibling tasks is grouped by the first value of this property, e.g. \"contexts\".",
+    "branch_group_property_desc": "In the Branches layout, and in the Graph layout with minimal cards, a long list of sibling tasks is grouped by the first value of this property, e.g. \"contexts\".",
     "task_group_property": "Task group property",
     "task_group_property_desc": "Property naming the group a project belongs to, e.g. \"taskGroup: Yale core\". Subtasks use their project's group unless they name their own.",
     "show_task_groups": "Show task groups",

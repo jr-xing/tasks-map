@@ -18,19 +18,29 @@ function compareText(left: string, right: string): number {
   return 0;
 }
 
-function taskSortKey(task: BaseTask): string {
+/** Anything laid out in project frames: a task, or a block standing in for some. */
+export interface ProjectMember {
+  id: string;
+  projects: string[];
+  summary?: string;
+  link?: string;
+}
+
+function taskSortKey(task: ProjectMember): string {
   return `${(task.summary || task.link || task.id).trim().toLowerCase()}\u0000${task.id}`;
 }
 
 /** Partition tasks into deterministic project-grouping buckets. */
-export function partitionTasksByProject(tasks: BaseTask[]): {
-  singleProjectMap: Map<string, BaseTask[]>;
-  multiProjectTasks: BaseTask[];
-  noProjectTasks: BaseTask[];
+export function partitionTasksByProject<T extends ProjectMember>(
+  tasks: T[]
+): {
+  singleProjectMap: Map<string, T[]>;
+  multiProjectTasks: T[];
+  noProjectTasks: T[];
 } {
-  const unsortedProjectMap = new Map<string, BaseTask[]>();
-  const multiProjectTasks: BaseTask[] = [];
-  const noProjectTasks: BaseTask[] = [];
+  const unsortedProjectMap = new Map<string, T[]>();
+  const multiProjectTasks: T[] = [];
+  const noProjectTasks: T[] = [];
 
   for (const task of tasks) {
     if (task.projects.length === 0) {

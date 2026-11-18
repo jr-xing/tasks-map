@@ -10,7 +10,7 @@
     "focus_project_or_task_new_tab": "在新地图标签页中聚焦项目或任务",
     "insert_filter_as_code_block": "将当前筛选器插入为嵌入式任务地图",
     "check_note_map_visibility": "检查笔记为何显示或未显示在地图中",
-    "toggle_tree_layout": "切换当前地图的树形布局",
+    "toggle_tree_layout": "切换当前地图的布局（图形、树形、分支）",
     "toggle_layout_direction": "切换当前地图的布局方向"
   },
   "ribbon": {
@@ -19,7 +19,8 @@
   "view": {
     "title": "任务地图",
     "switch_to_tree": "切换到树形布局",
-    "switch_to_graph": "切换到图形布局"
+    "switch_to_graph": "切换到图形布局",
+    "switch_to_branches": "切换到分支布局"
   },
   "settings": {
     "display_options": "显示选项",
@@ -177,7 +178,7 @@
     "language": "语言",
     "language_desc": "选择插件界面的语言",
     "layout_mode": "默认布局",
-    "layout_mode_desc": "新地图标签页使用的布局。每个标签页都可以单独在图形和树形之间切换。",
+    "layout_mode_desc": "新地图标签页使用的布局。每个标签页都可以单独在图形、树形和分支之间切换。",
     "branches_heading": "分支",
     "branches_desc": "描述项目分支的可选笔记属性。未设置时，项目下自身还有子任务的直接子任务会被视为分支。",
     "fold_to_branches": "打开地图时折叠到分支",
@@ -195,7 +196,7 @@
     "branch_related_property": "相关属性",
     "branch_related_property_desc": "把笔记关联到其他笔记但不作为父级的属性，例如 \"related\"。",
     "branch_group_property": "分组属性",
-    "branch_group_property_desc": "在分支布局中，同级任务较多时按此属性的第一个值分组，例如 \"contexts\"。",
+    "branch_group_property_desc": "在分支布局中（以及使用极简卡片的图形布局中），同级任务较多时按此属性的第一个值分组，例如 \"contexts\"。",
     "task_group_property": "任务分组属性",
     "task_group_property_desc": "记录项目所属分组的属性，例如 \"taskGroup: Yale core\"。子任务默认沿用所属项目的分组，除非自己另行指定。",
     "show_task_groups": "显示任务分组",

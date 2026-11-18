@@ -4985,13 +4985,18 @@ g:hover > .tasks-map-dependency-edge-label {
   background: var(--background-primary);
 }
 
-/* Clusters (Branches layout): a soft frame around sibling task rows that
-   share a group value, e.g. a context. The rows are separate nodes placed
-   on top of the frame; sizes come from planBranchClusters
-   (src/lib/layout/branch-clusters.ts). */
+/* Clusters (Branches layout, and Graph with minimal cards): a soft frame
+   around sibling task rows that share a group value, e.g. a context. The
+   rows are separate nodes placed on top of the frame; sizes come from
+   planBranchClusters (src/lib/layout/branch-clusters.ts). */
 .react-flow__node.tasks-map-cluster-node {
   pointer-events: none;
   cursor: default;
+}
+
+/* Graph layout: the inert block a parent's clusters sit in. */
+.react-flow__node.react-flow__node-taskClusterBlock {
+  pointer-events: none;
 }
 
 .tasks-map-cluster {

@@ -11,6 +11,7 @@ import {
   PROJECT_GROUP_HEADER_HEIGHT,
   PROJECT_GROUP_PADDING,
   partitionTasksByProject,
+  ProjectMember,
 } from "./project-groups";
 import {
   layoutConnectedComponents,
@@ -114,18 +115,33 @@ export function packLayoutSnapshot(
   ];
 }
 
+/**
+ * Lay out the graph once, keeping each top-level component's geometry so a
+ * resize only repacks them. `tasks` decides the project frames; besides
+ * tasks it may hold stand-ins (e.g. cluster blocks) whose sizes come from
+ * `fixedDimensions`.
+ */
 export function createLayoutSnapshot(
   nodes: Node[],
   edges: Edge[],
   direction: LayoutDirection = "Horizontal",
   showTags: boolean = true,
   groupByProject: boolean = true,
-  tasks: BaseTask[] = [],
+  tasks: ProjectMember[] = [],
   visibleAttachmentKinds: TaskAttachmentKind[] = DEFAULT_VISIBLE_ATTACHMENT_KINDS,
-  nodeDensity: NodeDensity = "comfortable"
+  nodeDensity: NodeDensity = "comfortable",
+  fixedDimensions?: ReadonlyMap<string, NodeDimensions>
 ): LayoutSnapshot {
   const rankdir = direction === "Horizontal" ? "LR" : "TB";
   const nodeDimensions = new Map<string, NodeDimensions>();
+  const measure = (node: Node): NodeDimensions =>
+    fixedDimensions?.get(node.id) ??
+    dimensionsForTask(
+      node.data as Partial<TaskNodeData> | undefined,
+      showTags,
+      visibleAttachmentKinds,
+      nodeDensity
+    );
 
   if (groupByProject && tasks.length > 0) {
     const taskNodes = nodes as TaskNode[];
@@ -139,15 +155,7 @@ export function createLayoutSnapshot(
       memberTasks.forEach((task) => taskToGroup.set(task.id, groupId));
     }
     taskNodes.forEach((node) => {
-      nodeDimensions.set(
-        node.id,
-        dimensionsForTask(
-          node.data,
-          showTags,
-          visibleAttachmentKinds,
-          nodeDensity
-        )
-      );
+      nodeDimensions.set(node.id, measure(node));
     });
 
     const flatLayouted = layoutConnectedComponents(
@@ -337,15 +345,7 @@ export function createLayoutSnapshot(
   }
 
   nodes.forEach((node) => {
-    nodeDimensions.set(
-      node.id,
-      dimensionsForTask(
-        node.data as Partial<TaskNodeData> | undefined,
-        showTags,
-        visibleAttachmentKinds,
-        nodeDensity
-      )
-    );
+    nodeDimensions.set(node.id, measure(node));
   });
   const topLevelComponents = layoutConnectedComponentSets(
     nodes,

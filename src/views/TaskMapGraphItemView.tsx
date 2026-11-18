@@ -250,10 +250,12 @@ export default class TaskMapGraphItemView extends ItemView {
   private updateLayoutAction(): void {
     const actionEl = this.layoutActionEl;
     if (!actionEl) return;
-    const isTree = this.getLayout().layoutMode === "tree";
-    const label = t(isTree ? "view.switch_to_graph" : "view.switch_to_tree");
-    actionEl.setAttribute("aria-label", label);
-    actionEl.toggleClass("is-active", isTree);
+    const mode = this.getLayout().layoutMode;
+    actionEl.setAttribute(
+      "aria-label",
+      t(`view.switch_to_${toggledLayoutMode(mode)}`)
+    );
+    actionEl.toggleClass("is-active", mode !== "graph");
   }
 
   async onOpen() {

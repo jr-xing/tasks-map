@@ -3,6 +3,7 @@ import type { TaskNode } from "src/types/task";
 import {
   ClusterOptions,
   getClusterBlockNodes,
+  getClusteredEdges,
   placeClusterBlocks,
   planBranchClusters,
 } from "./branch-clusters";
@@ -85,12 +86,6 @@ export function createBranchViewElements(
   }
   const { clusters, rows } = placeClusterBlocks(plan, layouted);
   const blockIds = new Set(blocks.nodes.map((node) => node.id));
-  const shownIds = new Set(rows.map((row) => row.id));
-  // A clustered row keeps its parent edge (for selection and deletion), but
-  // hidden: the cluster's edge stands in for it.
-  const rowEdges = edges
-    .filter((edge) => shownIds.has(edge.target))
-    .map((edge) => ({ ...edge, hidden: true }));
   return {
     // Zones, then clusters, so frames render beneath what they hold.
     nodes: [
@@ -99,6 +94,6 @@ export function createBranchViewElements(
       ...layouted.filter((node) => !blockIds.has(node.id)),
       ...rows,
     ],
-    edges: [...freeEdges, ...plan.clusterEdges, ...rowEdges],
+    edges: getClusteredEdges(plan, edges, rows),
   };
 }

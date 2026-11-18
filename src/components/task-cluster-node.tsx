@@ -16,7 +16,8 @@ function footerLabel(data: TaskClusterNodeData): string {
 }
 
 /**
- * The frame around a cluster of sibling task rows in the Branches layout:
+ * The frame around a cluster of sibling task rows (Branches layout, and
+ * Graph layout with minimal cards):
  * the shared group value with counts on top and, when some rows are folded
  * away, a toggle at the bottom. The rows themselves are ordinary task nodes
  * placed on top of the frame.
@@ -117,4 +118,12 @@ export default function TaskClusterNode({
       )}
     </div>
   );
+}
+
+/**
+ * The block holding one parent's clusters in the Graph layout. It draws
+ * nothing: it only gives its clusters and rows a shared parent to move with.
+ */
+export function TaskClusterBlockNode() {
+  return null;
 }
