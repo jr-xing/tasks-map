@@ -43,6 +43,11 @@ export interface BranchPropertySettings {
   waitingOnProperty: string;
   /** Property linking a note to other notes that also use it, e.g. `related`. */
   relatedProperty: string;
+  /**
+   * Property whose first value groups a long list of sibling tasks into
+   * clusters in the Branches layout, e.g. `contexts`.
+   */
+  groupProperty: string;
 }
 
 export const DEFAULT_BRANCH_PROPERTIES: BranchPropertySettings = {
@@ -51,6 +56,7 @@ export const DEFAULT_BRANCH_PROPERTIES: BranchPropertySettings = {
   nextProperty: "next",
   waitingOnProperty: "waitingOn",
   relatedProperty: "related",
+  groupProperty: "contexts",
 };
 
 export interface FilterPreset {

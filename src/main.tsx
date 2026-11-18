@@ -308,6 +308,10 @@ export default class TasksMapPlugin extends Plugin {
       visibleAttachmentKinds: loadedSettings.visibleAttachmentKinds ?? [
         ...DEFAULT_SETTINGS.visibleAttachmentKinds,
       ],
+      branchProperties: {
+        ...DEFAULT_SETTINGS.branchProperties,
+        ...(loadedSettings.branchProperties ?? {}),
+      },
     };
   }
 

@@ -1072,6 +1072,11 @@ export class TasksMapSettingTab extends PluginSettingTab {
         name: "settings.branch_related_property",
         desc: "settings.branch_related_property_desc",
       },
+      {
+        key: "groupProperty",
+        name: "settings.branch_group_property",
+        desc: "settings.branch_group_property_desc",
+      },
     ];
     for (const field of branchFields) {
       new Setting(containerEl)

@@ -1241,6 +1241,13 @@ function readBranchProperties(
   task.relatedLinks = [...new Set(toLinks(props.relatedProperty))].filter(
     (link) => link !== task.id
   );
+  const groupProperty = (props.groupProperty ?? "").trim();
+  task.groupValues = groupProperty
+    ? frontmatterList(frontmatter[groupProperty])
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim().replace(/^@/, ""))
+        .filter(Boolean)
+    : [];
   task.blockedByLinks =
     dependencyProperty === "blockedBy"
       ? []

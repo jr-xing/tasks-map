@@ -192,6 +192,8 @@
     "branch_waiting_property_desc": "Eigenschap met de persoon waarop een taak wacht, bijv. \"waitingOn\".",
     "branch_related_property": "Gerelateerd-eigenschap",
     "branch_related_property_desc": "Eigenschap die een notitie aan andere notities koppelt zonder ze ouder te maken, bijv. \"related\".",
+    "branch_group_property": "Groeperingseigenschap",
+    "branch_group_property_desc": "In de takkenweergave worden lange lijsten met taken op hetzelfde niveau gegroepeerd op de eerste waarde van deze eigenschap, bijv. \"contexts\".",
     "node_density_minimal": "Minimaal"
   },
   "filters": {
@@ -518,5 +520,11 @@
     "due_overdue": "Te laat: deadline {{date}}",
     "due_soon": "Deadline {{date}}",
     "starred": "Met ster"
+  },
+  "cluster": {
+    "other": "Overig",
+    "show_less": "Minder tonen",
+    "more_open": "+{{count}} open",
+    "more_done": "✓ {{count}} klaar"
   }
 }

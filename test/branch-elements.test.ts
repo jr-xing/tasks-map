@@ -1,5 +1,5 @@
 import { buildBranchModel } from "../src/lib/branch-model";
-import { createBranchViewNodes } from "../src/lib/layout/branch-elements";
+import { createBranchViewElements } from "../src/lib/layout/branch-elements";
 import {
   estimateTaskNodeDimensions,
   getMinimalNodeDimensions,
@@ -59,10 +59,10 @@ function buildNodes(tasks: NoteTask[]) {
     model
   );
   const edges = createEdgesFromTasks(tasks);
-  return createBranchViewNodes(nodes, edges, "Horizontal");
+  return createBranchViewElements(nodes, edges, "Horizontal").nodes;
 }
 
-describe("createBranchViewNodes", () => {
+describe("createBranchViewElements", () => {
   const tasks = [
     makeTask("P", [], { isProject: true }),
     makeTask("B", ["P"], { isBranch: true, nextStep: "B1" }),

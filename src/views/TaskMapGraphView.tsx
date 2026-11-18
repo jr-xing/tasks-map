@@ -47,6 +47,7 @@ import StatusCountsOverlay from "src/components/status-counts-overlay";
 import TaskNode from "src/components/task-node";
 import ProjectGroupNode from "src/components/project-group-node";
 import TreeGutterNode from "src/components/tree-gutter-node";
+import TaskClusterNode from "src/components/task-cluster-node";
 import {
   getFilteredNodeIds,
   getVisibilityFilteredNodeIds,
@@ -60,7 +61,8 @@ import {
   getBranchFoldIds,
   getDependencyConnections,
 } from "src/lib/branch-model";
-import { createBranchViewNodes } from "src/lib/layout/branch-elements";
+import { createBranchViewElements } from "src/lib/layout/branch-elements";
+import { CLUSTER_NODE_TYPE } from "src/lib/layout/branch-clusters";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
@@ -287,6 +289,21 @@ export default function TaskMapGraphView({
   const closeKanban = useCallback(() => {
     setOpenPanel((previous) => (previous === "kanban" ? null : previous));
     setIsKanbanPinned(false);
+  }, []);
+
+  // Clusters of sibling rows (Branches layout) opened to show every task.
+  const [expandedClusterIds, setExpandedClusterIds] = React.useState<
+    Set<string>
+  >(() => new Set());
+  const handleToggleCluster = useCallback((clusterId: string) => {
+    // Keep the viewport where it is: the user is looking at this cluster.
+    skipFitViewRef.current = true;
+    setExpandedClusterIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(clusterId)) next.delete(clusterId);
+      else next.add(clusterId);
+      return next;
+    });
   }, []);
 
   const handleToggleTaskChildren = useCallback((taskId: string) => {
@@ -1284,24 +1301,35 @@ export default function TaskMapGraphView({
     );
     // Cross-branch blockedBy links are drawn after layout so they never
     // change where cards sit.
-    const dependencyEdges = createDependencyEdges(
-      getDependencyConnections(tasks, new Set(newNodes.map((node) => node.id))),
-      settings.layoutDirection,
-      settings.edgeStyle,
-      settings.smoothStepRadius
-    );
+    const getDependencyEdges = (visibleIds: ReadonlySet<string>) =>
+      createDependencyEdges(
+        getDependencyConnections(tasks, visibleIds),
+        settings.layoutDirection,
+        settings.edgeStyle,
+        settings.smoothStepRadius
+      );
 
     if (settings.layoutMode === "branches") {
-      const branchNodes = createBranchViewNodes(
+      const branchView = createBranchViewElements(
         newNodes,
         newEdges,
         settings.layoutDirection,
-        getLayoutViewport(containerRef.current)
+        getLayoutViewport(containerRef.current),
+        {
+          statuses: settings.taskStatuses,
+          expandedClusterIds,
+          onToggleCluster: handleToggleCluster,
+          tagColorPalette: settings.tagColorPalette,
+        }
       );
+      const branchNodes = branchView.nodes;
       layoutSnapshotRef.current = null;
       lastPackedPositionsRef.current = new Map();
       setNodes(branchNodes);
-      setEdges([...newEdges, ...dependencyEdges]);
+      setEdges([
+        ...branchView.edges,
+        ...getDependencyEdges(new Set(branchNodes.map((node) => node.id))),
+      ]);
       const fitBranches = !skipFitViewRef.current;
       skipFitViewRef.current = false;
       scheduleFitView(
@@ -1311,6 +1339,10 @@ export default function TaskMapGraphView({
       );
       return;
     }
+
+    const dependencyEdges = getDependencyEdges(
+      new Set(newNodes.map((node) => node.id))
+    );
 
     if (settings.layoutMode === "tree") {
       const tree = createTreeLayoutElements({
@@ -1403,6 +1435,8 @@ export default function TaskMapGraphView({
     handleTaskStarredChange,
     trackVaultWrite,
     handleToggleTaskChildren,
+    expandedClusterIds,
+    handleToggleCluster,
     scheduleFitView,
   ]);
 
@@ -1455,6 +1489,7 @@ export default function TaskMapGraphView({
       task: TaskNode,
       projectGroup: ProjectGroupNode,
       [TREE_GUTTER_NODE_TYPE]: TreeGutterNode,
+      [CLUSTER_NODE_TYPE]: TaskClusterNode,
     }),
     []
   );
@@ -1471,6 +1506,8 @@ export default function TaskMapGraphView({
     (event: any, edge: any) => {
       event.stopPropagation();
       dismissUnpinnedKanban();
+      // Cluster and dependency edges stand for no single link to delete.
+      if (!edge.data?.hash) return;
       setSelectedEdge(edge.id);
     },
     [dismissUnpinnedKanban, setSelectedEdge]

@@ -43,6 +43,25 @@ the defaults for new tabs. *Focus project or task in new map tab* (or
 Ctrl/Cmd+Enter in the focus picker) opens a focus in a fresh tab instead of
 retargeting the current one.
 
+### Branches Layout
+
+The **Branches** layout (View panel) is made for large projects. Projects,
+groups and branches are summary cards with their counts and next step; maps
+open folded to branch level, and each card's fold badge shows its tasks.
+Branches come from the notes: a `kind: area` property marks a branch, and
+without it any task with subtasks is one. A branch's `next` property names its
+next step, and `waitingOn` and `related` add markers. All property names can
+be changed in the settings.
+
+When one card has many tasks, they are grouped by their first `contexts`
+value (the *Group-by property* setting). Each group shows only the next step
+and the active, waiting, starred or due tasks, with a "+N open" button for
+the rest, and many groups are placed in two columns.
+
+Cards use the new **Minimal** style by default: only colours and key markers
+at rest, buttons on hover, details when selected. The earlier cards remain as
+**Classic** and **Classic compact** (Settings → Node density).
+
 ### AI Agents (Obsidian CLI)
 
 With Obsidian 1.12.2+ running, agents can use:

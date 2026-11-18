@@ -60,14 +60,25 @@ export const TAG_COLOR_PALETTES: Record<TagColorPalette, string[]> = {
 
 export const PALETTE_SIZE = 8;
 
-export function getTagColorClass(
-  tag: string,
-  palette: TagColorPalette = "rainbow"
-): string {
+function getTagColorIndex(tag: string): number {
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = (hash * 31 + tag.charCodeAt(i)) % 2147483647;
   }
-  const index = Math.abs(hash) % PALETTE_SIZE;
-  return `tasks-map-tag--${palette}-${index}`;
+  return Math.abs(hash) % PALETTE_SIZE;
+}
+
+export function getTagColorClass(
+  tag: string,
+  palette: TagColorPalette = "rainbow"
+): string {
+  return `tasks-map-tag--${palette}-${getTagColorIndex(tag)}`;
+}
+
+/** The palette colour a tag gets, for elements that are not tag pills. */
+export function getTagPaletteColor(
+  tag: string,
+  palette: TagColorPalette = "rainbow"
+): string {
+  return TAG_COLOR_PALETTES[palette][getTagColorIndex(tag)];
 }

@@ -53,6 +53,8 @@ export abstract class BaseTask {
    * property drives the map's parent edges. Empty otherwise.
    */
   blockedByLinks: string[];
+  /** Values of the configured group property, e.g. the note's contexts. */
+  groupValues: string[];
 
   constructor(data: {
     id: string;
@@ -77,6 +79,7 @@ export abstract class BaseTask {
     waitingOn?: string;
     relatedLinks?: string[];
     blockedByLinks?: string[];
+    groupValues?: string[];
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -100,6 +103,7 @@ export abstract class BaseTask {
     this.waitingOn = data.waitingOn ?? "";
     this.relatedLinks = data.relatedLinks ?? [];
     this.blockedByLinks = data.blockedByLinks ?? [];
+    this.groupValues = data.groupValues ?? [];
   }
 
   /**
@@ -197,6 +201,7 @@ export abstract class BaseTask {
       waitingOn: this.waitingOn,
       relatedLinks: this.relatedLinks,
       blockedByLinks: this.blockedByLinks,
+      groupValues: this.groupValues,
     };
   }
 }

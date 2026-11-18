@@ -4520,6 +4520,14 @@ If your plugin does not need CSS, delete this file.
   paint-order: stroke;
   stroke: var(--background-primary);
   stroke-width: 3px;
+  /* Shown only while the dashed line is hovered, so it never covers cards. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+g:hover > .tasks-map-dependency-edge-label {
+  opacity: 1;
 }
 
 /* Minimal cards: rounded summary cards for projects, groups and branches and
@@ -4963,4 +4971,105 @@ If your plugin does not need CSS, delete this file.
   height: 8px;
   border: 1px solid var(--background-modifier-border-hover);
   background: var(--background-primary);
+}
+
+/* Clusters (Branches layout): a soft frame around sibling task rows that
+   share a group value, e.g. a context. The rows are separate nodes placed
+   on top of the frame; sizes come from planBranchClusters
+   (src/lib/layout/branch-clusters.ts). */
+.react-flow__node.tasks-map-cluster-node {
+  pointer-events: none;
+  cursor: default;
+}
+
+.tasks-map-cluster {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--tasks-map-cluster-width, 296px);
+  height: var(--tasks-map-cluster-height, 80px);
+  border-radius: 12px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--tasks-map-cluster-color, var(--text-faint)) 40%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--tasks-map-cluster-color, var(--text-faint)) 7%,
+    var(--background-primary)
+  );
+}
+
+.tasks-map-cluster--plain {
+  border-style: dashed;
+}
+
+.tasks-map-cluster-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+}
+
+.tasks-map-cluster-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--tasks-map-cluster-color, var(--text-muted));
+}
+
+.tasks-map-cluster--plain .tasks-map-cluster-label {
+  color: var(--text-faint);
+}
+
+.tasks-map-cluster-counts {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.tasks-map-graph-container .tasks-map-cluster-toggle {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: left;
+  color: var(--text-muted);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.tasks-map-graph-container .tasks-map-cluster-toggle:hover {
+  color: var(--text-normal);
+  background: color-mix(
+    in srgb,
+    var(--tasks-map-cluster-color, var(--text-faint)) 14%,
+    transparent
+  );
+}
+
+.tasks-map-graph-container .tasks-map-cluster-handle {
+  opacity: 0;
+  pointer-events: none;
 }

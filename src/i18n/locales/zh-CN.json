@@ -192,6 +192,8 @@
     "branch_waiting_property_desc": "记录任务在等待谁的属性，例如 \"waitingOn\"。",
     "branch_related_property": "相关属性",
     "branch_related_property_desc": "把笔记关联到其他笔记但不作为父级的属性，例如 \"related\"。",
+    "branch_group_property": "分组属性",
+    "branch_group_property_desc": "在分支布局中，同级任务较多时按此属性的第一个值分组，例如 \"contexts\"。",
     "node_density_minimal": "极简"
   },
   "filters": {
@@ -518,5 +520,11 @@
     "due_overdue": "已逾期：截止 {{date}}",
     "due_soon": "截止 {{date}}",
     "starred": "已加星标"
+  },
+  "cluster": {
+    "other": "其他",
+    "show_less": "收起",
+    "more_open": "+{{count}} 未开始",
+    "more_done": "✓ {{count}} 已完成"
   }
 }

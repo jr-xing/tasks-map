@@ -192,6 +192,8 @@
     "branch_waiting_property_desc": "Property naming who a task is waiting on, e.g. \"waitingOn\".",
     "branch_related_property": "Related property",
     "branch_related_property_desc": "Property linking a note to other notes that also use it, without making them parents, e.g. \"related\".",
+    "branch_group_property": "Group-by property",
+    "branch_group_property_desc": "In the Branches layout, a long list of sibling tasks is grouped by the first value of this property, e.g. \"contexts\".",
     "node_density_minimal": "Minimal"
   },
   "filters": {
@@ -518,5 +520,11 @@
     "due_overdue": "Overdue: due {{date}}",
     "due_soon": "Due {{date}}",
     "starred": "Starred"
+  },
+  "cluster": {
+    "other": "Other",
+    "show_less": "Show less",
+    "more_open": "+{{count}} open",
+    "more_done": "✓ {{count}} done"
   }
 }
