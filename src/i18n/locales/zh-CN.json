@@ -182,6 +182,8 @@
     "branches_desc": "描述项目分支的可选笔记属性。未设置时，项目下自身还有子任务的直接子任务会被视为分支。",
     "fold_to_branches": "打开地图时折叠到分支",
     "fold_to_branches_desc": "每个分支先显示为一张摘要卡片，包含数量和下一步。点击折叠按钮查看其中的任务。",
+    "animate_folding": "折叠动画",
+    "animate_folding_desc": "折叠或展开卡片时，地图平滑过渡到新布局，被操作的卡片保持原位。",
     "branch_kind_property": "分支属性",
     "branch_kind_property_desc": "标记笔记角色的属性，例如 \"kind\"。",
     "branch_kind_value": "分支取值",
@@ -194,6 +196,15 @@
     "branch_related_property_desc": "把笔记关联到其他笔记但不作为父级的属性，例如 \"related\"。",
     "branch_group_property": "分组属性",
     "branch_group_property_desc": "在分支布局中，同级任务较多时按此属性的第一个值分组，例如 \"contexts\"。",
+    "task_group_property": "任务分组属性",
+    "task_group_property_desc": "记录项目所属分组的属性，例如 \"taskGroup: Yale core\"。子任务默认沿用所属项目的分组，除非自己另行指定。",
+    "show_task_groups": "显示任务分组",
+    "show_task_groups_desc": "当地图包含两个或以上的任务分组时，每个分组显示为带标题的区域，其中的项目整齐排列。被多个项目共享的笔记放在它的第一个父项下，其他链接以淡色显示。",
+    "task_group_arrangement": "任务分组排列方式",
+    "task_group_arrangement_desc": "按行：分组上下排列，项目横向并排；按列：分组左右并排，项目纵向排列；网格：分组排成网格，项目紧凑排布。",
+    "task_group_order": "任务分组顺序",
+    "task_group_order_desc": "每行一个分组。列出的分组按此顺序排在前面；其他分组按字母顺序排列，没有分组的项目排在最后。",
+    "task_group_order_placeholder": "Yale core works\nYale data preparation\nMy own work",
     "node_density_minimal": "极简",
     "note_context_style": "笔记上方的任务上下文",
     "note_context_style_desc": "在笔记属性和正文之间显示其所属项目、父任务、同级任务和子任务。非任务笔记显示链接到它的任务",
@@ -243,7 +254,11 @@
     "fold_to_branches": "折叠到分支",
     "fold_to_branches_desc": "每个分支显示为一张摘要卡片，并隐藏其中的任务",
     "unfold_all": "全部展开",
-    "layout_branches": "分支"
+    "layout_branches": "分支",
+    "task_groups": "分组",
+    "groups_rows": "按行",
+    "groups_columns": "按列",
+    "groups_grid": "网格"
   },
   "multiselect": {
     "select": "选择...",
@@ -531,6 +546,11 @@
     "show_less": "收起",
     "more_open": "+{{count}} 未开始",
     "more_done": "✓ {{count}} 已完成"
+  },
+  "task_groups": {
+    "ungrouped": "未分组",
+    "projects_other": "{{count}} 个项目",
+    "open": "{{count}} 项未完成"
   },
   "note_context": {
     "more": "+{{count}}",

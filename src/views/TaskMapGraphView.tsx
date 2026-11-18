@@ -48,6 +48,7 @@ import TaskNode from "src/components/task-node";
 import ProjectGroupNode from "src/components/project-group-node";
 import TreeGutterNode from "src/components/tree-gutter-node";
 import TaskClusterNode from "src/components/task-cluster-node";
+import TaskGroupZoneNode from "src/components/task-group-zone-node";
 import {
   getFilteredNodeIds,
   getVisibilityFilteredNodeIds,
@@ -63,6 +64,19 @@ import {
 } from "src/lib/branch-model";
 import { createBranchViewElements } from "src/lib/layout/branch-elements";
 import { CLUSTER_NODE_TYPE } from "src/lib/layout/branch-clusters";
+import {
+  createTaskGroupZoning,
+  TASK_GROUP_ZONE_TYPE,
+} from "src/lib/layout/task-group-zones";
+import { resolveTaskGroups } from "src/lib/task-groups";
+import {
+  easeInOutCubic,
+  FOLD_ANIMATION_MS,
+  getAnchoredViewport,
+  getStartBoxes,
+  interpolateNodes,
+  interpolateViewport,
+} from "src/lib/fold-animation";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
@@ -88,7 +102,7 @@ import {
   survivingProjectRoots,
 } from "src/lib/project-navigation";
 import { createTaskFocusFilter } from "src/lib/task-focus-picker";
-import { TasksMapSettings } from "src/types/settings";
+import { TaskGroupArrangement, TasksMapSettings } from "src/types/settings";
 import type { MapLayoutOptions } from "src/lib/map-layout-options";
 import { FilterState } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
@@ -243,6 +257,13 @@ export default function TaskMapGraphView({
   const overviewStripRef = React.useRef<HTMLDivElement>(null);
   const pulseTimerRef = React.useRef<number | null>(null);
   const skipFitViewRef = React.useRef(false);
+  // The card just folded or unfolded and where it sat on screen: after the
+  // new layout the map pans so it stays put instead of refitting.
+  const foldAnchorRef = React.useRef<{
+    id: string;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
   const loadGenerationRef = React.useRef(0);
   const reloadTimerRef = React.useRef<number | null>(null);
   const vaultWatcherRef = React.useRef<VaultWatcher | null>(null);
@@ -295,26 +316,183 @@ export default function TaskMapGraphView({
   const [expandedClusterIds, setExpandedClusterIds] = React.useState<
     Set<string>
   >(() => new Set());
-  const handleToggleCluster = useCallback((clusterId: string) => {
-    // Keep the viewport where it is: the user is looking at this cluster.
-    skipFitViewRef.current = true;
-    setExpandedClusterIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(clusterId)) next.delete(clusterId);
-      else next.add(clusterId);
-      return next;
-    });
+  const getAbsoluteNodePosition = useCallback(
+    (nodeId: string): NodePosition | null => {
+      const nodes = reactFlowInstance.getNodes();
+      const byId = new Map(nodes.map((node) => [node.id, node]));
+      let node = byId.get(nodeId);
+      if (!node) return null;
+      let x = 0;
+      let y = 0;
+      const seen = new Set<string>();
+      while (node && !seen.has(node.id)) {
+        seen.add(node.id);
+        x += node.position.x;
+        y += node.position.y;
+        node = node.parentNode ? byId.get(node.parentNode) : undefined;
+      }
+      return { x, y };
+    },
+    [reactFlowInstance]
+  );
+
+  // Remember where a card sits on screen before a fold changes the layout.
+  const rememberFoldAnchor = useCallback(
+    (nodeId: string) => {
+      const position = getAbsoluteNodePosition(nodeId);
+      if (!position) {
+        foldAnchorRef.current = null;
+        return;
+      }
+      const viewport = reactFlowInstance.getViewport();
+      foldAnchorRef.current = {
+        id: nodeId,
+        screenX: position.x * viewport.zoom + viewport.x,
+        screenY: position.y * viewport.zoom + viewport.y,
+      };
+    },
+    [getAbsoluteNodePosition, reactFlowInstance]
+  );
+
+  // Pan so the remembered card is back where it was on screen.
+  const restoreFoldAnchor = useCallback(() => {
+    const anchor = foldAnchorRef.current;
+    foldAnchorRef.current = null;
+    if (!anchor) return;
+    const position = getAbsoluteNodePosition(anchor.id);
+    if (!position) return;
+    const { zoom } = reactFlowInstance.getViewport();
+    void reactFlowInstance.setViewport(
+      {
+        x: anchor.screenX - position.x * zoom,
+        y: anchor.screenY - position.y * zoom,
+        zoom,
+      },
+      { duration: 0 }
+    );
+  }, [getAbsoluteNodePosition, reactFlowInstance]);
+
+  // A running fold glide: its frame, window and the viewport it ends on.
+  const foldAnimationRef = React.useRef<{
+    frame: number;
+    win: Window;
+    finish: () => void;
+  } | null>(null);
+
+  // Stop a running glide, jumping to the viewport it was heading for.
+  const cancelFoldAnimation = useCallback(() => {
+    const animation = foldAnimationRef.current;
+    if (!animation) return;
+    foldAnimationRef.current = null;
+    animation.win.cancelAnimationFrame(animation.frame);
+    animation.finish();
   }, []);
 
-  const handleToggleTaskChildren = useCallback((taskId: string) => {
-    skipFitViewRef.current = false;
-    setCollapsedTaskIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
-  }, []);
+  /**
+   * Show a new layout. After a single fold or unfold, cards glide to their
+   * new places (when the setting is on) while the folded card stays put;
+   * otherwise they jump. `settle` runs once the final nodes are set.
+   */
+  const commitLayout = useCallback(
+    (finalNodes: Node[], settle: () => void) => {
+      cancelFoldAnimation();
+      const anchor = foldAnchorRef.current;
+      const win = containerRef.current?.ownerDocument.defaultView ?? window;
+      const reduceMotion =
+        win.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+      if (!anchor || !settings.animateFolding || reduceMotion) {
+        setNodes(finalNodes);
+        settle();
+        return;
+      }
+      // The glide pans to the anchor itself, so the settle step must not.
+      foldAnchorRef.current = null;
+      const { starts, entering } = getStartBoxes(
+        reactFlowInstance.getNodes(),
+        finalNodes
+      );
+      const fromViewport = reactFlowInstance.getViewport();
+      const toViewport =
+        getAnchoredViewport(
+          anchor.id,
+          { x: anchor.screenX, y: anchor.screenY },
+          finalNodes,
+          fromViewport.zoom
+        ) ?? fromViewport;
+      const finish = () => {
+        setNodes(finalNodes);
+        void reactFlowInstance.setViewport(toViewport, { duration: 0 });
+        settle();
+      };
+      const startTime = win.performance.now();
+      const step = (now: number) => {
+        const elapsed = now - startTime;
+        if (elapsed >= FOLD_ANIMATION_MS) {
+          foldAnimationRef.current = null;
+          finish();
+          return;
+        }
+        const t = easeInOutCubic(elapsed / FOLD_ANIMATION_MS);
+        setNodes(interpolateNodes(finalNodes, starts, entering, t));
+        void reactFlowInstance.setViewport(
+          interpolateViewport(fromViewport, toViewport, t),
+          { duration: 0 }
+        );
+        foldAnimationRef.current = {
+          frame: win.requestAnimationFrame(step),
+          win,
+          finish,
+        };
+      };
+      setNodes(interpolateNodes(finalNodes, starts, entering, 0));
+      foldAnimationRef.current = {
+        frame: win.requestAnimationFrame(step),
+        win,
+        finish,
+      };
+    },
+    [cancelFoldAnimation, reactFlowInstance, setNodes, settings.animateFolding]
+  );
+
+  // On close, just stop the glide.
+  useEffect(
+    () => () => {
+      const animation = foldAnimationRef.current;
+      foldAnimationRef.current = null;
+      animation?.win.cancelAnimationFrame(animation.frame);
+    },
+    []
+  );
+
+  const handleToggleCluster = useCallback(
+    (clusterId: string) => {
+      // Keep the cluster where it is on screen: the user is looking at it.
+      skipFitViewRef.current = true;
+      rememberFoldAnchor(clusterId);
+      setExpandedClusterIds((previous) => {
+        const next = new Set(previous);
+        if (next.has(clusterId)) next.delete(clusterId);
+        else next.add(clusterId);
+        return next;
+      });
+    },
+    [rememberFoldAnchor]
+  );
+
+  const handleToggleTaskChildren = useCallback(
+    (taskId: string) => {
+      // Keep the card where it is on screen; the rest of the map moves.
+      skipFitViewRef.current = true;
+      rememberFoldAnchor(taskId);
+      setCollapsedTaskIds((previous) => {
+        const next = new Set(previous);
+        if (next.has(taskId)) next.delete(taskId);
+        else next.add(taskId);
+        return next;
+      });
+    },
+    [rememberFoldAnchor]
+  );
 
   const togglePanel = useCallback(
     (panel: RailPanelId) => {
@@ -526,10 +704,12 @@ export default function TaskMapGraphView({
                 pulseTimerRef.current = null;
               }, 1600);
             }
-          : undefined,
+          : foldAnchorRef.current
+            ? restoreFoldAnchor
+            : undefined,
       });
     },
-    [fitNodesToVisibleArea, reactFlowInstance, setNodes]
+    [fitNodesToVisibleArea, reactFlowInstance, restoreFoldAnchor, setNodes]
   );
 
   useEffect(() => {
@@ -1006,6 +1186,22 @@ export default function TaskMapGraphView({
     () => buildBranchModel(tasks, settings.taskStatuses),
     [tasks, settings.taskStatuses]
   );
+  // Groups come from all tasks too, so a subtask keeps its project's group
+  // when a filter hides the project.
+  const taskGroups = useMemo(() => resolveTaskGroups(tasks), [tasks]);
+  const showGroupArrangement = useMemo(
+    () =>
+      settings.showTaskGroups &&
+      settings.layoutMode !== "tree" &&
+      new Set(taskGroups.values()).size >= 2,
+    [settings.showTaskGroups, settings.layoutMode, taskGroups]
+  );
+  const handleGroupArrangementChange = useCallback(
+    (taskGroupArrangement: TaskGroupArrangement) => {
+      void plugin.updateSettings({ taskGroupArrangement });
+    },
+    [plugin]
+  );
 
   // Open each map folded to branch level once its tasks have loaded.
   const branchFoldAppliedRef = React.useRef(false);
@@ -1299,6 +1495,30 @@ export default function TaskMapGraphView({
         getTaskConnectionKey(edge.source, edge.target)
       )
     );
+    // Task groups: each group's projects share one zone, and a shared
+    // note's links to parents in other projects are drawn without shaping
+    // the layout.
+    const zoning = settings.showTaskGroups
+      ? createTaskGroupZoning({
+          tasks: visibleTasks,
+          edges: newEdges,
+          groups: taskGroups,
+          order: settings.taskGroupOrder,
+          statuses: settings.taskStatuses,
+          tagColorPalette: settings.tagColorPalette,
+          arrangement: settings.taskGroupArrangement,
+        })
+      : null;
+    const layoutEdges = zoning ? zoning.layoutEdges : newEdges;
+    const crossEdges = (zoning?.crossEdges ?? []).map((edge) => ({
+      ...edge,
+      data: { hash: "", ...edge.data, crossGroup: true },
+    }));
+    const getCrossEdges = (visibleIds: ReadonlySet<string>) =>
+      crossEdges.filter(
+        (edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)
+      );
+
     // Cross-branch blockedBy links are drawn after layout so they never
     // change where cards sit.
     const getDependencyEdges = (visibleIds: ReadonlySet<string>) =>
@@ -1312,7 +1532,7 @@ export default function TaskMapGraphView({
     if (settings.layoutMode === "branches") {
       const branchView = createBranchViewElements(
         newNodes,
-        newEdges,
+        layoutEdges,
         settings.layoutDirection,
         getLayoutViewport(containerRef.current),
         {
@@ -1320,22 +1540,26 @@ export default function TaskMapGraphView({
           expandedClusterIds,
           onToggleCluster: handleToggleCluster,
           tagColorPalette: settings.tagColorPalette,
-        }
+        },
+        zoning?.zones
       );
       const branchNodes = branchView.nodes;
+      const branchNodeIds = new Set(branchNodes.map((node) => node.id));
       layoutSnapshotRef.current = null;
       lastPackedPositionsRef.current = new Map();
-      setNodes(branchNodes);
       setEdges([
         ...branchView.edges,
-        ...getDependencyEdges(new Set(branchNodes.map((node) => node.id))),
+        ...getCrossEdges(branchNodeIds),
+        ...getDependencyEdges(branchNodeIds),
       ]);
       const fitBranches = !skipFitViewRef.current;
       skipFitViewRef.current = false;
-      scheduleFitView(
-        new Set(branchNodes.map((node) => node.id)),
-        new Map(branchNodes.map((node) => [node.id, { ...node.position }])),
-        fitBranches
+      commitLayout(branchNodes, () =>
+        scheduleFitView(
+          new Set(branchNodes.map((node) => node.id)),
+          new Map(branchNodes.map((node) => [node.id, { ...node.position }])),
+          fitBranches
+        )
       );
       return;
     }
@@ -1354,10 +1578,13 @@ export default function TaskMapGraphView({
         showTags: settings.showTags,
         visibleAttachmentKinds: settings.visibleAttachmentKinds,
         nodeDensity: settings.nodeDensity,
+        groupRank: zoning?.groupRank,
       });
       // Tree rows do not depend on the viewport, so resizes need no repacking.
       layoutSnapshotRef.current = null;
       lastPackedPositionsRef.current = new Map();
+      // Tree lanes are drawn from the final rows, so tree mode does not glide.
+      cancelFoldAnimation();
       setNodes(tree.nodes);
       setEdges([...tree.edges, ...dependencyEdges]);
       const fitTree = !skipFitViewRef.current;
@@ -1376,16 +1603,19 @@ export default function TaskMapGraphView({
 
     // Run dagre once and retain its component-local geometry so a later
     // container resize only needs to recompute the outer packing offsets.
-    const layoutSnapshot = createLayoutSnapshot(
-      linkedNodes,
-      newEdges,
-      settings.layoutDirection,
-      settings.showTags,
-      groupByProject,
-      visibleTasks,
-      settings.visibleAttachmentKinds,
-      settings.nodeDensity
-    );
+    const layoutSnapshot: LayoutSnapshot = {
+      ...createLayoutSnapshot(
+        linkedNodes,
+        layoutEdges,
+        settings.layoutDirection,
+        settings.showTags,
+        groupByProject,
+        visibleTasks,
+        settings.visibleAttachmentKinds,
+        settings.nodeDensity
+      ),
+      zones: zoning?.zones,
+    };
     const layoutedLinkedNodes = packLayoutSnapshot(
       layoutSnapshot,
       getLayoutViewport(containerRef.current)
@@ -1403,8 +1633,7 @@ export default function TaskMapGraphView({
     });
 
     const finalNodes = [...layoutedLinkedNodes, ...layoutedDroppedNodes];
-    setNodes(finalNodes);
-    setEdges([...newEdges, ...dependencyEdges]);
+    setEdges([...layoutEdges, ...crossEdges, ...dependencyEdges]);
 
     const expectedIds = new Set(finalNodes.map((n) => n.id));
     const expectedPositions = new Map(
@@ -1412,11 +1641,15 @@ export default function TaskMapGraphView({
     );
     const fit = !skipFitViewRef.current;
     skipFitViewRef.current = false;
-    scheduleFitView(expectedIds, expectedPositions, fit);
+    commitLayout(finalNodes, () =>
+      scheduleFitView(expectedIds, expectedPositions, fit)
+    );
   }, [
+    commitLayout,
     graphTasks,
     tasks,
     branchModel,
+    taskGroups,
     collapsedTaskIds,
     foldedGraphVisibility,
     settings,
@@ -1438,6 +1671,7 @@ export default function TaskMapGraphView({
     expandedClusterIds,
     handleToggleCluster,
     scheduleFitView,
+    cancelFoldAnimation,
   ]);
 
   const applyViewportPacking = useCallback(
@@ -1460,13 +1694,24 @@ export default function TaskMapGraphView({
         expectedPositions.set(id, { ...position });
       });
 
+      // Zone frames resize with the packing, so they are replaced whole.
+      const zoneNodes = packedNodes.filter(
+        (node) => node.type === TASK_GROUP_ZONE_TYPE
+      );
+      zoneNodes.forEach((node) => {
+        expectedPositions.set(node.id, { ...node.position });
+      });
+
       if (packingChanged) {
-        setNodes((previousNodes) =>
-          previousNodes.map((node) => {
-            const position = packedPositions.get(node.id);
-            return position ? { ...node, position: { ...position } } : node;
-          })
-        );
+        setNodes((previousNodes) => [
+          ...zoneNodes,
+          ...previousNodes
+            .filter((node) => node.type !== TASK_GROUP_ZONE_TYPE)
+            .map((node) => {
+              const position = packedPositions.get(node.id);
+              return position ? { ...node, position: { ...position } } : node;
+            }),
+        ]);
       }
       // A viewport change still needs a fit when packing stays identical.
       scheduleFitView(
@@ -1490,6 +1735,7 @@ export default function TaskMapGraphView({
       projectGroup: ProjectGroupNode,
       [TREE_GUTTER_NODE_TYPE]: TreeGutterNode,
       [CLUSTER_NODE_TYPE]: TaskClusterNode,
+      [TASK_GROUP_ZONE_TYPE]: TaskGroupZoneNode,
     }),
     []
   );
@@ -2648,6 +2894,12 @@ export default function TaskMapGraphView({
                         layoutDirection: settings.layoutDirection,
                       }}
                       onLayoutChange={onLayoutChange}
+                      groupArrangement={
+                        showGroupArrangement
+                          ? settings.taskGroupArrangement
+                          : undefined
+                      }
+                      onGroupArrangementChange={handleGroupArrangementChange}
                       onFoldToBranches={
                         branchModel.foldIds.size > 0
                           ? handleFoldToBranches

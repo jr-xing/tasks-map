@@ -9,10 +9,15 @@ import {
 import { getMinimalNodeDimensions } from "./dimensions";
 import {
   DagreSpacing,
-  layoutConnectedComponents,
+  layoutConnectedComponentSets,
   LayoutDirection,
   LayoutViewport,
+  spaceConnectedComponents,
 } from "./packing";
+import {
+  packComponentsIntoZones,
+  TaskGroupZoneOptions,
+} from "./task-group-zones";
 
 const BRANCH_VIEW_SPACING: DagreSpacing = { nodesep: 14, ranksep: 72 };
 
@@ -25,14 +30,16 @@ export interface BranchViewElements {
  * Lay out the Branches view: every node is drawn as a minimal card (summary
  * cards for projects, groups and branches, rows for tasks), packed tighter
  * than the graph so a project's structure fits on one screen. Long lists of
- * sibling rows are grouped into clusters (see planBranchClusters).
+ * sibling rows are grouped into clusters (see planBranchClusters). With
+ * `zones`, each task group's projects share one labelled zone.
  */
 export function createBranchViewElements(
   nodes: TaskNode[],
   edges: Edge[],
   direction: LayoutDirection,
   viewport?: LayoutViewport,
-  clusterOptions?: ClusterOptions
+  clusterOptions?: ClusterOptions,
+  zones?: TaskGroupZoneOptions
 ): BranchViewElements {
   const prepared: TaskNode[] = nodes.map((node) => ({
     ...node,
@@ -51,15 +58,31 @@ export function createBranchViewElements(
     ),
     ...blocks.dimensions,
   ]);
-  const layouted = layoutConnectedComponents(
+  const components = layoutConnectedComponentSets(
     [...free, ...blocks.nodes],
     [...freeEdges, ...plan.blockEdges],
     direction === "Horizontal" ? "LR" : "TB",
     dimensions,
-    direction,
-    viewport,
     BRANCH_VIEW_SPACING
   );
+  let zoneNodes: Node[] = [];
+  let layouted: Node[];
+  if (zones) {
+    const packed = packComponentsIntoZones(
+      components,
+      dimensions,
+      direction,
+      viewport,
+      zones
+    );
+    zoneNodes = packed.zones;
+    layouted = packed.nodes;
+  } else {
+    layouted =
+      components.length <= 1
+        ? (components[0] ?? [])
+        : spaceConnectedComponents(components, dimensions, direction, viewport);
+  }
   const { clusters, rows } = placeClusterBlocks(plan, layouted);
   const blockIds = new Set(blocks.nodes.map((node) => node.id));
   const shownIds = new Set(rows.map((row) => row.id));
@@ -69,8 +92,9 @@ export function createBranchViewElements(
     .filter((edge) => shownIds.has(edge.target))
     .map((edge) => ({ ...edge, hidden: true }));
   return {
-    // Clusters first, so their frames render beneath their rows.
+    // Zones, then clusters, so frames render beneath what they hold.
     nodes: [
+      ...zoneNodes,
       ...clusters,
       ...layouted.filter((node) => !blockIds.has(node.id)),
       ...rows,

@@ -82,6 +82,12 @@ export interface TaskEdgeData {
   dependency?: boolean;
   /** Tooltip text for a dependency edge. */
   label?: string;
+  /**
+   * A shared note's link to a parent in another project or task group:
+   * drawn faint and left out of the layout, so it does not pull the
+   * projects together.
+   */
+  crossGroup?: boolean;
 }
 
 export type TaskNode = Node<TaskNodeData, "task">;

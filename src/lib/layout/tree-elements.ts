@@ -28,6 +28,11 @@ export interface TreeElementsInput {
   showTags: boolean;
   visibleAttachmentKinds: TaskAttachmentKind[];
   nodeDensity: NodeDensity;
+  /**
+   * Position of a task's group in the display order. When given, rows sort
+   * by group first, so each group's projects sit together.
+   */
+  groupRank?: (_taskId: string) => number;
 }
 
 /**
@@ -44,6 +49,7 @@ export function createTreeLayoutElements({
   showTags,
   visibleAttachmentKinds,
   nodeDensity,
+  groupRank,
 }: TreeElementsInput): { nodes: Node[]; edges: Edge[] } {
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const dimensions = new Map<string, NodeDimensions>();
@@ -64,7 +70,9 @@ export function createTreeLayoutElements({
   const sortKeys = new Map(
     nodes.map((node) => {
       const task = taskById.get(node.id);
-      return [node.id, task ? treeSortKey(task) : node.id];
+      const key = task ? treeSortKey(task) : node.id;
+      if (!groupRank) return [node.id, key];
+      return [node.id, `${String(groupRank(node.id)).padStart(4, "0")}${key}`];
     })
   );
   const compare = (left: string, right: string) => {

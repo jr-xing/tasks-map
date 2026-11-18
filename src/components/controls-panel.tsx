@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { MapLayoutOptions } from "src/lib/map-layout-options";
+import type { TaskGroupArrangement } from "src/types/settings";
 import { t } from "../i18n";
 
 interface SegmentOption<T extends string> {
@@ -62,6 +63,9 @@ interface ControlsPanelProps {
   /** This tab's layout; omitted where the layout is fixed (e.g. embeds). */
   layout?: MapLayoutOptions;
   onLayoutChange?: (_patch: Partial<MapLayoutOptions>) => void;
+  /** How task group zones sit; omitted when the map shows no groups. */
+  groupArrangement?: TaskGroupArrangement;
+  onGroupArrangementChange?: (_value: TaskGroupArrangement) => void;
   /** Fold every branch to its summary card; omitted when there are none. */
   onFoldToBranches?: () => void;
   /** Unfold every folded card; omitted when nothing is folded. */
@@ -83,6 +87,8 @@ export default function ControlsPanel({
   setArrangeMode,
   layout,
   onLayoutChange,
+  groupArrangement,
+  onGroupArrangementChange,
   onFoldToBranches,
   onUnfoldAll,
 }: ControlsPanelProps) {
@@ -143,6 +149,18 @@ export default function ControlsPanel({
                   onLayoutChange({ layoutDirection })
                 }
               />
+              {groupArrangement && onGroupArrangementChange && (
+                <SegmentedControl
+                  label={t("controls.task_groups")}
+                  value={groupArrangement}
+                  options={[
+                    { value: "rows", label: t("controls.groups_rows") },
+                    { value: "columns", label: t("controls.groups_columns") },
+                    { value: "grid", label: t("controls.groups_grid") },
+                  ]}
+                  onChange={onGroupArrangementChange}
+                />
+              )}
             </div>
           )}
           <div className="tasks-map-filter-section">

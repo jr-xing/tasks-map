@@ -55,6 +55,12 @@ export abstract class BaseTask {
   blockedByLinks: string[];
   /** Values of the configured group property, e.g. the note's contexts. */
   groupValues: string[];
+  /**
+   * The task group this note names itself, e.g. `taskGroup: Yale core`.
+   * Empty when unset; subtasks then use their project's group (see
+   * resolveTaskGroups).
+   */
+  taskGroup: string;
 
   constructor(data: {
     id: string;
@@ -80,6 +86,7 @@ export abstract class BaseTask {
     relatedLinks?: string[];
     blockedByLinks?: string[];
     groupValues?: string[];
+    taskGroup?: string;
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -104,6 +111,7 @@ export abstract class BaseTask {
     this.relatedLinks = data.relatedLinks ?? [];
     this.blockedByLinks = data.blockedByLinks ?? [];
     this.groupValues = data.groupValues ?? [];
+    this.taskGroup = data.taskGroup ?? "";
   }
 
   /**
@@ -202,6 +210,7 @@ export abstract class BaseTask {
       relatedLinks: this.relatedLinks,
       blockedByLinks: this.blockedByLinks,
       groupValues: this.groupValues,
+      taskGroup: this.taskGroup,
     };
   }
 }

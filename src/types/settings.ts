@@ -28,6 +28,13 @@ export type LayoutMode = "graph" | "tree" | "branches";
  */
 export type NoteContextStyle = "off" | "map" | "breadcrumb";
 export type LayoutDirectionSetting = "Horizontal" | "Vertical";
+/**
+ * How task group zones sit on the map: "rows" stacks them as bands of equal
+ * width with projects left to right, tops aligned; "columns" sets them side
+ * by side with projects top to bottom, left edges aligned; "grid" puts them
+ * in a grid and packs each zone's projects tightly.
+ */
+export type TaskGroupArrangement = "rows" | "columns" | "grid";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
 export type TaskOrganizerAiProvider = "openai" | "anthropic" | "google";
 export type TaskOrganizerOrphans = "skip" | "unassigned";
@@ -54,6 +61,11 @@ export interface BranchPropertySettings {
    * clusters in the Branches layout, e.g. `contexts`.
    */
   groupProperty: string;
+  /**
+   * Property naming the task group a project belongs to, e.g. `taskGroup`.
+   * Subtasks without their own value use their project's group.
+   */
+  taskGroupProperty: string;
 }
 
 export const DEFAULT_BRANCH_PROPERTIES: BranchPropertySettings = {
@@ -63,6 +75,7 @@ export const DEFAULT_BRANCH_PROPERTIES: BranchPropertySettings = {
   waitingOnProperty: "waitingOn",
   relatedProperty: "related",
   groupProperty: "contexts",
+  taskGroupProperty: "taskGroup",
 };
 
 export interface FilterPreset {
@@ -109,8 +122,17 @@ export interface TasksMapSettings {
   // When true, a map opens folded to branch level: branch cards show their
   // summary and their tasks stay hidden until the branch is unfolded.
   foldToBranches: boolean;
+  // When true, folding or unfolding a card glides the map into its new
+  // layout instead of jumping.
+  animateFolding: boolean;
   // Task context strip shown between a note's properties and its body.
   noteContextStyle: NoteContextStyle;
+  // Draw each task group as a labelled zone when a map shows two or more.
+  showTaskGroups: boolean;
+  taskGroupArrangement: TaskGroupArrangement;
+  // Task groups listed here come first, in this order; the rest follow
+  // alphabetically and tasks without a group come last.
+  taskGroupOrder: string[];
 
   // Width (in pixels) of the left sidebar holding the unlinked-tasks
   // and project-tree panels.
@@ -209,7 +231,11 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   noteDependencyProperty: "blockedBy",
   branchProperties: { ...DEFAULT_BRANCH_PROPERTIES },
   foldToBranches: true,
+  animateFolding: true,
   noteContextStyle: "map",
+  showTaskGroups: true,
+  taskGroupArrangement: "rows",
+  taskGroupOrder: [],
 
   // Left sidebar width default
   sidebarWidth: 220,

@@ -87,6 +87,7 @@ export default function HashEdge({
           "react-flow__edge-path tasks-map-hash-edge-path",
           selected && "tasks-map-hash-edge-path--selected",
           data?.dependency && "tasks-map-hash-edge-path--dependency",
+          data?.crossGroup && "tasks-map-hash-edge-path--cross-group",
         ]
           .filter(Boolean)
           .join(" ")}

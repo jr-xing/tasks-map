@@ -6,6 +6,7 @@ import { taskPrioritiesFromSchemaValues } from "../lib/tasknotes-type-schema";
 import { getTaskNotesConfig } from "../lib/tasknotes-bridge";
 import { cloneDefaultStatuses } from "../lib/status-config";
 import { moveKanbanColumn, resolveKanbanColumnOrder } from "../lib/kanban";
+import { parseTaskGroupOrder } from "../lib/task-groups";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   LayoutMode,
@@ -17,6 +18,7 @@ import {
   TaskOrganizerOrphans,
   BranchPropertySettings,
   DEFAULT_BRANCH_PROPERTIES,
+  TaskGroupArrangement,
 } from "../types/settings";
 import { TaskAttachmentKind } from "../types/base-task";
 import { t } from "../i18n";
@@ -1058,6 +1060,18 @@ export class TasksMapSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl)
+      .setName(t("settings.animate_folding"))
+      .setDesc(t("settings.animate_folding_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.animateFolding)
+          .onChange(async (value) => {
+            this.plugin.settings.animateFolding = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     const branchFields: {
       key: keyof BranchPropertySettings;
       name: string;
@@ -1093,6 +1107,11 @@ export class TasksMapSettingTab extends PluginSettingTab {
         name: "settings.branch_group_property",
         desc: "settings.branch_group_property_desc",
       },
+      {
+        key: "taskGroupProperty",
+        name: "settings.task_group_property",
+        desc: "settings.task_group_property_desc",
+      },
     ];
     for (const field of branchFields) {
       new Setting(containerEl)
@@ -1112,6 +1131,48 @@ export class TasksMapSettingTab extends PluginSettingTab {
             })
         );
     }
+
+    new Setting(containerEl)
+      .setName(t("settings.show_task_groups"))
+      .setDesc(t("settings.show_task_groups_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.showTaskGroups)
+          .onChange(async (value) => {
+            this.plugin.settings.showTaskGroups = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.task_group_arrangement"))
+      .setDesc(t("settings.task_group_arrangement_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("rows", t("controls.groups_rows"))
+          .addOption("columns", t("controls.groups_columns"))
+          .addOption("grid", t("controls.groups_grid"))
+          .setValue(this.plugin.settings.taskGroupArrangement)
+          .onChange(async (value) => {
+            this.plugin.settings.taskGroupArrangement =
+              value as TaskGroupArrangement;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.task_group_order"))
+      .setDesc(t("settings.task_group_order_desc"))
+      .addTextArea((text) => {
+        text
+          .setPlaceholder(t("settings.task_group_order_placeholder"))
+          .setValue(this.plugin.settings.taskGroupOrder.join("\n"))
+          .onChange(async (value) => {
+            this.plugin.settings.taskGroupOrder = parseTaskGroupOrder(value);
+            await this.plugin.saveSettings();
+          });
+        text.inputEl.rows = 5;
+      });
 
     new Setting(containerEl)
       .setName(t("settings.quick_comments_property"))

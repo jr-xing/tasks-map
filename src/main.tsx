@@ -318,6 +318,11 @@ export default class TasksMapPlugin extends Plugin {
         ...DEFAULT_SETTINGS.branchProperties,
         ...(loadedSettings.branchProperties ?? {}),
       },
+      taskGroupOrder: Array.isArray(loadedSettings.taskGroupOrder)
+        ? loadedSettings.taskGroupOrder.filter(
+            (name): name is string => typeof name === "string"
+          )
+        : [],
     };
   }
 

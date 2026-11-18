@@ -182,6 +182,8 @@
     "branches_desc": "Optional note properties that describe a project's branches. Without them, a project's direct subtasks that have subtasks of their own are treated as branches.",
     "fold_to_branches": "Open maps folded to branches",
     "fold_to_branches_desc": "Each branch starts as one summary card with its counts and next step. Click its fold button to see its tasks.",
+    "animate_folding": "Animate folding",
+    "animate_folding_desc": "When you fold or unfold a card, the map glides into its new layout while that card stays in place.",
     "branch_kind_property": "Branch property",
     "branch_kind_property_desc": "Property that marks a note's role, e.g. \"kind\".",
     "branch_kind_value": "Branch value",
@@ -194,6 +196,15 @@
     "branch_related_property_desc": "Property linking a note to other notes that also use it, without making them parents, e.g. \"related\".",
     "branch_group_property": "Group-by property",
     "branch_group_property_desc": "In the Branches layout, a long list of sibling tasks is grouped by the first value of this property, e.g. \"contexts\".",
+    "task_group_property": "Task group property",
+    "task_group_property_desc": "Property naming the group a project belongs to, e.g. \"taskGroup: Yale core\". Subtasks use their project's group unless they name their own.",
+    "show_task_groups": "Show task groups",
+    "show_task_groups_desc": "When a map holds two or more task groups, draw each group as a labelled zone with its projects lined up inside. A note shared by several projects sits under its first parent; its other links are drawn faint.",
+    "task_group_arrangement": "Task group arrangement",
+    "task_group_arrangement_desc": "Rows stack the groups as bands with projects side by side; columns set the groups side by side with projects stacked; grid puts the groups in a grid and packs their projects tightly.",
+    "task_group_order": "Task group order",
+    "task_group_order_desc": "One group per line. Groups listed here come first, in this order; other groups follow alphabetically and projects without a group come last.",
+    "task_group_order_placeholder": "Yale core works\nYale data preparation\nMy own work",
     "node_density_minimal": "Minimal",
     "note_context_style": "Task context above notes",
     "note_context_style_desc": "Shows the note's project, parent, sibling tasks and subtasks between its properties and its body. Notes that are not tasks show the task that links to them",
@@ -243,7 +254,11 @@
     "fold_to_branches": "Fold to branches",
     "fold_to_branches_desc": "Show each branch as one summary card and hide its tasks",
     "unfold_all": "Unfold all",
-    "layout_branches": "Branches"
+    "layout_branches": "Branches",
+    "task_groups": "Groups",
+    "groups_rows": "Rows",
+    "groups_columns": "Columns",
+    "groups_grid": "Grid"
   },
   "multiselect": {
     "select": "Select...",
@@ -531,6 +546,12 @@
     "show_less": "Show less",
     "more_open": "+{{count}} open",
     "more_done": "✓ {{count}} done"
+  },
+  "task_groups": {
+    "ungrouped": "No group",
+    "projects_one": "{{count}} project",
+    "projects_other": "{{count}} projects",
+    "open": "{{count}} open"
   },
   "note_context": {
     "more": "+{{count}}",

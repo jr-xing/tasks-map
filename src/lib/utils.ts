@@ -1252,6 +1252,28 @@ function readBranchProperties(
     dependencyProperty === "blockedBy"
       ? []
       : [...new Set(toLinks("blockedBy"))].filter((link) => link !== task.id);
+  const taskGroupProperty = (props.taskGroupProperty ?? "").trim();
+  task.taskGroup = taskGroupProperty
+    ? parseTaskGroupValue(frontmatter[taskGroupProperty])
+    : "";
+}
+
+/**
+ * Read a task group name from a frontmatter value: plain text
+ * (`Yale core`) or a link (`[[Yale core]]`, `[[groups/Yale core|Core]]`).
+ * A list uses its first value.
+ */
+export function parseTaskGroupValue(value: unknown): string {
+  const first = frontmatterList(value).find(
+    (item): item is string => typeof item === "string" && item.trim() !== ""
+  );
+  if (!first) return "";
+  const link = first.trim().match(/^\[\[([^\]]+)\]\]$/);
+  if (!link) return first.trim();
+  const [target, alias] = link[1].split("|");
+  if (alias?.trim()) return alias.trim();
+  const name = target.split("#")[0].split("/").pop() ?? "";
+  return name.replace(/\.md$/i, "").trim();
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property

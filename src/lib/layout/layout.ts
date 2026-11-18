@@ -19,6 +19,10 @@ import {
   LayoutDirection,
   LayoutViewport,
 } from "./packing";
+import {
+  packComponentsIntoZones,
+  TaskGroupZoneOptions,
+} from "./task-group-zones";
 
 interface GroupBounds {
   minX: number;
@@ -33,6 +37,8 @@ export interface LayoutSnapshot {
   topLevelDimensions: Map<string, NodeDimensions>;
   topLevelNodeIds: Set<string>;
   direction: LayoutDirection;
+  /** When set, components are packed into one zone per task group. */
+  zones?: TaskGroupZoneOptions;
 }
 
 function dimensionsForTask(
@@ -66,24 +72,46 @@ function packTopLevelComponents(
   );
 }
 
+/**
+ * Position the snapshot's top-level components for a viewport. With task
+ * group zones, the zone frames come first in the result so they render
+ * beneath the cards.
+ */
 export function packLayoutSnapshot(
   snapshot: LayoutSnapshot,
   viewport?: LayoutViewport
 ): Node[] {
-  const packedTopLevelNodes = packTopLevelComponents(
-    snapshot.topLevelComponents,
-    snapshot.topLevelDimensions,
-    snapshot.direction,
-    viewport
-  );
+  let zoneNodes: Node[] = [];
+  let packedTopLevelNodes: Node[];
+  if (snapshot.zones) {
+    const packed = packComponentsIntoZones(
+      snapshot.topLevelComponents,
+      snapshot.topLevelDimensions,
+      snapshot.direction,
+      viewport,
+      snapshot.zones
+    );
+    zoneNodes = packed.zones;
+    packedTopLevelNodes = packed.nodes;
+  } else {
+    packedTopLevelNodes = packTopLevelComponents(
+      snapshot.topLevelComponents,
+      snapshot.topLevelDimensions,
+      snapshot.direction,
+      viewport
+    );
+  }
   const topLevelPositions = new Map(
     packedTopLevelNodes.map((node) => [node.id, node.position])
   );
 
-  return snapshot.nodes.map((node) => {
-    const position = topLevelPositions.get(node.id);
-    return position ? { ...node, position } : node;
-  });
+  return [
+    ...zoneNodes,
+    ...snapshot.nodes.map((node) => {
+      const position = topLevelPositions.get(node.id);
+      return position ? { ...node, position } : node;
+    }),
+  ];
 }
 
 export function createLayoutSnapshot(

@@ -1,8 +1,14 @@
 import { MiniMap } from "reactflow";
+import { TASK_GROUP_ZONE_TYPE } from "src/lib/layout/task-group-zones";
 
 export const TaskMinimap = () => {
   // TODO: Would be nice to have better typing for node here
-  const getNodeColor = (node: { data?: { task?: { status?: string } } }) => {
+  const getNodeColor = (node: {
+    type?: string;
+    data?: { task?: { status?: string } };
+  }) => {
+    // Zones cover whole areas; drawing them would hide the cards.
+    if (node.type === TASK_GROUP_ZONE_TYPE) return "transparent";
     const status = node.data?.task?.status;
     switch (status) {
       case "done":
