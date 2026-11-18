@@ -610,6 +610,31 @@ export async function updateTaskNotesStatus(
   return false;
 }
 
+/**
+ * Update TaskNotes fields (dates, contexts) through its API. Returns false
+ * when TaskNotes cannot take the write, so callers fall back to frontmatter.
+ */
+export async function updateTaskNotesFields(
+  app: App,
+  taskPath: string,
+  updates: Partial<TaskNotesTaskInfo>
+): Promise<boolean> {
+  const api = getTaskNotesApi(app);
+  if (!api || !hasTaskWrite(api) || typeof api.tasks?.update !== "function")
+    return false;
+  try {
+    await api.tasks.update(
+      taskPath,
+      updates,
+      mutationContext("Task Map updated a task")
+    );
+    return true;
+  } catch (error) {
+    console.warn("TaskNotes runtime update failed:", error);
+    return false;
+  }
+}
+
 export async function updateTaskNotesPriority(
   app: App,
   taskPath: string,

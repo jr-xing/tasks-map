@@ -12,6 +12,7 @@ import type { HoverParent, HoverPopover } from "obsidian";
 import { createRoot } from "react-dom/client";
 
 import TaskMapGraphItemView, { VIEW_TYPE } from "./views/TaskMapGraphItemView";
+import { NoteContextInjector } from "./views/note-context-injector";
 import TaskMapGraphEmbedView, {
   TaskMapEmbedError,
   filterStateFromSource,
@@ -138,6 +139,7 @@ export default class TasksMapPlugin extends Plugin {
   private taskNotesTypeSchemaRefreshTimer: number | null = null;
 
   private recentNavigationLeaf: WorkspaceLeaf | null = null;
+  private noteContext: NoteContextInjector | null = null;
 
   async onload() {
     // Load settings
@@ -245,6 +247,10 @@ export default class TasksMapPlugin extends Plugin {
     });
 
     this.registerCli();
+
+    // Task context strip between a note's properties and its body.
+    this.noteContext = new NoteContextInjector(this);
+    this.noteContext.load();
 
     this.addRibbonIcon("map", t("ribbon.open_tasks_map"), () => {
       void this.activateViewInMainArea();
@@ -634,6 +640,24 @@ export default class TasksMapPlugin extends Plugin {
     showPicker();
   }
 
+  /**
+   * Open the map on the whole project `rootId` with `taskId` highlighted,
+   * or on the task alone when it belongs to no project.
+   */
+  focusTaskInMap(taskId: string, rootId: string | null = null): void {
+    const baseFilter = this.getFocusBaseFilter();
+    void this.activateViewInMainArea(
+      rootId
+        ? {
+            kind: "project-overview",
+            taskId,
+            rootTaskIds: [rootId],
+            baseFilter,
+          }
+        : { kind: "task", taskId, baseFilter }
+    );
+  }
+
   private async showFullProject(): Promise<void> {
     const active = this.app.workspace.getMostRecentLeaf();
     if (active?.view instanceof TaskMapGraphItemView) {
@@ -896,5 +920,6 @@ export default class TasksMapPlugin extends Plugin {
 
   onunload(): void {
     // Embed roots are cleaned up individually via MarkdownRenderChild
+    this.noteContext?.unload();
   }
 }

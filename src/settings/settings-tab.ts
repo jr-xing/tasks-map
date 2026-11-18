@@ -10,6 +10,7 @@ import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   LayoutMode,
   NodeDensity,
+  NoteContextStyle,
   NoteTaskTitleSource,
   PriorityAccentPosition,
   TaskOrganizerAiProvider,
@@ -686,6 +687,21 @@ export class TasksMapSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.nodeDensity)
           .onChange(async (value) => {
             this.plugin.settings.nodeDensity = value as NodeDensity;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.note_context_style"))
+      .setDesc(t("settings.note_context_style_desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("map", t("settings.note_context_style_map"))
+          .addOption("breadcrumb", t("settings.note_context_style_breadcrumb"))
+          .addOption("off", t("settings.note_context_style_off"))
+          .setValue(this.plugin.settings.noteContextStyle)
+          .onChange(async (value) => {
+            this.plugin.settings.noteContextStyle = value as NoteContextStyle;
             await this.plugin.saveSettings();
           })
       );

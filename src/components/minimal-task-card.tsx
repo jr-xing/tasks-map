@@ -15,6 +15,7 @@ import {
 } from "src/lib/priority-config";
 import { getMinimalNodeDimensions } from "src/lib/layout/dimensions";
 import {
+  formatShortDate,
   getDueState,
   hasOpenWork,
   isImportantPriority,
@@ -74,20 +75,6 @@ function categoryColor(
   return statuses.find(
     (status) => getStatusCategory(status.id, statuses) === category
   )?.color;
-}
-
-function formatDueDate(dueDate: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dueDate);
-  if (!match) return dueDate;
-  const date = new Date(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3])
-  );
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
 }
 
 interface FoldBadgeProps {
@@ -173,7 +160,7 @@ function Indicators({ data, priority, starred, showDue }: IndicatorsProps) {
           className={`tasks-map-mcard-due tasks-map-mcard-due--${dueState}`}
           title={t(`minimal.due_${dueState}`, { date: task.dueDate })}
         >
-          {formatDueDate(task.dueDate)}
+          {formatShortDate(task.dueDate)}
         </span>
       )}
       {task.waitingOn && (

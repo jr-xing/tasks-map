@@ -21,6 +21,28 @@ export function getMinimalNodeTitle(task: BaseTask): string {
   return (task.noteFrontmatterTitle || task.summary).trim();
 }
 
+/** "@lab", "@lab +1", or null when the task has no context. */
+export function formatContexts(values: string[]): string | null {
+  if (values.length === 0) return null;
+  const first = values[0].startsWith("@") ? values[0] : `@${values[0]}`;
+  return values.length > 1 ? `${first} +${values.length - 1}` : first;
+}
+
+/** "Nov 20" for "2026-11-20"; other values are returned unchanged. */
+export function formatShortDate(value: string): string {
+  const match = DATE_PATTERN.exec(value);
+  if (!match) return value;
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3])
+  );
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /** "overdue" or "soon" when the due date needs attention, else null. */
 export function getDueState(
   dueDate: string | null | undefined,

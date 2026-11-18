@@ -14,6 +14,7 @@ import {
   deleteTaskNotesTask,
   removeTaskNotesDependency,
   removeTaskNotesTag,
+  updateTaskNotesFields,
   updateTaskNotesPriority,
   updateTaskNotesStatus,
 } from "../lib/tasknotes-bridge";
@@ -51,6 +52,54 @@ export class NoteTask extends BaseTask {
 
     await app.fileManager.processFrontMatter(file, (frontmatter) => {
       frontmatter["task-today"] = value;
+    });
+  }
+
+  /**
+   * Set or clear (`null`) the `due` or `scheduled` date. Setting goes
+   * through TaskNotes when it is installed; clearing removes the property.
+   */
+  async updateDate(
+    field: "due" | "scheduled",
+    value: string | null,
+    app: App
+  ): Promise<void> {
+    const file = this.link ? app.vault.getFileByPath(this.link) : null;
+    if (!file) throw new Error("Task note could not be found.");
+    if (
+      value &&
+      (await updateTaskNotesFields(app, file.path, { [field]: value }))
+    )
+      return;
+
+    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+      if (value) frontmatter[field] = value;
+      else delete frontmatter[field];
+    });
+  }
+
+  /**
+   * Replace a list property such as `contexts`. TaskNotes' own `contexts`
+   * goes through its API when available; anything else is plain
+   * frontmatter, and an empty list removes the property.
+   */
+  async updateListProperty(
+    property: string,
+    values: string[],
+    app: App
+  ): Promise<void> {
+    const file = this.link ? app.vault.getFileByPath(this.link) : null;
+    if (!file) throw new Error("Task note could not be found.");
+    if (
+      property === "contexts" &&
+      values.length > 0 &&
+      (await updateTaskNotesFields(app, file.path, { contexts: values }))
+    )
+      return;
+
+    await app.fileManager.processFrontMatter(file, (frontmatter) => {
+      if (values.length > 0) frontmatter[property] = values;
+      else delete frontmatter[property];
     });
   }
 

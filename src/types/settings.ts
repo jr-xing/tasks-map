@@ -21,6 +21,12 @@ export type NodeDensity = "minimal" | "comfortable" | "compact";
  * their tasks as slim rows.
  */
 export type LayoutMode = "graph" | "tree" | "branches";
+/**
+ * How the task context strip above a note's body looks: "map" shows the
+ * parent path, siblings and subtasks on up to three lines; "breadcrumb" is
+ * one line whose separators open sibling and subtask menus.
+ */
+export type NoteContextStyle = "off" | "map" | "breadcrumb";
 export type LayoutDirectionSetting = "Horizontal" | "Vertical";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
 export type TaskOrganizerAiProvider = "openai" | "anthropic" | "google";
@@ -103,6 +109,8 @@ export interface TasksMapSettings {
   // When true, a map opens folded to branch level: branch cards show their
   // summary and their tasks stay hidden until the branch is unfolded.
   foldToBranches: boolean;
+  // Task context strip shown between a note's properties and its body.
+  noteContextStyle: NoteContextStyle;
 
   // Width (in pixels) of the left sidebar holding the unlinked-tasks
   // and project-tree panels.
@@ -201,6 +209,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   noteDependencyProperty: "blockedBy",
   branchProperties: { ...DEFAULT_BRANCH_PROPERTIES },
   foldToBranches: true,
+  noteContextStyle: "map",
 
   // Left sidebar width default
   sidebarWidth: 220,

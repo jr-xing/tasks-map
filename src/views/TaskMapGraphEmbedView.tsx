@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import type { HoverParent } from "obsidian";
 import { ReactFlowProvider } from "reactflow";
 import { AppContext, TaskHoverPreviewContext } from "src/contexts/context";
@@ -7,6 +13,7 @@ import type TasksMapPlugin from "../main";
 import { TasksMapSettings } from "src/types/settings";
 import { FilterState, DEFAULT_FILTER_STATE } from "src/types/filter-state";
 import { EmbedConfig, DEFAULT_EMBED_CONFIG } from "src/types/embed-config";
+import { TaskMapFocusRequest } from "src/types/focus-request";
 
 // Discriminated result type for filterStateFromSource
 export type ParseResult =
@@ -24,6 +31,8 @@ interface TaskMapGraphEmbedViewProps {
   initialFilter: FilterState;
   embedConfig: EmbedConfig;
   hoverParent: HoverParent;
+  /** Applied once the map has loaded, e.g. to open on a project overview. */
+  initialFocus?: TaskMapFocusRequest;
 }
 
 export default function TaskMapGraphEmbedView({
@@ -31,6 +40,7 @@ export default function TaskMapGraphEmbedView({
   initialFilter,
   embedConfig,
   hoverParent,
+  initialFocus,
 }: TaskMapGraphEmbedViewProps) {
   const [settings, setSettings] = useState<TasksMapSettings>({
     ...plugin.settings,
@@ -40,6 +50,11 @@ export default function TaskMapGraphEmbedView({
     ...DEFAULT_FILTER_STATE,
     ...initialFilter,
   });
+
+  const [focusRequest, setFocusRequest] = useState<TaskMapFocusRequest | null>(
+    initialFocus ?? null
+  );
+  const clearFocusRequest = useCallback(() => setFocusRequest(null), []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const hoverPreviewContextValue = useMemo(
@@ -71,6 +86,8 @@ export default function TaskMapGraphEmbedView({
               setFilterState={setFilterState}
               plugin={plugin}
               embedConfig={embedConfig}
+              focusRequest={focusRequest}
+              onFocusRequestHandled={clearFocusRequest}
             />
           </ReactFlowProvider>
         </div>

@@ -5073,3 +5073,304 @@ g:hover > .tasks-map-dependency-edge-label {
   opacity: 0;
   pointer-events: none;
 }
+
+/* Task context strip between a note's properties and its body. */
+.tasks-map-note-context-host {
+  margin: var(--size-4-1) 0 var(--size-4-4);
+  user-select: none;
+}
+
+.tasks-map-note-context {
+  --tasks-map-nc-line: var(--background-modifier-border-hover);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.7;
+}
+
+.tasks-map-note-context-rows {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.tasks-map-note-context-row {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--size-4-2);
+}
+
+.tasks-map-note-context.is-breadcrumb .tasks-map-note-context-row {
+  column-gap: var(--size-4-1);
+}
+
+/* Tree elbows: path -> this task's row -> its subtasks. */
+.tasks-map-note-context-rows.has-path .tasks-map-note-context-row.is-here {
+  padding-left: 18px;
+}
+
+.tasks-map-note-context-row.is-below {
+  padding-left: 18px;
+}
+
+.tasks-map-note-context-rows.has-path .tasks-map-note-context-row.is-below {
+  padding-left: 36px;
+}
+
+.tasks-map-note-context-rows.has-path
+  .tasks-map-note-context-row.is-here::before,
+.tasks-map-note-context-row.is-below::before {
+  position: absolute;
+  top: -5px;
+  left: 4px;
+  width: 9px;
+  height: 16px;
+  border-bottom: 1px solid var(--tasks-map-nc-line);
+  border-left: 1px solid var(--tasks-map-nc-line);
+  border-bottom-left-radius: 5px;
+  content: "";
+}
+
+.tasks-map-note-context-rows.has-path
+  .tasks-map-note-context-row.is-below::before {
+  left: 22px;
+}
+
+.tasks-map-note-context-divider {
+  width: 1px;
+  height: 0.9em;
+  flex: none;
+  background: var(--tasks-map-nc-line);
+}
+
+.tasks-map-note-context-task {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 24em;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tasks-map-note-context-task:hover {
+  color: var(--text-normal);
+  text-decoration: none;
+}
+
+.tasks-map-note-context-title,
+.tasks-map-note-context-title:hover {
+  overflow: hidden;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-map-note-context-task.is-project {
+  color: var(--text-normal);
+  font-weight: var(--font-medium);
+}
+
+.tasks-map-note-context-task.is-current {
+  padding: 0 7px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+}
+
+.tasks-map-note-context-task.is-closed .tasks-map-note-context-title {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.tasks-map-note-context-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tasks-map-status-color, var(--text-faint));
+}
+
+.tasks-map-note-context-separator,
+.tasks-map-note-context-note,
+.tasks-map-note-context-linked {
+  color: var(--text-faint);
+}
+
+.tasks-map-note-context-linked {
+  display: inline-flex;
+  margin-right: -4px;
+}
+
+.tasks-map-note-context button.tasks-map-note-context-more,
+.tasks-map-note-context button.tasks-map-note-context-separator,
+.tasks-map-note-context button.tasks-map-note-context-action {
+  display: inline-flex;
+  height: auto;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  box-shadow: none;
+  color: var(--text-faint);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.tasks-map-note-context button.tasks-map-note-context-more:hover,
+.tasks-map-note-context button.tasks-map-note-context-separator:hover,
+.tasks-map-note-context button.tasks-map-note-context-action:hover,
+.tasks-map-note-context button.tasks-map-note-context-action.is-active {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-note-context-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.tasks-map-note-context:hover .tasks-map-note-context-actions,
+.tasks-map-note-context-actions:focus-within,
+.tasks-map-note-context-actions.is-open {
+  opacity: 1;
+}
+
+/* Floating project map opened from the strip. */
+.tasks-map-note-context-popover {
+  position: fixed;
+  z-index: var(--layer-popover);
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-l);
+}
+
+.tasks-map-note-context-popover .tasks-map-embed-container {
+  border: none;
+  border-radius: 0;
+}
+
+.tasks-map-note-context-popover .tasks-map-project-overview {
+  display: none;
+}
+
+/* Clickable status dots (current task and subtasks) and resting markers. */
+.tasks-map-note-context button.tasks-map-note-context-dot.is-button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--tasks-map-status-color, var(--text-faint));
+  box-shadow: 0 0 0 2px transparent;
+  cursor: pointer;
+  transition: box-shadow 120ms ease;
+}
+
+.tasks-map-note-context button.tasks-map-note-context-dot.is-button:hover,
+.tasks-map-note-context button.tasks-map-note-context-dot.is-button:focus-visible {
+  box-shadow: 0 0 0 3px var(--background-modifier-border-hover);
+}
+
+.tasks-map-note-context-marker {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--text-faint);
+  font-weight: var(--font-normal);
+}
+
+.tasks-map-note-context-marker.is-priority {
+  color: var(--text-error);
+}
+
+.tasks-map-note-context-marker.is-due.is-overdue {
+  color: var(--text-error);
+}
+
+.tasks-map-note-context-marker.is-due.is-soon {
+  color: var(--text-warning);
+}
+
+.tasks-map-date-picker-modal .modal-content {
+  display: flex;
+  gap: var(--size-4-2);
+}
+
+.tasks-map-date-picker-input {
+  flex: 1;
+}
+
+/* Status, priority and context buttons beside the first line, on hover. */
+.tasks-map-note-context-actions {
+  position: relative;
+}
+
+.tasks-map-note-context-props {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: var(--size-4-2);
+  white-space: nowrap;
+}
+
+/* Invisible copy of the buttons, measured to decide which ones fit. */
+.tasks-map-note-context-props.is-measure {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tasks-map-note-context-prop,
+.tasks-map-note-context button.tasks-map-note-context-prop {
+  display: inline-flex;
+  height: auto;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: inherit;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.tasks-map-note-context button.tasks-map-note-context-prop:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.tasks-map-note-context-prop-flag {
+  display: inline-flex;
+  color: var(--tasks-map-priority-color, var(--text-faint));
+}
+
+.tasks-map-note-context-prop-empty {
+  color: var(--text-faint);
+}
+
+.tasks-map-note-context-divider.is-line-end {
+  visibility: hidden;
+}
