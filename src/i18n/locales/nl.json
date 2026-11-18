@@ -36,9 +36,9 @@
     "show_status_counts": "Statustellingen tonen",
     "show_status_counts_desc": "Toon een statustellingen overlay op het canvas",
     "node_density": "Knooppuntdichtheid",
-    "node_density_desc": "Kies comfortabele taakkaarten of compacte kaarten op één regel die details tonen bij aanwijzen en selecteren",
-    "node_density_comfortable": "Comfortabel",
-    "node_density_compact": "Compact",
+    "node_density_desc": "Minimale kaarten zijn vlak: ze tonen statuskleuren en de belangrijkste markeringen en laten hun knoppen zien bij aanwijzen. Comfortabel en compact zijn de klassieke kaarten",
+    "node_density_comfortable": "Klassiek",
+    "node_density_compact": "Klassiek compact",
     "attachment_types": "Bijlagetypen",
     "attachment_type_markdown": "Markdown-notities",
     "attachment_type_markdown_desc": "Toon eigen bijlagenotities onder taakknooppunten",
@@ -177,7 +177,22 @@
     "language": "Taal",
     "language_desc": "Selecteer de taal voor de plugin-interface",
     "layout_mode": "Standaardindeling",
-    "layout_mode_desc": "Indeling voor nieuwe kaarttabbladen. Elk tabblad kan zelf wisselen tussen grafiek en boom."
+    "layout_mode_desc": "Indeling voor nieuwe kaarttabbladen. Elk tabblad kan zelf wisselen tussen grafiek en boom.",
+    "branches_heading": "Takken",
+    "branches_desc": "Optionele notitie-eigenschappen die de takken van een project beschrijven. Zonder deze worden directe subtaken van een project die zelf subtaken hebben als takken behandeld.",
+    "fold_to_branches": "Kaarten ingeklapt tot takken openen",
+    "fold_to_branches_desc": "Elke tak begint als één samenvattingskaart met aantallen en volgende stap. Klik op de inklapknop om de taken te zien.",
+    "branch_kind_property": "Tak-eigenschap",
+    "branch_kind_property_desc": "Eigenschap die de rol van een notitie aangeeft, bijv. \"kind\".",
+    "branch_kind_value": "Tak-waarde",
+    "branch_kind_value_desc": "Waarde van de tak-eigenschap die een tak aanduidt, bijv. \"area\".",
+    "branch_next_property": "Eigenschap volgende stap",
+    "branch_next_property_desc": "Eigenschap op een tak die naar de volgende stap linkt, bijv. \"next\".",
+    "branch_waiting_property": "Eigenschap wacht op",
+    "branch_waiting_property_desc": "Eigenschap met de persoon waarop een taak wacht, bijv. \"waitingOn\".",
+    "branch_related_property": "Gerelateerd-eigenschap",
+    "branch_related_property_desc": "Eigenschap die een notitie aan andere notities koppelt zonder ze ouder te maken, bijv. \"related\".",
+    "node_density_minimal": "Minimaal"
   },
   "filters": {
     "status": "Status",
@@ -217,7 +232,11 @@
     "layout": "Indeling",
     "layout_graph": "Grafiek",
     "layout_tree": "Boom",
-    "direction": "Richting"
+    "direction": "Richting",
+    "fold_to_branches": "Inklappen tot takken",
+    "fold_to_branches_desc": "Toon elke tak als één samenvattingskaart en verberg de taken",
+    "unfold_all": "Alles uitklappen",
+    "layout_branches": "Takken"
   },
   "multiselect": {
     "select": "Selecteer...",
@@ -475,5 +494,29 @@
     "choose_project": "Kies een project…",
     "open_project": "Project tonen",
     "back_to_results": "Terug naar taakresultaten"
+  },
+  "branch": {
+    "branches_one": "{{count}} tak",
+    "branches_other": "{{count}} takken",
+    "active": "{{count}} actief",
+    "open": "{{count}} open",
+    "waiting": "{{count}} wachtend",
+    "done": "{{count}} klaar",
+    "next": "Volgende",
+    "suggested": "Voorstel",
+    "next_title": "Volgende stap: {{task}}. Klik om te openen.",
+    "suggested_title": "Er is geen volgende stap ingesteld. Meest dringende open taak: {{task}}. Klik om te openen.",
+    "no_open_tasks": "Geen open taken",
+    "waiting_on": "Wacht op {{names}}",
+    "related_one": "↗ {{count}} gerelateerde taak",
+    "related_other": "↗ {{count}} gerelateerde taken",
+    "no_next": "Geen volgende stap",
+    "due": "deadline {{date}}"
+  },
+  "minimal": {
+    "priority": "Prioriteit: {{priority}}",
+    "due_overdue": "Te laat: deadline {{date}}",
+    "due_soon": "Deadline {{date}}",
+    "starred": "Met ster"
   }
 }

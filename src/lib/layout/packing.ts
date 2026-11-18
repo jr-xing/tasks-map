@@ -15,6 +15,8 @@ export interface LayoutViewport {
 function getTaskCardHorizontalOffset(node: Node, dimensions: NodeDimensions) {
   const task = node.data?.task as BaseTask | undefined;
   if (!task) return 0;
+  // Minimal cards render at their full layout width.
+  if (node.data?.nodeDensity === "minimal") return 0;
   return Math.max(0, (dimensions.width - NODEWIDTH) / 2);
 }
 
@@ -63,15 +65,23 @@ export function getComponentSortKey(componentNodes: Node[]): string {
   return `1:${rootKey ?? ""}:${ids.join("\u0000")}`;
 }
 
+export interface DagreSpacing {
+  nodesep: number;
+  ranksep: number;
+}
+
+const DEFAULT_DAGRE_SPACING: DagreSpacing = { nodesep: 30, ranksep: 50 };
+
 export function layoutNodesWithDagre(
   nodes: Node[],
   edges: Edge[],
   rankdir: DagreDirection,
-  nodeDimensions: Map<string, NodeDimensions>
+  nodeDimensions: Map<string, NodeDimensions>,
+  spacing: DagreSpacing = DEFAULT_DAGRE_SPACING
 ): Node[] {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir, nodesep: 30, ranksep: 50 });
+  dagreGraph.setGraph({ rankdir, ...spacing });
 
   [...nodes]
     .sort((left, right) => compareText(left.id, right.id))
@@ -300,13 +310,15 @@ export function layoutConnectedComponents(
   rankdir: DagreDirection,
   nodeDimensions: Map<string, NodeDimensions>,
   direction: LayoutDirection,
-  viewport?: LayoutViewport
+  viewport?: LayoutViewport,
+  spacing?: DagreSpacing
 ): Node[] {
   const layoutedComponents = layoutConnectedComponentSets(
     nodes,
     edges,
     rankdir,
-    nodeDimensions
+    nodeDimensions,
+    spacing
   );
 
   if (layoutedComponents.length <= 1) return layoutedComponents[0] ?? [];
@@ -322,7 +334,8 @@ export function layoutConnectedComponentSets(
   nodes: Node[],
   edges: Edge[],
   rankdir: DagreDirection,
-  nodeDimensions: Map<string, NodeDimensions>
+  nodeDimensions: Map<string, NodeDimensions>,
+  spacing?: DagreSpacing
 ): Node[][] {
   const components = getConnectedComponents(nodes, edges);
   return components.map((componentIds) => {
@@ -337,7 +350,8 @@ export function layoutConnectedComponentSets(
         componentNodes,
         componentEdges,
         rankdir,
-        nodeDimensions
+        nodeDimensions,
+        spacing
       )
     );
   });

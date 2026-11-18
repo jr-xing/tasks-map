@@ -14,6 +14,8 @@ import {
   PriorityAccentPosition,
   TaskOrganizerAiProvider,
   TaskOrganizerOrphans,
+  BranchPropertySettings,
+  DEFAULT_BRANCH_PROPERTIES,
 } from "../types/settings";
 import { TaskAttachmentKind } from "../types/base-task";
 import { t } from "../i18n";
@@ -678,6 +680,7 @@ export class TasksMapSettingTab extends PluginSettingTab {
       .setDesc(t("settings.node_density_desc"))
       .addDropdown((dropdown) =>
         dropdown
+          .addOption("minimal", t("settings.node_density_minimal"))
           .addOption("comfortable", t("settings.node_density_comfortable"))
           .addOption("compact", t("settings.node_density_compact"))
           .setValue(this.plugin.settings.nodeDensity)
@@ -730,6 +733,7 @@ export class TasksMapSettingTab extends PluginSettingTab {
         dropdown
           .addOption("graph", t("controls.layout_graph"))
           .addOption("tree", t("controls.layout_tree"))
+          .addOption("branches", t("controls.layout_branches"))
           .setValue(this.plugin.settings.layoutMode)
           .onChange(async (value) => {
             this.plugin.settings.layoutMode = value as LayoutMode;
@@ -1020,6 +1024,73 @@ export class TasksMapSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    new Setting(containerEl)
+      .setName(t("settings.branches_heading"))
+      .setDesc(t("settings.branches_desc"))
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName(t("settings.fold_to_branches"))
+      .setDesc(t("settings.fold_to_branches_desc"))
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.foldToBranches)
+          .onChange(async (value) => {
+            this.plugin.settings.foldToBranches = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    const branchFields: {
+      key: keyof BranchPropertySettings;
+      name: string;
+      desc: string;
+    }[] = [
+      {
+        key: "kindProperty",
+        name: "settings.branch_kind_property",
+        desc: "settings.branch_kind_property_desc",
+      },
+      {
+        key: "branchValue",
+        name: "settings.branch_kind_value",
+        desc: "settings.branch_kind_value_desc",
+      },
+      {
+        key: "nextProperty",
+        name: "settings.branch_next_property",
+        desc: "settings.branch_next_property_desc",
+      },
+      {
+        key: "waitingOnProperty",
+        name: "settings.branch_waiting_property",
+        desc: "settings.branch_waiting_property_desc",
+      },
+      {
+        key: "relatedProperty",
+        name: "settings.branch_related_property",
+        desc: "settings.branch_related_property_desc",
+      },
+    ];
+    for (const field of branchFields) {
+      new Setting(containerEl)
+        .setName(t(field.name))
+        .setDesc(t(field.desc))
+        .addText((text) =>
+          text
+            .setPlaceholder(DEFAULT_BRANCH_PROPERTIES[field.key])
+            .setValue(this.plugin.settings.branchProperties[field.key])
+            .onChange(async (value) => {
+              this.plugin.settings.branchProperties = {
+                ...this.plugin.settings.branchProperties,
+                [field.key]:
+                  value.trim() || DEFAULT_BRANCH_PROPERTIES[field.key],
+              };
+              await this.plugin.saveSettings();
+            })
+        );
+    }
 
     new Setting(containerEl)
       .setName(t("settings.quick_comments_property"))

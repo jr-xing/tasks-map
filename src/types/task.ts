@@ -1,4 +1,5 @@
 import { Node, Edge } from "reactflow";
+import type { BranchSummary, TaskLevel } from "../lib/branch-model";
 import { BaseTask } from "./base-task";
 import type { TaskAttachment, TaskAttachmentKind } from "./base-task";
 import { TagColorPalette } from "../lib/tag-color-manager";
@@ -55,6 +56,12 @@ export interface TaskNodeData {
   // eslint-disable-next-line no-unused-vars -- prop callback parameter convention
   onTaskStarredChange?: (taskId: string, starred: boolean) => void;
   trackVaultWrite?: VaultWriteTracker;
+  /** How the card reads on the map: project, group, branch or task. */
+  level?: TaskLevel;
+  /** Counts and next step shown on project, group and branch cards. */
+  branchSummary?: BranchSummary;
+  /** This task is the next step its branch names. */
+  isNextStep?: boolean;
 }
 
 export interface TaskNodeFoldingOptions {
@@ -71,6 +78,10 @@ export interface TaskEdgeData {
   debugVisualization?: boolean;
   edgeStyle?: "Bezier" | "Straight" | "SmoothStep";
   smoothStepRadius?: number;
+  /** A cross-branch blockedBy link, drawn dashed and not editable. */
+  dependency?: boolean;
+  /** Tooltip text for a dependency edge. */
+  label?: string;
 }
 
 export type TaskNode = Node<TaskNodeData, "task">;

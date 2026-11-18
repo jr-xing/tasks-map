@@ -16,7 +16,7 @@ export interface MapLayoutOptions {
  */
 export type MapLayoutOverrides = Partial<MapLayoutOptions>;
 
-const LAYOUT_MODES: readonly LayoutMode[] = ["graph", "tree"];
+const LAYOUT_MODES: readonly LayoutMode[] = ["graph", "tree", "branches"];
 const LAYOUT_DIRECTIONS: readonly LayoutDirectionSetting[] = [
   "Horizontal",
   "Vertical",

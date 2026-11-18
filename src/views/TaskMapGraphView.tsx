@@ -19,6 +19,7 @@ import { Plus } from "lucide-react";
 import { useApp } from "src/hooks/hooks";
 import {
   addLinkSignsBetweenTasks,
+  createDependencyEdges,
   addSignToTaskInFile,
   getAllTasks,
   removeLinkSignsBetweenTasks,
@@ -54,6 +55,12 @@ import {
   getFoldedGraphVisibility,
   getTaskConnectionKey,
 } from "src/lib/fold-task-children";
+import {
+  buildBranchModel,
+  getBranchFoldIds,
+  getDependencyConnections,
+} from "src/lib/branch-model";
+import { createBranchViewNodes } from "src/lib/layout/branch-elements";
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
@@ -649,6 +656,7 @@ export default function TaskMapGraphView({
                   settings.noteTaskCreatedDateProperty,
                 quickCommentsPropertyName: settings.quickCommentsPropertyName,
                 noteDependencyProperty: settings.noteDependencyProperty,
+                branchProperties: settings.branchProperties,
               },
               settings.taskStatuses
             );
@@ -685,6 +693,7 @@ export default function TaskMapGraphView({
       settings.noteTaskCreatedDateProperty,
       settings.quickCommentsPropertyName,
       settings.noteDependencyProperty,
+      settings.branchProperties,
       settings.taskStatuses,
     ]
   );
@@ -974,6 +983,56 @@ export default function TaskMapGraphView({
     [graphTasks, filterState, overviewRootIds]
   );
 
+  // Levels and branch summaries come from all tasks, so counts include
+  // finished work even when the status filter hides it.
+  const branchModel = useMemo(
+    () => buildBranchModel(tasks, settings.taskStatuses),
+    [tasks, settings.taskStatuses]
+  );
+
+  // Open each map folded to branch level once its tasks have loaded.
+  const branchFoldAppliedRef = React.useRef(false);
+  useEffect(() => {
+    if (branchFoldAppliedRef.current || isLoading || tasks.length === 0) {
+      return;
+    }
+    branchFoldAppliedRef.current = true;
+    if (!settings.foldToBranches || branchModel.foldIds.size === 0) return;
+    const keep = filterState.selectedRootTask
+      ? [filterState.selectedRootTask]
+      : [];
+    const fold = getBranchFoldIds(branchModel, tasks, keep);
+    setCollapsedTaskIds((previous) => new Set([...previous, ...fold]));
+  }, [
+    branchModel,
+    filterState.selectedRootTask,
+    isLoading,
+    settings.foldToBranches,
+    tasks,
+  ]);
+
+  // Focusing a folded branch shows its tasks.
+  useEffect(() => {
+    const root = filterState.selectedRootTask;
+    if (!root) return;
+    setCollapsedTaskIds((previous) => {
+      if (!previous.has(root)) return previous;
+      const next = new Set(previous);
+      next.delete(root);
+      return next;
+    });
+  }, [filterState.selectedRootTask]);
+
+  const handleFoldToBranches = useCallback(() => {
+    skipFitViewRef.current = false;
+    setCollapsedTaskIds(getBranchFoldIds(branchModel, tasks));
+  }, [branchModel, tasks]);
+
+  const handleUnfoldAll = useCallback(() => {
+    skipFitViewRef.current = false;
+    setCollapsedTaskIds(new Set());
+  }, []);
+
   const foldedGraphVisibility = useMemo(
     () =>
       getFoldedGraphVisibility(
@@ -1200,7 +1259,8 @@ export default function TaskMapGraphView({
         collapsedTaskIds,
         foldedDescendantCounts: foldedGraphVisibility.foldedDescendantCounts,
         onToggleChildren: handleToggleTaskChildren,
-      }
+      },
+      branchModel
     );
     let newEdges = createEdgesFromTasks(
       graphTasks,
@@ -1222,6 +1282,35 @@ export default function TaskMapGraphView({
         getTaskConnectionKey(edge.source, edge.target)
       )
     );
+    // Cross-branch blockedBy links are drawn after layout so they never
+    // change where cards sit.
+    const dependencyEdges = createDependencyEdges(
+      getDependencyConnections(tasks, new Set(newNodes.map((node) => node.id))),
+      settings.layoutDirection,
+      settings.edgeStyle,
+      settings.smoothStepRadius
+    );
+
+    if (settings.layoutMode === "branches") {
+      const branchNodes = createBranchViewNodes(
+        newNodes,
+        newEdges,
+        settings.layoutDirection,
+        getLayoutViewport(containerRef.current)
+      );
+      layoutSnapshotRef.current = null;
+      lastPackedPositionsRef.current = new Map();
+      setNodes(branchNodes);
+      setEdges([...newEdges, ...dependencyEdges]);
+      const fitBranches = !skipFitViewRef.current;
+      skipFitViewRef.current = false;
+      scheduleFitView(
+        new Set(branchNodes.map((node) => node.id)),
+        new Map(branchNodes.map((node) => [node.id, { ...node.position }])),
+        fitBranches
+      );
+      return;
+    }
 
     if (settings.layoutMode === "tree") {
       const tree = createTreeLayoutElements({
@@ -1238,7 +1327,7 @@ export default function TaskMapGraphView({
       layoutSnapshotRef.current = null;
       lastPackedPositionsRef.current = new Map();
       setNodes(tree.nodes);
-      setEdges(tree.edges);
+      setEdges([...tree.edges, ...dependencyEdges]);
       const fitTree = !skipFitViewRef.current;
       skipFitViewRef.current = false;
       scheduleFitView(
@@ -1283,7 +1372,7 @@ export default function TaskMapGraphView({
 
     const finalNodes = [...layoutedLinkedNodes, ...layoutedDroppedNodes];
     setNodes(finalNodes);
-    setEdges(newEdges);
+    setEdges([...newEdges, ...dependencyEdges]);
 
     const expectedIds = new Set(finalNodes.map((n) => n.id));
     const expectedPositions = new Map(
@@ -1294,6 +1383,8 @@ export default function TaskMapGraphView({
     scheduleFitView(expectedIds, expectedPositions, fit);
   }, [
     graphTasks,
+    tasks,
+    branchModel,
     collapsedTaskIds,
     foldedGraphVisibility,
     settings,
@@ -1567,10 +1658,16 @@ export default function TaskMapGraphView({
       setOverviewSourceId(taskId);
       setOverviewRootIds(roots.map((root) => root.rootTaskId));
       setFilterState(overview.filter);
-      setCollapsedTaskIds(overview.collapsedTaskIds);
+      setCollapsedTaskIds(
+        settings.foldToBranches
+          ? getBranchFoldIds(branchModel, tasks, [taskId])
+          : overview.collapsedTaskIds
+      );
       setHideUnlinkedTasks(overview.hideUnlinkedTasks);
     },
     [
+      settings.foldToBranches,
+      branchModel,
       projectOptions,
       tasks,
       filterState,
@@ -2514,6 +2611,14 @@ export default function TaskMapGraphView({
                         layoutDirection: settings.layoutDirection,
                       }}
                       onLayoutChange={onLayoutChange}
+                      onFoldToBranches={
+                        branchModel.foldIds.size > 0
+                          ? handleFoldToBranches
+                          : undefined
+                      }
+                      onUnfoldAll={
+                        collapsedTaskIds.size > 0 ? handleUnfoldAll : undefined
+                      }
                     />
                   )}
                   {openPanel === "unlinked" && (

@@ -62,6 +62,10 @@ interface ControlsPanelProps {
   /** This tab's layout; omitted where the layout is fixed (e.g. embeds). */
   layout?: MapLayoutOptions;
   onLayoutChange?: (_patch: Partial<MapLayoutOptions>) => void;
+  /** Fold every branch to its summary card; omitted when there are none. */
+  onFoldToBranches?: () => void;
+  /** Unfold every folded card; omitted when nothing is folded. */
+  onUnfoldAll?: () => void;
 }
 
 export default function ControlsPanel({
@@ -79,6 +83,8 @@ export default function ControlsPanel({
   setArrangeMode,
   layout,
   onLayoutChange,
+  onFoldToBranches,
+  onUnfoldAll,
 }: ControlsPanelProps) {
   const [isMinimized, setIsMinimized] = useState(false);
 
@@ -116,6 +122,10 @@ export default function ControlsPanel({
                 options={[
                   { value: "graph", label: t("controls.layout_graph") },
                   { value: "tree", label: t("controls.layout_tree") },
+                  {
+                    value: "branches",
+                    label: t("controls.layout_branches"),
+                  },
                 ]}
                 onChange={(layoutMode) => onLayoutChange({ layoutMode })}
               />
@@ -198,6 +208,30 @@ export default function ControlsPanel({
               </label>
             </div>
           </div>
+
+          {(onFoldToBranches || onUnfoldAll) && (
+            <div className="tasks-map-filter-actions tasks-map-fold-actions">
+              {onFoldToBranches && (
+                <button
+                  type="button"
+                  onClick={onFoldToBranches}
+                  className="tasks-map-gui-overlay-reload-button"
+                  title={t("controls.fold_to_branches_desc")}
+                >
+                  {t("controls.fold_to_branches")}
+                </button>
+              )}
+              {onUnfoldAll && (
+                <button
+                  type="button"
+                  onClick={onUnfoldAll}
+                  className="tasks-map-gui-overlay-reload-button"
+                >
+                  {t("controls.unfold_all")}
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="tasks-map-filter-actions">
             <button

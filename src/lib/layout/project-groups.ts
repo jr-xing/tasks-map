@@ -1,12 +1,12 @@
 import { Node } from "reactflow";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { BaseTask, TaskAttachmentKind } from "src/types/base-task";
-import { TaskEdge, TaskNode } from "src/types/task";
+import { TaskEdge, TaskNode, TaskNodeData } from "src/types/task";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   NodeDensity,
 } from "src/types/settings";
-import { estimateNodeDimensions, NodeDimensions } from "./dimensions";
+import { estimateTaskNodeDimensions, NodeDimensions } from "./dimensions";
 import { layoutNodesWithDagre, LayoutDirection } from "./packing";
 
 export const PROJECT_GROUP_PADDING = 40;
@@ -97,17 +97,17 @@ export function createProjectGroupNodes(
     );
     const nodeDimensions = new Map<string, NodeDimensions>();
     memberNodes.forEach((node) => {
-      const task = taskById.get(node.id);
       nodeDimensions.set(
         node.id,
-        task
-          ? estimateNodeDimensions(
-              task,
-              showTags,
-              visibleAttachmentKinds,
-              nodeDensity
-            )
-          : { width: NODEWIDTH, height: NODEHEIGHT }
+        estimateTaskNodeDimensions(
+          {
+            ...(node.data as Partial<TaskNodeData>),
+            task: taskById.get(node.id),
+          },
+          showTags,
+          visibleAttachmentKinds,
+          nodeDensity
+        )
       );
     });
 

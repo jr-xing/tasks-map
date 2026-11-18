@@ -1,4 +1,6 @@
 export const TASK_NODE_HEADER_CLASS = "tasks-map-task-node-header";
+/** Buttons and panels on minimal cards; clicks there never open the note. */
+export const MINIMAL_CARD_CONTROLS_CLASS = "tasks-map-mcard-controls";
 
 interface ClosestElementTarget {
   closest(_selector: string): unknown;
@@ -17,5 +19,7 @@ export function isTaskNodeHeaderEventTarget(
   target: EventTarget | null
 ): boolean {
   if (!hasClosest(target)) return false;
-  return Boolean(target.closest(`.${TASK_NODE_HEADER_CLASS}`));
+  return [TASK_NODE_HEADER_CLASS, MINIMAL_CARD_CONTROLS_CLASS].some(
+    (className) => Boolean(target.closest(`.${className}`))
+  );
 }

@@ -39,6 +39,20 @@ export abstract class BaseTask {
   // choice. They stay null for inline/Dataview tasks.
   noteFilename: string | null;
   noteFrontmatterTitle: string | null;
+  // Branch structure read from frontmatter (note tasks only).
+  /** Marked as a branch by the configured kind property. */
+  isBranch: boolean;
+  /** Path of the task this branch names as its next step. */
+  nextStep: string | null;
+  /** Person or group this task is waiting on. */
+  waitingOn: string;
+  /** Paths of notes this task is also related to (not parents). */
+  relatedLinks: string[];
+  /**
+   * Paths of tasks that block this one, read from `blockedBy` when another
+   * property drives the map's parent edges. Empty otherwise.
+   */
+  blockedByLinks: string[];
 
   constructor(data: {
     id: string;
@@ -58,6 +72,11 @@ export abstract class BaseTask {
     dueDate?: string | null;
     noteFilename?: string | null;
     noteFrontmatterTitle?: string | null;
+    isBranch?: boolean;
+    nextStep?: string | null;
+    waitingOn?: string;
+    relatedLinks?: string[];
+    blockedByLinks?: string[];
   }) {
     this.id = data.id;
     this.summary = data.summary;
@@ -76,6 +95,11 @@ export abstract class BaseTask {
     this.dueDate = data.dueDate ?? null;
     this.noteFilename = data.noteFilename ?? null;
     this.noteFrontmatterTitle = data.noteFrontmatterTitle ?? null;
+    this.isBranch = data.isBranch ?? false;
+    this.nextStep = data.nextStep ?? null;
+    this.waitingOn = data.waitingOn ?? "";
+    this.relatedLinks = data.relatedLinks ?? [];
+    this.blockedByLinks = data.blockedByLinks ?? [];
   }
 
   /**
@@ -168,6 +192,11 @@ export abstract class BaseTask {
       dueDate: this.dueDate,
       noteFilename: this.noteFilename,
       noteFrontmatterTitle: this.noteFrontmatterTitle,
+      isBranch: this.isBranch,
+      nextStep: this.nextStep,
+      waitingOn: this.waitingOn,
+      relatedLinks: this.relatedLinks,
+      blockedByLinks: this.blockedByLinks,
     };
   }
 }

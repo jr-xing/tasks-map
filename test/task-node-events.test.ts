@@ -1,5 +1,6 @@
 import {
   isTaskNodeHeaderEventTarget,
+  MINIMAL_CARD_CONTROLS_CLASS,
   TASK_NODE_HEADER_CLASS,
 } from "../src/lib/task-node-events";
 
@@ -8,6 +9,18 @@ describe("task node event guards", () => {
     const target = {
       closest: jest.fn((selector: string) =>
         selector === `.${TASK_NODE_HEADER_CLASS}` ? {} : null
+      ),
+    };
+
+    expect(isTaskNodeHeaderEventTarget(target as unknown as EventTarget)).toBe(
+      true
+    );
+  });
+
+  it("detects events that start on a minimal card's controls", () => {
+    const target = {
+      closest: jest.fn((selector: string) =>
+        selector === `.${MINIMAL_CARD_CONTROLS_CLASS}` ? {} : null
       ),
     };
 

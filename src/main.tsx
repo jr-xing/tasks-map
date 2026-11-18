@@ -548,6 +548,7 @@ export default class TasksMapPlugin extends Plugin {
             this.settings.noteTaskCreatedDateProperty,
           quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
           noteDependencyProperty: this.settings.noteDependencyProperty,
+          branchProperties: this.settings.branchProperties,
         },
         this.settings.taskStatuses
       );
@@ -654,6 +655,7 @@ export default class TasksMapPlugin extends Plugin {
       noteTaskCreatedDateProperty: this.settings.noteTaskCreatedDateProperty,
       quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
       noteDependencyProperty: this.settings.noteDependencyProperty,
+      branchProperties: this.settings.branchProperties,
     };
   }
 
@@ -781,6 +783,7 @@ export default class TasksMapPlugin extends Plugin {
       noteTaskCreatedDateProperty: this.settings.noteTaskCreatedDateProperty,
       quickCommentsPropertyName: this.settings.quickCommentsPropertyName,
       noteDependencyProperty: this.settings.noteDependencyProperty,
+      branchProperties: this.settings.branchProperties,
     };
     const inspection = inspectNoteTask(
       this.app,

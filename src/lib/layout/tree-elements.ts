@@ -1,8 +1,9 @@
 import type { Edge, Node } from "reactflow";
 import type { BaseTask, TaskAttachmentKind } from "src/types/base-task";
 import type { NodeDensity } from "src/types/settings";
+import type { TaskNodeData } from "src/types/task";
 import { getStatusById, TaskStatusConfig } from "src/lib/status-config";
-import { estimateNodeDimensions, NodeDimensions } from "./dimensions";
+import { estimateTaskNodeDimensions, NodeDimensions } from "./dimensions";
 import type { LayoutDirection } from "./packing";
 import { layoutTree } from "./tree";
 
@@ -51,8 +52,8 @@ export function createTreeLayoutElements({
     if (task) {
       dimensions.set(
         node.id,
-        estimateNodeDimensions(
-          task,
+        estimateTaskNodeDimensions(
+          { ...(node.data as Partial<TaskNodeData>), task },
           showTags,
           visibleAttachmentKinds,
           nodeDensity

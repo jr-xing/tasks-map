@@ -36,9 +36,9 @@
     "show_status_counts": "显示状态计数",
     "show_status_counts_desc": "在画布上显示状态计数叠加层",
     "node_density": "节点密度",
-    "node_density_desc": "选择舒适任务卡片，或在悬停和选中时显示详情的紧凑单行卡片",
-    "node_density_comfortable": "舒适",
-    "node_density_compact": "紧凑",
+    "node_density_desc": "极简卡片为扁平样式：只显示状态颜色和关键标记，悬停时显示按钮。舒适和紧凑是经典卡片",
+    "node_density_comfortable": "经典",
+    "node_density_compact": "经典紧凑",
     "attachment_types": "附件类型",
     "attachment_type_markdown": "Markdown 笔记",
     "attachment_type_markdown_desc": "在任务节点下显示所属附件笔记",
@@ -177,7 +177,22 @@
     "language": "语言",
     "language_desc": "选择插件界面的语言",
     "layout_mode": "默认布局",
-    "layout_mode_desc": "新地图标签页使用的布局。每个标签页都可以单独在图形和树形之间切换。"
+    "layout_mode_desc": "新地图标签页使用的布局。每个标签页都可以单独在图形和树形之间切换。",
+    "branches_heading": "分支",
+    "branches_desc": "描述项目分支的可选笔记属性。未设置时，项目下自身还有子任务的直接子任务会被视为分支。",
+    "fold_to_branches": "打开地图时折叠到分支",
+    "fold_to_branches_desc": "每个分支先显示为一张摘要卡片，包含数量和下一步。点击折叠按钮查看其中的任务。",
+    "branch_kind_property": "分支属性",
+    "branch_kind_property_desc": "标记笔记角色的属性，例如 \"kind\"。",
+    "branch_kind_value": "分支取值",
+    "branch_kind_value_desc": "分支属性中表示分支的值，例如 \"area\"。",
+    "branch_next_property": "下一步属性",
+    "branch_next_property_desc": "分支笔记上指向下一步的属性，例如 \"next\"。",
+    "branch_waiting_property": "等待对象属性",
+    "branch_waiting_property_desc": "记录任务在等待谁的属性，例如 \"waitingOn\"。",
+    "branch_related_property": "相关属性",
+    "branch_related_property_desc": "把笔记关联到其他笔记但不作为父级的属性，例如 \"related\"。",
+    "node_density_minimal": "极简"
   },
   "filters": {
     "status": "状态",
@@ -217,7 +232,11 @@
     "layout": "布局",
     "layout_graph": "图形",
     "layout_tree": "树形",
-    "direction": "方向"
+    "direction": "方向",
+    "fold_to_branches": "折叠到分支",
+    "fold_to_branches_desc": "每个分支显示为一张摘要卡片，并隐藏其中的任务",
+    "unfold_all": "全部展开",
+    "layout_branches": "分支"
   },
   "multiselect": {
     "select": "选择...",
@@ -475,5 +494,29 @@
     "choose_project": "选择项目…",
     "open_project": "显示项目",
     "back_to_results": "返回任务搜索结果"
+  },
+  "branch": {
+    "branches_one": "{{count}} 个分支",
+    "branches_other": "{{count}} 个分支",
+    "active": "{{count}} 进行中",
+    "open": "{{count}} 待办",
+    "waiting": "{{count}} 等待中",
+    "done": "{{count}} 已完成",
+    "next": "下一步",
+    "suggested": "建议",
+    "next_title": "下一步：{{task}}。点击打开。",
+    "suggested_title": "未设置下一步。最紧迫的待办任务：{{task}}。点击打开。",
+    "no_open_tasks": "没有待办任务",
+    "waiting_on": "等待 {{names}}",
+    "related_one": "↗ {{count}} 个相关任务",
+    "related_other": "↗ {{count}} 个相关任务",
+    "no_next": "未设置下一步",
+    "due": "截止 {{date}}"
+  },
+  "minimal": {
+    "priority": "优先级：{{priority}}",
+    "due_overdue": "已逾期：截止 {{date}}",
+    "due_soon": "截止 {{date}}",
+    "starred": "已加星标"
   }
 }

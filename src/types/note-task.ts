@@ -18,9 +18,20 @@ import {
   updateTaskNotesStatus,
 } from "../lib/tasknotes-bridge";
 
-interface DependencyEntry {
-  uid: string;
-  reltype: string;
+/**
+ * The wikilink a dependency entry points at: `{ uid: "[[x]]" }` objects and
+ * plain `"[[x]]"` strings both resolve to `"[[x]]"`; aliases are dropped.
+ */
+function dependencyEntryTarget(entry: unknown): string | null {
+  const raw =
+    typeof entry === "string"
+      ? entry
+      : entry && typeof entry === "object" && "uid" in entry
+        ? (entry as { uid: unknown }).uid
+        : null;
+  if (typeof raw !== "string") return null;
+  const match = raw.match(/\[\[([^\]|#]+)/);
+  return match ? `[[${match[1].trim()}]]` : raw;
 }
 
 /**
@@ -28,6 +39,11 @@ interface DependencyEntry {
  */
 export class NoteTask extends BaseTask {
   readonly type = "note" as const;
+  /**
+   * Frontmatter property that holds this note's parent/dependency links. Map
+   * link edits write here so they match the property edges are read from.
+   */
+  dependencyProperty = "blockedBy";
 
   async updateToday(value: boolean, app: App): Promise<void> {
     const file = this.link ? app.vault.getFileByPath(this.link) : null;
@@ -395,6 +411,7 @@ export class NoteTask extends BaseTask {
     app?: App
   ): Promise<void> {
     if (
+      this.dependencyProperty === "blockedBy" &&
       app &&
       (await addTaskNotesDependency(app, this.link, {
         uid: this.dependencyUidFromTask(fromTask),
@@ -413,6 +430,7 @@ export class NoteTask extends BaseTask {
     app?: App
   ): Promise<void> {
     if (
+      this.dependencyProperty === "blockedBy" &&
       app &&
       (await removeTaskNotesDependency(
         app,
@@ -495,25 +513,29 @@ export class NoteTask extends BaseTask {
       const frontmatterData = parseYaml(frontmatterYaml) || {};
 
       const uidValue = this.dependencyUidFromTask(fromTask);
-
-      // Ensure blockedBy array exists
-      if (!frontmatterData.blockedBy) {
-        frontmatterData.blockedBy = [];
-      } else if (!Array.isArray(frontmatterData.blockedBy)) {
-        frontmatterData.blockedBy = [];
-      }
+      const property = this.dependencyProperty;
+      const current = frontmatterData[property];
+      const entries: unknown[] = Array.isArray(current)
+        ? current
+        : current
+          ? [current]
+          : [];
 
       // Check if dependency already exists
-      const exists = frontmatterData.blockedBy.some(
-        (dep: DependencyEntry) => dep && dep.uid === uidValue
+      const exists = entries.some(
+        (dep) => dependencyEntryTarget(dep) === uidValue
       );
 
       if (!exists) {
-        frontmatterData.blockedBy.push({
-          uid: uidValue,
-          reltype: "FINISHTOSTART",
-        });
+        // TaskNotes stores blockedBy as { uid, reltype } objects; any other
+        // parent property (e.g. projects) holds plain wikilinks.
+        entries.push(
+          property === "blockedBy"
+            ? { uid: uidValue, reltype: "FINISHTOSTART" }
+            : uidValue
+        );
       }
+      frontmatterData[property] = entries;
 
       const newFrontmatterYaml = stringifyYaml(frontmatterData);
 
@@ -552,14 +574,15 @@ export class NoteTask extends BaseTask {
 
       const uidToRemove = this.dependencyUidFromTaskId(fromTaskId);
 
-      // Remove the dependency from blockedBy array
-      if (Array.isArray(frontmatterData.blockedBy)) {
-        frontmatterData.blockedBy = frontmatterData.blockedBy.filter(
-          (dep: DependencyEntry) => dep && dep.uid !== uidToRemove
+      // Remove the dependency from the configured property
+      const property = this.dependencyProperty;
+      if (Array.isArray(frontmatterData[property])) {
+        frontmatterData[property] = frontmatterData[property].filter(
+          (dep: unknown) => dep && dependencyEntryTarget(dep) !== uidToRemove
         );
 
-        if (frontmatterData.blockedBy.length === 0) {
-          delete frontmatterData.blockedBy;
+        if (frontmatterData[property].length === 0) {
+          delete frontmatterData[property];
         }
       }
 

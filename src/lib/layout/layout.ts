@@ -1,12 +1,12 @@
 import { Edge, Node } from "reactflow";
 import { NODEHEIGHT, NODEWIDTH } from "src/components/task-node";
 import { BaseTask, TaskAttachmentKind } from "src/types/base-task";
-import { TaskEdge, TaskNode } from "src/types/task";
+import { TaskEdge, TaskNode, TaskNodeData } from "src/types/task";
 import {
   DEFAULT_VISIBLE_ATTACHMENT_KINDS,
   NodeDensity,
 } from "src/types/settings";
-import { estimateNodeDimensions, NodeDimensions } from "./dimensions";
+import { estimateTaskNodeDimensions, NodeDimensions } from "./dimensions";
 import {
   PROJECT_GROUP_HEADER_HEIGHT,
   PROJECT_GROUP_PADDING,
@@ -36,19 +36,17 @@ export interface LayoutSnapshot {
 }
 
 function dimensionsForTask(
-  task: BaseTask | undefined,
+  data: Partial<TaskNodeData> | undefined,
   showTags: boolean,
   visibleAttachmentKinds: TaskAttachmentKind[],
   nodeDensity: NodeDensity
 ): NodeDimensions {
-  return task
-    ? estimateNodeDimensions(
-        task,
-        showTags,
-        visibleAttachmentKinds,
-        nodeDensity
-      )
-    : { width: NODEWIDTH, height: NODEHEIGHT };
+  return estimateTaskNodeDimensions(
+    data,
+    showTags,
+    visibleAttachmentKinds,
+    nodeDensity
+  );
 }
 
 function packTopLevelComponents(
@@ -116,7 +114,7 @@ export function createLayoutSnapshot(
       nodeDimensions.set(
         node.id,
         dimensionsForTask(
-          node.data?.task,
+          node.data,
           showTags,
           visibleAttachmentKinds,
           nodeDensity
@@ -314,7 +312,7 @@ export function createLayoutSnapshot(
     nodeDimensions.set(
       node.id,
       dimensionsForTask(
-        node.data?.task as BaseTask | undefined,
+        node.data as Partial<TaskNodeData> | undefined,
         showTags,
         visibleAttachmentKinds,
         nodeDensity

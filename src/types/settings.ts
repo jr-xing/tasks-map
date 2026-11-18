@@ -10,15 +10,48 @@ import { TaskStatusConfig, cloneDefaultStatuses } from "../lib/status-config";
 import type { TaskAttachmentKind } from "./base-task";
 
 export type PriorityAccentPosition = "top" | "right";
-export type NodeDensity = "comfortable" | "compact";
-/** "graph" is the dagre dependency graph; "tree" is the git-style lane view. */
-export type LayoutMode = "graph" | "tree";
+/**
+ * "minimal" draws flat cards that show colours and key indicators and reveal
+ * their buttons on hover; "comfortable" and "compact" are the classic cards.
+ */
+export type NodeDensity = "minimal" | "comfortable" | "compact";
+/**
+ * "graph" is the dagre dependency graph; "tree" is the git-style lane view;
+ * "branches" draws projects, groups and branches as summary cards with
+ * their tasks as slim rows.
+ */
+export type LayoutMode = "graph" | "tree" | "branches";
 export type LayoutDirectionSetting = "Horizontal" | "Vertical";
 export type NoteTaskTitleSource = "filename" | "frontmatter";
 export type TaskOrganizerAiProvider = "openai" | "anthropic" | "google";
 export type TaskOrganizerOrphans = "skip" | "unassigned";
 
 export const DEFAULT_QUICK_COMMENTS_PROPERTY_NAME = "quick-comments";
+
+/**
+ * Frontmatter properties that describe a project's branch structure. All of
+ * them are optional in notes; the map falls back to the parent links alone.
+ */
+export interface BranchPropertySettings {
+  /** Property marking a note's role, e.g. `kind`. */
+  kindProperty: string;
+  /** Value of {@link kindProperty} that marks a branch, e.g. `area`. */
+  branchValue: string;
+  /** Property linking a branch to its next step, e.g. `next`. */
+  nextProperty: string;
+  /** Property naming who a task is waiting on, e.g. `waitingOn`. */
+  waitingOnProperty: string;
+  /** Property linking a note to other notes that also use it, e.g. `related`. */
+  relatedProperty: string;
+}
+
+export const DEFAULT_BRANCH_PROPERTIES: BranchPropertySettings = {
+  kindProperty: "kind",
+  branchValue: "area",
+  nextProperty: "next",
+  waitingOnProperty: "waitingOn",
+  relatedProperty: "related",
+};
 
 export interface FilterPreset {
   id: string;
@@ -59,6 +92,11 @@ export interface TasksMapSettings {
   // Which frontmatter property holds this note's dependencies (a list of note
   // links or { uid } objects). Example: "blockedBy" or "projects".
   noteDependencyProperty: string;
+  // Branch structure properties (see BranchPropertySettings).
+  branchProperties: BranchPropertySettings;
+  // When true, a map opens folded to branch level: branch cards show their
+  // summary and their tasks stay hidden until the branch is unfolded.
+  foldToBranches: boolean;
 
   // Width (in pixels) of the left sidebar holding the unlinked-tasks
   // and project-tree panels.
@@ -136,7 +174,7 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   showTags: true,
   showStatusCounts: true,
   visibleAttachmentKinds: [...DEFAULT_VISIBLE_ATTACHMENT_KINDS],
-  nodeDensity: "comfortable",
+  nodeDensity: "minimal",
 
   layoutMode: "graph",
   layoutDirection: "Horizontal",
@@ -155,6 +193,8 @@ export const DEFAULT_SETTINGS: TasksMapSettings = {
   noteTaskCreatedDateProperty: "dateCreated",
   quickCommentsPropertyName: DEFAULT_QUICK_COMMENTS_PROPERTY_NAME,
   noteDependencyProperty: "blockedBy",
+  branchProperties: { ...DEFAULT_BRANCH_PROPERTIES },
+  foldToBranches: true,
 
   // Left sidebar width default
   sidebarWidth: 220,

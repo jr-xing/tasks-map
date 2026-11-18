@@ -36,9 +36,9 @@
     "show_status_counts": "Show status counts",
     "show_status_counts_desc": "Display a status counts overlay on the canvas",
     "node_density": "Node density",
-    "node_density_desc": "Choose comfortable task cards or compact one-line cards that reveal details on hover and selection",
-    "node_density_comfortable": "Comfortable",
-    "node_density_compact": "Compact",
+    "node_density_desc": "Minimal cards are flat: they show status colours and key markers and reveal their buttons on hover. Comfortable and compact are the classic cards",
+    "node_density_comfortable": "Classic",
+    "node_density_compact": "Classic compact",
     "attachment_types": "Attachment Types",
     "attachment_type_markdown": "Markdown notes",
     "attachment_type_markdown_desc": "Show owned attachment notes under task nodes",
@@ -177,7 +177,22 @@
     "language": "Language",
     "language_desc": "Select the language for the plugin interface",
     "layout_mode": "Default layout",
-    "layout_mode_desc": "Layout for new map tabs. Each tab can switch between graph and tree on its own."
+    "layout_mode_desc": "Layout for new map tabs. Each tab can switch between graph and tree on its own.",
+    "branches_heading": "Branches",
+    "branches_desc": "Optional note properties that describe a project's branches. Without them, a project's direct subtasks that have subtasks of their own are treated as branches.",
+    "fold_to_branches": "Open maps folded to branches",
+    "fold_to_branches_desc": "Each branch starts as one summary card with its counts and next step. Click its fold button to see its tasks.",
+    "branch_kind_property": "Branch property",
+    "branch_kind_property_desc": "Property that marks a note's role, e.g. \"kind\".",
+    "branch_kind_value": "Branch value",
+    "branch_kind_value_desc": "Value of the branch property that marks a branch, e.g. \"area\".",
+    "branch_next_property": "Next step property",
+    "branch_next_property_desc": "Property on a branch linking to its next step, e.g. \"next\".",
+    "branch_waiting_property": "Waiting-on property",
+    "branch_waiting_property_desc": "Property naming who a task is waiting on, e.g. \"waitingOn\".",
+    "branch_related_property": "Related property",
+    "branch_related_property_desc": "Property linking a note to other notes that also use it, without making them parents, e.g. \"related\".",
+    "node_density_minimal": "Minimal"
   },
   "filters": {
     "status": "Status",
@@ -217,7 +232,11 @@
     "layout": "Layout",
     "layout_graph": "Graph",
     "layout_tree": "Tree",
-    "direction": "Direction"
+    "direction": "Direction",
+    "fold_to_branches": "Fold to branches",
+    "fold_to_branches_desc": "Show each branch as one summary card and hide its tasks",
+    "unfold_all": "Unfold all",
+    "layout_branches": "Branches"
   },
   "multiselect": {
     "select": "Select...",
@@ -475,5 +494,29 @@
     "choose_project": "Choose a project…",
     "open_project": "Show project",
     "back_to_results": "Back to task results"
+  },
+  "branch": {
+    "branches_one": "{{count}} branch",
+    "branches_other": "{{count}} branches",
+    "active": "{{count}} active",
+    "open": "{{count}} open",
+    "waiting": "{{count}} waiting",
+    "done": "{{count}} done",
+    "next": "Next",
+    "suggested": "Suggested",
+    "next_title": "Next step: {{task}}. Click to open it.",
+    "suggested_title": "No next step is set. Most pressing open task: {{task}}. Click to open it.",
+    "no_open_tasks": "No open tasks",
+    "waiting_on": "Waiting on {{names}}",
+    "related_one": "↗ {{count}} related task",
+    "related_other": "↗ {{count}} related tasks",
+    "no_next": "No next step set",
+    "due": "due {{date}}"
+  },
+  "minimal": {
+    "priority": "Priority: {{priority}}",
+    "due_overdue": "Overdue: due {{date}}",
+    "due_soon": "Due {{date}}",
+    "starred": "Starred"
   }
 }

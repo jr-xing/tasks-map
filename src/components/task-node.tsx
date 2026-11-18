@@ -30,6 +30,8 @@ import { TaskPriorityToggle } from "./task-priority";
 import { ProjectDot } from "./project-dot";
 import { TagInput } from "./tag-input";
 import { QuickUpdate } from "./quick-update";
+import { BranchSummaryView } from "./branch-summary";
+import { MinimalTaskCard } from "./minimal-task-card";
 import { useSummaryRenderer } from "../hooks/use-summary-renderer";
 import {
   removeTagFromTaskInVault,
@@ -41,6 +43,7 @@ import {
 import { TagsContext, TaskHoverPreviewContext } from "../contexts/context";
 import { t } from "../i18n";
 import { openFileInObsidian } from "../lib/open-file";
+import { getMinimalNodeTitle } from "../lib/minimal-card";
 import { triggerTaskHoverPreview } from "../lib/task-hover-preview";
 import {
   isTaskNotesCreationModalAvailable,
@@ -54,6 +57,12 @@ export const NODEHEIGHT = 120;
 const COMPACT_REVEAL_DURATION_MS = 160;
 const COMPACT_REVEAL_EASING = "cubic-bezier(0.2, 0, 0, 1)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+/** Minimal cards wait briefly before showing buttons, so sweeping the
+    pointer across the map does not flash toolbars. */
+const MINIMAL_REVEAL_DELAY_MS = 100;
+/** ...and keep them a moment after the pointer leaves, so they can be
+    reached. */
+const MINIMAL_HIDE_DELAY_MS = 250;
 
 interface CompactElementBounds {
   left: number;
@@ -153,7 +162,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     layoutDirection = "Horizontal",
     showPriorities = true,
     priorityAccentPosition = "top",
-    nodeDensity = "comfortable",
+    nodeDensity = "minimal",
     showTags = true,
     debugVisualization = false,
     tagColorPalette = "rainbow",
@@ -173,6 +182,8 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
     onTaskPriorityChange,
     onTaskStarredChange,
     trackVaultWrite,
+    level,
+    branchSummary,
   } = data;
 
   const { allTags, updateTaskTags } = useContext(TagsContext);
@@ -191,9 +202,38 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
   const compactAnimationStartSnapshotRef =
     useRef<CompactAnimationSnapshot | null>(null);
   const app = useApp();
-  const summaryRef = useSummaryRenderer(task.summary, app);
+  const isMinimal = nodeDensity === "minimal";
+  const summaryRef = useSummaryRenderer(
+    isMinimal ? getMinimalNodeTitle(task) : task.summary,
+    app
+  );
   const compactRevealed =
     nodeDensity === "compact" && (compactHovered || selected);
+  const [minimalHovered, setMinimalHovered] = useState(false);
+  const minimalHoverTimerRef = useRef<number | null>(null);
+  const minimalRevealed = isMinimal && (minimalHovered || selected);
+
+  const scheduleMinimalReveal = useCallback((show: boolean) => {
+    if (minimalHoverTimerRef.current !== null) {
+      window.clearTimeout(minimalHoverTimerRef.current);
+    }
+    minimalHoverTimerRef.current = window.setTimeout(
+      () => {
+        minimalHoverTimerRef.current = null;
+        setMinimalHovered(show);
+      },
+      show ? MINIMAL_REVEAL_DELAY_MS : MINIMAL_HIDE_DELAY_MS
+    );
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (minimalHoverTimerRef.current !== null) {
+        window.clearTimeout(minimalHoverTimerRef.current);
+      }
+    },
+    []
+  );
 
   // status/starred/tags are mirrored into local state for optimistic updates.
   // ReactFlow reuses this component instance across reloads (the node id is
@@ -580,11 +620,176 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
 
   const handleNodeMouseEnter = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isMinimal) scheduleMinimalReveal(true);
       handleCompactMouseEnter();
       handleHoverPreview(event);
     },
-    [handleCompactMouseEnter, handleHoverPreview]
+    [
+      handleCompactMouseEnter,
+      handleHoverPreview,
+      isMinimal,
+      scheduleMinimalReveal,
+    ]
   );
+
+  const handleNodeMouseLeave = useCallback(() => {
+    if (isMinimal) scheduleMinimalReveal(false);
+    handleCompactMouseLeave();
+  }, [handleCompactMouseLeave, isMinimal, scheduleMinimalReveal]);
+
+  const handleMinimalFocus = useCallback(() => {
+    scheduleMinimalReveal(true);
+  }, [scheduleMinimalReveal]);
+
+  const handleMinimalBlur = useCallback(
+    (event: React.FocusEvent<HTMLDivElement>) => {
+      const next = event.relatedTarget;
+      if (
+        next instanceof globalThis.Node &&
+        event.currentTarget.contains(next)
+      ) {
+        return;
+      }
+      scheduleMinimalReveal(false);
+    },
+    [scheduleMinimalReveal]
+  );
+
+  const tagList = (
+    <div className="tasks-map-tag-list">
+      {tags.map((tag) => (
+        <Tag
+          key={tag}
+          tag={tag}
+          palette={tagColorPalette}
+          onRemove={(tag) => void handleTagRemove(tag)}
+        />
+      ))}
+
+      {/* Add tag button/input */}
+      {isAddingTag ? (
+        <div className="nodrag">
+          <TagInput
+            allTags={allTags}
+            existingTags={tags}
+            onAddTag={(tag) => void handleAddTag(tag)}
+            onCancel={handleCancelAddTag}
+            hasError={tagError}
+          />
+        </div>
+      ) : (
+        <span
+          className="tasks-map-add-tag-button"
+          onClick={() => setIsAddingTag(true)}
+        >
+          <Plus size={10} />
+          Add tag
+        </span>
+      )}
+    </div>
+  );
+
+  const projectDots =
+    groupByProject && task.projects.length > 0 ? (
+      <div
+        className={[
+          "tasks-map-task-node-projects",
+          task.projects.length === 1 && "tasks-map-task-node-projects--single",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {task.projects.map((project, index) => (
+          <ProjectDot key={project} project={project} index={index} />
+        ))}
+      </div>
+    ) : null;
+
+  const statusToggle = (
+    <TaskStatusToggle
+      status={status}
+      task={task}
+      onStatusChange={handleStatusChange}
+      trackVaultWrite={trackVaultWrite}
+    />
+  );
+
+  const headerButtons = (
+    <>
+      <StarButton starred={starred} onClick={() => void handleStarToggle()} />
+      {canCreateTaskNotesProjectTask && (
+        <button
+          type="button"
+          className="tasks-map-task-node-header-button nodrag"
+          title={t("task_node.create_project_task")}
+          aria-label={t("task_node.create_project_task")}
+          onClick={handleCreateTask}
+        >
+          <CirclePlus size={16} />
+        </button>
+      )}
+      <LinkButton link={task.link} app={app} taskStatus={status} />
+      <TaskMenu
+        task={task}
+        app={app}
+        onTaskDeleted={() => onDeleteTask?.(task.id)}
+        onTaskChanged={onTaskChanged}
+        onEditTask={task.link ? () => onEditTask?.(task.link) : undefined}
+        trackVaultWrite={trackVaultWrite}
+      />
+    </>
+  );
+
+  if (isMinimal) {
+    return (
+      <MinimalTaskCard
+        data={data}
+        selected={selected}
+        revealed={minimalRevealed}
+        status={status}
+        priority={priority}
+        starred={starred}
+        summaryRef={summaryRef}
+        statusToggle={statusToggle}
+        toolbar={
+          <>
+            {showPriorities && (
+              <TaskPriorityToggle
+                priority={priority}
+                task={task}
+                priorityOptions={priorityOptions}
+                onPriorityChange={handlePriorityChange}
+                trackVaultWrite={trackVaultWrite}
+              />
+            )}
+            {headerButtons}
+          </>
+        }
+        details={
+          <>
+            {showTags && tagList}
+            {task instanceof NoteTask && (
+              <QuickUpdate
+                task={task}
+                propertyName={quickCommentsPropertyName}
+                onChanged={onQuickCommentsChanged}
+                trackVaultWrite={trackVaultWrite}
+              />
+            )}
+            <TaskAttachments
+              task={task}
+              visibleAttachmentKinds={visibleAttachmentKinds}
+            />
+            {projectDots}
+          </>
+        }
+        onMouseEnter={handleNodeMouseEnter}
+        onMouseLeave={handleNodeMouseLeave}
+        onFocus={handleMinimalFocus}
+        onBlur={handleMinimalBlur}
+      />
+    );
+  }
 
   return (
     <div
@@ -593,11 +798,12 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
         `tasks-map-task-node-shell--${nodeDensity}`,
         compactRevealed && "tasks-map-task-node-shell--revealed",
         selected && "tasks-map-task-node-shell--selected",
+        level && `tasks-map-task-node-shell--level-${level}`,
       ]
         .filter(Boolean)
         .join(" ")}
       onMouseEnter={handleNodeMouseEnter}
-      onMouseLeave={handleCompactMouseLeave}
+      onMouseLeave={handleNodeMouseLeave}
     >
       <div ref={compactCardRef} className="tasks-map-task-node-card">
         <TaskBackground
@@ -618,12 +824,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             className="tasks-map-task-node-header"
             onDoubleClick={handleHeaderDoubleClick}
           >
-            <TaskStatusToggle
-              status={status}
-              task={task}
-              onStatusChange={handleStatusChange}
-              trackVaultWrite={trackVaultWrite}
-            />
+            {statusToggle}
             {showPriorities && (
               <TaskPriorityToggle
                 priority={priority}
@@ -634,35 +835,20 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
               />
             )}
             <div className="tasks-map-task-node-header-spacer" />
-            <StarButton
-              starred={starred}
-              onClick={() => void handleStarToggle()}
-            />
-            {canCreateTaskNotesProjectTask && (
-              <button
-                type="button"
-                className="tasks-map-task-node-header-button nodrag"
-                title={t("task_node.create_project_task")}
-                aria-label={t("task_node.create_project_task")}
-                onClick={handleCreateTask}
-              >
-                <CirclePlus size={16} />
-              </button>
-            )}
-            <LinkButton link={task.link} app={app} taskStatus={status} />
-            <TaskMenu
-              task={task}
-              app={app}
-              onTaskDeleted={() => onDeleteTask?.(task.id)}
-              onTaskChanged={onTaskChanged}
-              onEditTask={task.link ? () => onEditTask?.(task.link) : undefined}
-              trackVaultWrite={trackVaultWrite}
-            />
+            {headerButtons}
           </div>
 
           <div className="tasks-map-task-node-content">
             <span ref={summaryRef} className="tasks-map-task-node-summary" />
           </div>
+
+          {level && level !== "task" && branchSummary && (
+            <BranchSummaryView
+              level={level}
+              summary={branchSummary}
+              onOpenTask={onEditTask}
+            />
+          )}
 
           {task instanceof NoteTask && (
             <QuickUpdate
@@ -674,39 +860,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           )}
 
           {showTags && (
-            <div className="tasks-map-task-node-footer">
-              <div className="tasks-map-tag-list">
-                {tags.map((tag) => (
-                  <Tag
-                    key={tag}
-                    tag={tag}
-                    palette={tagColorPalette}
-                    onRemove={(tag) => void handleTagRemove(tag)}
-                  />
-                ))}
-
-                {/* Add tag button/input */}
-                {isAddingTag ? (
-                  <div className="nodrag">
-                    <TagInput
-                      allTags={allTags}
-                      existingTags={tags}
-                      onAddTag={(tag) => void handleAddTag(tag)}
-                      onCancel={handleCancelAddTag}
-                      hasError={tagError}
-                    />
-                  </div>
-                ) : (
-                  <span
-                    className="tasks-map-add-tag-button"
-                    onClick={() => setIsAddingTag(true)}
-                  >
-                    <Plus size={10} />
-                    Add tag
-                  </span>
-                )}
-              </div>
-            </div>
+            <div className="tasks-map-task-node-footer">{tagList}</div>
           )}
 
           {debugVisualization && (
@@ -723,21 +877,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
             <TaskDetails task={task} status={status} />
           )}
 
-          {groupByProject && task.projects.length > 0 && (
-            <div
-              className={[
-                "tasks-map-task-node-projects",
-                task.projects.length === 1 &&
-                  "tasks-map-task-node-projects--single",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {task.projects.map((project, index) => (
-                <ProjectDot key={project} project={project} index={index} />
-              ))}
-            </div>
-          )}
+          {projectDots}
         </TaskBackground>
         {hasVisibleChildren && (
           <button

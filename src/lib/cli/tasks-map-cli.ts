@@ -619,8 +619,12 @@ export function createTasksMapCliCommands(
         const layout: Partial<MapLayoutOptions> = {};
         const layoutArg = param(params, "layout")?.toLowerCase();
         if (layoutArg) {
-          if (layoutArg !== "graph" && layoutArg !== "tree") {
-            throw new CliError("layout must be graph or tree.");
+          if (
+            layoutArg !== "graph" &&
+            layoutArg !== "tree" &&
+            layoutArg !== "branches"
+          ) {
+            throw new CliError("layout must be graph, tree or branches.");
           }
           layout.layoutMode = layoutArg;
         }

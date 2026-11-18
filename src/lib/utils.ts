@@ -18,6 +18,8 @@ import {
   PriorityAccentPosition,
   TasksMapSettings,
   DEFAULT_QUICK_COMMENTS_PROPERTY_NAME,
+  DEFAULT_BRANCH_PROPERTIES,
+  BranchPropertySettings,
 } from "src/types/settings";
 import { TaskFactory } from "./task-factory";
 import { Position } from "reactflow";
@@ -32,6 +34,8 @@ import {
 } from "./status-config";
 import { normalizeDueDate } from "./task-dates";
 import type { VaultWriteTracker } from "./vault-watcher";
+import type { NoteTask } from "../types/note-task";
+import type { BranchModel, DependencyConnection } from "./branch-model";
 
 export {
   createProjectGroupNodes,
@@ -668,6 +672,7 @@ export type NoteTaskConfig = Pick<
   | "noteTaskCreatedDateProperty"
   | "quickCommentsPropertyName"
   | "noteDependencyProperty"
+  | "branchProperties"
 >;
 
 export type NoteTaskInspectionReason =
@@ -1146,6 +1151,17 @@ function parseTaskNote(
 
   // Remove duplicates and assign to task
   task.incomingLinks = [...new Set(allIncomingLinks)];
+  if (task.type === "note") {
+    (task as NoteTask).dependencyProperty = dependencyProperty;
+  }
+
+  readBranchProperties(
+    task,
+    frontmatter,
+    app,
+    displaySettings?.branchProperties,
+    dependencyProperty
+  );
 
   // Parse projects from TaskNotes frontmatter for the "group by project"
   // feature. Skip this when "projects" is itself the dependency property:
@@ -1168,6 +1184,67 @@ function parseTaskNote(
   }
 
   return task;
+}
+
+function frontmatterList(value: unknown): unknown[] {
+  if (value === undefined || value === null || value === "") return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function frontmatterText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+      .map((v) => v.trim())
+      .join(", ");
+  }
+  return "";
+}
+
+/**
+ * Read the optional branch-structure properties (kind, next step, waiting
+ * on, related, and blockedBy when it is not already the parent property).
+ */
+function readBranchProperties(
+  task: BaseTask,
+  frontmatter: Record<string, unknown>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
+  app: any,
+  configured: Partial<BranchPropertySettings> | undefined,
+  dependencyProperty: string
+): void {
+  const props = { ...DEFAULT_BRANCH_PROPERTIES, ...configured };
+  const branchValue = normalizeCriteriaValue(props.branchValue);
+  task.isBranch =
+    !!props.kindProperty.trim() &&
+    !!branchValue &&
+    frontmatterList(frontmatter[props.kindProperty.trim()]).some(
+      (value) =>
+        typeof value === "string" &&
+        normalizeCriteriaValue(value) === branchValue
+    );
+  const toLinks = (property: string) => {
+    const name = property.trim();
+    if (!name) return [];
+    try {
+      return parseBlockedByLinks(frontmatterList(frontmatter[name]), app);
+    } catch {
+      return [];
+    }
+  };
+  task.nextStep = toLinks(props.nextProperty)[0] ?? null;
+  task.waitingOn = props.waitingOnProperty.trim()
+    ? frontmatterText(frontmatter[props.waitingOnProperty.trim()])
+    : "";
+  task.relatedLinks = [...new Set(toLinks(props.relatedProperty))].filter(
+    (link) => link !== task.id
+  );
+  task.blockedByLinks =
+    dependencyProperty === "blockedBy"
+      ? []
+      : [...new Set(toLinks("blockedBy"))].filter((link) => link !== task.id);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Obsidian App type does not expose plugins property
@@ -1290,11 +1367,17 @@ export function createNodesFromTasks(
   onTaskStarredChange?: (taskId: string, starred: boolean) => void,
   trackVaultWrite?: VaultWriteTracker,
   nodeDensity: NodeDensity = "comfortable",
-  folding?: TaskNodeFoldingOptions
+  folding?: TaskNodeFoldingOptions,
+  branchModel?: BranchModel
 ): TaskNode[] {
   const isVertical = layoutDirection === "Vertical";
   const sourcePosition = isVertical ? Position.Bottom : Position.Right;
   const targetPosition = isVertical ? Position.Top : Position.Left;
+  const nextStepIds = new Set(
+    [...(branchModel?.summaries.values() ?? [])]
+      .map((summary) => summary.next?.id)
+      .filter((id): id is string => !!id)
+  );
 
   return tasks.map((task, idx) => ({
     id: task.id,
@@ -1325,6 +1408,9 @@ export function createNodesFromTasks(
       onTaskPriorityChange,
       onTaskStarredChange,
       trackVaultWrite,
+      level: branchModel?.levels.get(task.id),
+      branchSummary: branchModel?.summaries.get(task.id),
+      isNextStep: nextStepIds.has(task.id),
     },
     type: "task" as const,
     sourcePosition,
@@ -1362,6 +1448,31 @@ export function createEdgesFromTasks(
     });
   });
   return edges;
+}
+
+/** Dashed, read-only edges for cross-branch blockedBy links. */
+export function createDependencyEdges(
+  connections: DependencyConnection[],
+  layoutDirection: "Horizontal" | "Vertical" = "Horizontal",
+  edgeStyle: "Bezier" | "Straight" | "SmoothStep" = "Bezier",
+  smoothStepRadius: number = 10
+): TaskEdge[] {
+  return connections.map((connection) => ({
+    id: `dependency:${connection.source}->${connection.target}`,
+    source: connection.source,
+    target: connection.target,
+    type: "hash" as const,
+    selectable: false,
+    deletable: false,
+    data: {
+      hash: "",
+      layoutDirection,
+      edgeStyle,
+      smoothStepRadius,
+      dependency: true,
+      label: connection.label,
+    },
+  }));
 }
 
 /**

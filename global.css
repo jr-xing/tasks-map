@@ -4366,3 +4366,601 @@ If your plugin does not need CSS, delete this file.
   stroke: var(--background-primary);
   stroke-width: 2;
 }
+
+/* Branch levels: project, group and branch cards read differently from
+   ordinary task cards so the structure shows before the detail. */
+.tasks-map-task-node-shell--level-project .tasks-map-task-background--status {
+  border: 2px solid var(--interactive-accent);
+  border-left-width: 6px;
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--interactive-accent) 16%, transparent) 0%,
+    color-mix(in srgb, var(--interactive-accent) 6%, transparent) 100%
+  );
+}
+
+.tasks-map-task-node-shell--level-project .tasks-map-task-node-summary {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tasks-map-task-node-shell--level-group .tasks-map-task-background--status {
+  border-style: dashed;
+  border-width: 1.5px;
+  border-left: 4px solid var(--interactive-accent);
+  background-image: none;
+  background-color: color-mix(
+    in srgb,
+    var(--interactive-accent) 7%,
+    var(--background-secondary)
+  );
+}
+
+.tasks-map-task-node-shell--level-group .tasks-map-task-node-summary {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.tasks-map-task-node-shell--level-branch .tasks-map-task-node-summary {
+  font-size: 14.5px;
+  font-weight: 650;
+}
+
+.tasks-map-branch-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 -12px 4px;
+  padding: 7px 12px 2px;
+  border-top: 1px solid var(--tasks-map-node-divider);
+  pointer-events: auto;
+}
+
+.tasks-map-branch-summary-counts {
+  font-family: var(--font-monospace);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks-map-branch-summary-next {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-normal);
+  cursor: pointer;
+  height: auto;
+}
+
+.tasks-map-branch-summary-next:hover .tasks-map-branch-summary-next-text {
+  text-decoration: underline;
+}
+
+.tasks-map-branch-summary-next-label {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--interactive-accent);
+}
+
+.tasks-map-branch-summary-next-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  font-weight: 600;
+}
+
+.tasks-map-branch-summary-next--suggested .tasks-map-branch-summary-next-label {
+  color: var(--text-faint);
+}
+
+.tasks-map-branch-summary-next--suggested .tasks-map-branch-summary-next-text {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.tasks-map-branch-summary-next--empty {
+  cursor: default;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.tasks-map-branch-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tasks-map-branch-chip {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+}
+
+.tasks-map-branch-chip--waiting {
+  background: color-mix(in srgb, var(--color-orange) 18%, transparent);
+  color: var(--text-normal);
+}
+
+.tasks-map-fold-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tasks-map-hash-edge-path--dependency {
+  stroke: var(--color-red);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.tasks-map-dependency-edge-label {
+  fill: var(--color-red);
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  paint-order: stroke;
+  stroke: var(--background-primary);
+  stroke-width: 3px;
+}
+
+/* Minimal cards: rounded summary cards for projects, groups and branches and
+   slim rows for tasks. At rest they keep only colours and key markers; the
+   buttons show on hover or selection. Sizes come from
+   getMinimalNodeDimensions (src/lib/layout/dimensions.ts) and are applied
+   through --tasks-map-mcard-width / --tasks-map-mcard-height. */
+.tasks-map-graph-container
+  .react-flow__node-task:has(
+    .tasks-map-task-node-shell--minimal.tasks-map-task-node-shell--revealed
+  ) {
+  /* stylelint-disable-next-line declaration-no-important -- override ReactFlow inline stacking */
+  z-index: 1001 !important;
+}
+
+.tasks-map-task-node-shell--minimal {
+  position: relative;
+  width: var(--tasks-map-mcard-width, 280px);
+}
+
+.tasks-map-mcard {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--tasks-map-mcard-width, 280px);
+  height: var(--tasks-map-mcard-height, 32px);
+  border-radius: 10px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  box-shadow: 0 1px 3px rgba(var(--tasks-map-color-black-rgb), 0.06);
+  color: var(--text-normal);
+  cursor: default;
+}
+
+.tasks-map-mcard--selected {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+/* Status dot: the task's own status colour; click to change it. */
+.tasks-map-mcard-status {
+  flex: none;
+  display: flex;
+  align-self: stretch;
+}
+
+.tasks-map-mcard-status .tasks-map-status-container {
+  display: flex;
+}
+
+.tasks-map-mcard .tasks-map-mcard-status .tasks-map-task-status-toggle {
+  width: 22px;
+  border-radius: 6px;
+}
+
+.tasks-map-mcard-status .tasks-map-task-status-dot {
+  width: 10px;
+  height: 10px;
+}
+
+/* Cards: projects, groups and branches. */
+.tasks-map-mcard--card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 18px 10px 12px;
+  overflow: hidden;
+}
+
+.tasks-map-mcard--project {
+  border: 2px solid var(--interactive-accent);
+  background: color-mix(
+    in srgb,
+    var(--interactive-accent) 7%,
+    var(--background-primary)
+  );
+}
+
+.tasks-map-mcard--group {
+  background: var(--background-secondary);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.tasks-map-mcard-title-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tasks-map-mcard-title-line .tasks-map-mcard-status {
+  align-self: flex-start;
+  height: 20px;
+}
+
+.tasks-map-mcard-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.tasks-map-mcard-title .tasks-map-task-node-summary,
+.tasks-map-mcard-title .tasks-map-task-node-summary p {
+  display: inline;
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+.tasks-map-mcard--card .tasks-map-mcard-title {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 20px;
+}
+
+.tasks-map-mcard--project .tasks-map-mcard-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Rows: one task per line. */
+.tasks-map-mcard--row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 4px;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.tasks-map-mcard--row .tasks-map-mcard-title {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.tasks-map-mcard--row.tasks-map-mcard--selected {
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+.tasks-map-mcard--next {
+  border-color: var(--interactive-accent);
+}
+
+.tasks-map-mcard--next .tasks-map-mcard-title {
+  font-weight: 600;
+}
+
+.tasks-map-mcard--closed {
+  color: var(--text-faint);
+}
+
+.tasks-map-mcard--closed .tasks-map-mcard-title {
+  text-decoration: line-through;
+}
+
+/* Markers kept at rest. */
+.tasks-map-mcard-indicators {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  min-height: 20px;
+  color: var(--text-faint);
+}
+
+.tasks-map-mcard-indicators:empty {
+  display: none;
+}
+
+.tasks-map-mcard-indicator {
+  display: inline-flex;
+}
+
+.tasks-map-mcard-indicator--priority {
+  color: var(--tasks-map-priority-color, var(--color-red));
+}
+
+.tasks-map-mcard-indicator--waiting {
+  color: var(--color-orange);
+}
+
+.tasks-map-mcard-indicator--star {
+  color: rgb(255, 215, 0);
+}
+
+.tasks-map-mcard-due {
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks-map-mcard-due--soon {
+  color: var(--color-orange);
+  background: color-mix(in srgb, var(--color-orange) 15%, transparent);
+}
+
+.tasks-map-mcard-due--overdue {
+  color: var(--color-red);
+  background: color-mix(in srgb, var(--color-red) 15%, transparent);
+}
+
+.tasks-map-mcard-related {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.tasks-map-mcard-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--interactive-accent);
+}
+
+/* Counts, coloured by the matching status. */
+.tasks-map-mcard-counts,
+.tasks-map-mcard-meta {
+  display: flex;
+  gap: 10px;
+  height: 16px;
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.tasks-map-mcard-count--active {
+  color: var(--tasks-map-mcard-active, var(--color-blue));
+  font-weight: 600;
+}
+
+.tasks-map-mcard-count--waiting {
+  color: var(--color-orange);
+}
+
+.tasks-map-mcard-count--done {
+  color: var(--tasks-map-mcard-done, var(--color-green));
+}
+
+.tasks-map-mcard-count--none,
+.tasks-map-mcard-meta {
+  color: var(--text-faint);
+}
+
+.tasks-map-mcard-meta--soon {
+  color: var(--color-orange);
+}
+
+.tasks-map-mcard-meta--overdue {
+  color: var(--color-red);
+}
+
+/* "▶ next step" line on branch cards. */
+.tasks-map-graph-container .tasks-map-mcard-next {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  height: auto;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--interactive-accent);
+  cursor: pointer;
+}
+
+.tasks-map-graph-container .tasks-map-mcard-next:hover {
+  background: none;
+}
+
+.tasks-map-mcard-next:hover .tasks-map-mcard-next-text {
+  text-decoration: underline;
+}
+
+.tasks-map-mcard-next > span[aria-hidden] {
+  flex: none;
+  font-size: 10px;
+}
+
+.tasks-map-mcard-next-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tasks-map-graph-container .tasks-map-mcard-next--none {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.tasks-map-mcard-next--none:hover .tasks-map-mcard-next-text {
+  text-decoration: none;
+}
+
+/* Hover toolbar: sits just above the card, flush with its right edge. */
+.tasks-map-mcard-toolbar {
+  position: absolute;
+  right: -1px;
+  bottom: calc(100% + 4px);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  box-shadow: 0 1px 3px rgba(var(--tasks-map-color-black-rgb), 0.06);
+  color: var(--text-muted);
+}
+
+/* An invisible bridge so the pointer can move from card to toolbar. */
+.tasks-map-mcard-toolbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 6px;
+}
+
+.tasks-map-mcard-toolbar > * {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+}
+
+.tasks-map-mcard-toolbar .tasks-map-task-priority-toggle,
+.tasks-map-mcard-toolbar .tasks-map-star-button,
+.tasks-map-mcard-toolbar .tasks-map-task-node-header-button,
+.tasks-map-mcard-toolbar .tasks-map-link-button,
+.tasks-map-mcard-toolbar .tasks-map-task-menu-button {
+  min-width: 26px;
+  height: 26px;
+  align-self: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-radius: 6px;
+}
+
+.tasks-map-mcard-toolbar svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Details panel: tags, quick update and attachments while selected,
+   exactly as wide as the card and just below it. */
+.tasks-map-mcard-details {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  background: var(--background-primary);
+  box-shadow: 0 1px 3px rgba(var(--tasks-map-color-black-rgb), 0.06);
+  cursor: default;
+}
+
+.tasks-map-mcard-details:empty {
+  display: none;
+}
+
+.tasks-map-mcard-details .tasks-map-quick-update,
+.tasks-map-mcard-details .tasks-map-task-attachments {
+  margin: 0;
+}
+
+.tasks-map-mcard-details .tasks-map-task-node-projects {
+  position: static;
+}
+
+/* Fold badge: "+N" while folded, "−" while open. */
+.tasks-map-graph-container .tasks-map-mcard-fold {
+  position: absolute;
+  top: 50%;
+  right: -13px;
+  z-index: 2;
+  transform: translateY(-50%);
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 13px;
+  border: 2px solid var(--background-primary);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font: 600 11px/1 var(--font-monospace);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.tasks-map-graph-container .tasks-map-mcard-fold:hover {
+  background: var(--interactive-accent-hover);
+}
+
+.tasks-map-graph-container .tasks-map-mcard--row .tasks-map-mcard-fold {
+  min-width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
+.tasks-map-graph-container .tasks-map-mcard-fold--bottom {
+  top: auto;
+  right: 50%;
+  bottom: -13px;
+  transform: translateX(50%);
+}
+
+/* Link handles: shown on hover and selection like on classic cards. */
+.tasks-map-graph-container .tasks-map-mcard-handle {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--background-modifier-border-hover);
+  background: var(--background-primary);
+}
