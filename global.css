@@ -4858,7 +4858,7 @@ g:hover > .tasks-map-dependency-edge-label {
 /* Hover toolbar: sits just above the card, flush with its right edge. */
 .tasks-map-mcard-toolbar {
   position: absolute;
-  right: -1px;
+  right: 0;
   bottom: calc(100% + 4px);
   z-index: 2;
   display: flex;
@@ -4945,7 +4945,7 @@ g:hover > .tasks-map-dependency-edge-label {
 .tasks-map-graph-container .tasks-map-mcard-fold {
   position: absolute;
   top: 50%;
-  right: -13px;
+  right: -14px;
   z-index: 2;
   transform: translateY(-50%);
   min-width: 26px;
@@ -4964,7 +4964,7 @@ g:hover > .tasks-map-dependency-edge-label {
   background: var(--interactive-accent-hover);
 }
 
-.tasks-map-graph-container .tasks-map-mcard--row .tasks-map-mcard-fold {
+.tasks-map-graph-container .tasks-map-mcard-fold--row {
   min-width: 22px;
   height: 22px;
   font-size: 10px;
@@ -4973,7 +4973,7 @@ g:hover > .tasks-map-dependency-edge-label {
 .tasks-map-graph-container .tasks-map-mcard-fold--bottom {
   top: auto;
   right: 50%;
-  bottom: -13px;
+  bottom: -14px;
   transform: translateX(50%);
 }
 

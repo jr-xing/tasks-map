@@ -20,6 +20,7 @@ import { TaskAttachmentKind } from "src/types/base-task";
 import { NoteTask } from "src/types/note-task";
 import { TaskDetails } from "./task-details";
 import { ExpandButton } from "./expand-button";
+import { FocusButtons } from "./focus-buttons";
 import { LinkButton } from "./link-button";
 import { StarButton } from "./star-button";
 import TaskMenu from "./task-menu";
@@ -728,6 +729,7 @@ export default function TaskNode({ data, selected }: NodeProps<TaskNodeData>) {
           <CirclePlus size={16} />
         </button>
       )}
+      <FocusButtons taskId={task.id} />
       <LinkButton link={task.link} app={app} taskStatus={status} />
       <TaskMenu
         task={task}

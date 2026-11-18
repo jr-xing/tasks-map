@@ -2,6 +2,8 @@ import {
   buildProjectRootOptions,
   canOpenPickerProjects,
   createOverviewState,
+  createSubtreeFocusState,
+  unfoldSubtree,
   getNavigationTaskId,
   getProjectScopeTaskIds,
   selectNavigationMap,
@@ -191,6 +193,72 @@ describe("project navigation", () => {
     expect(next.filter.selectedStatuses).toEqual(["done"]);
     original.filter.selectedTags.push("later");
     expect(next.returnState.filter.selectedTags).toEqual([]);
+  });
+
+  describe("card subtree focus", () => {
+    const original: TaskMapReturnState = {
+      filter: {
+        ...DEFAULT_FILTER_STATE,
+        searchQuery: "Alpha",
+        selectedStatuses: ["todo"],
+      },
+      collapsedTaskIds: ["shared"],
+      selectedTaskIds: ["parent"],
+      hideUnlinkedTasks: false,
+      viewport: { x: 10, y: 20, zoom: 1.2 },
+    };
+
+    it("shows only the task and its subtasks, unfolded", () => {
+      const focus = createSubtreeFocusState(original, null, "parent");
+      expect(focus.filter.selectedRootTask).toBe("parent");
+      expect(focus.filter.searchQuery).toBe("");
+      expect(focus.filter.selectedStatuses).toEqual(["todo"]);
+      expect(focus.collapsedTaskIds.size).toBe(0);
+      const ids = getFilteredNodeIds(tasks, {
+        ...focus.filter,
+        selectedStatuses: [],
+      });
+      expect(ids.sort()).toEqual(["child", "parent", "shared"]);
+    });
+
+    it("snapshots the current view for Back without sharing state", () => {
+      const focus = createSubtreeFocusState(original, null, "parent");
+      expect(focus.returnState).toEqual(original);
+      expect(focus.returnState).not.toBe(original);
+      expect(focus.returnState.filter).not.toBe(original.filter);
+    });
+
+    it("keeps an earlier return snapshot, e.g. from a project overview", () => {
+      const earlier = structuredClone(original);
+      const focus = createSubtreeFocusState(
+        { ...original, collapsedTaskIds: [] },
+        earlier,
+        "shared"
+      );
+      expect(focus.returnState).toBe(earlier);
+    });
+  });
+
+  describe("unfoldSubtree", () => {
+    it("unfolds the focused task and every card below it", () => {
+      const collapsed = new Set(["parent", "shared", "sibling", "Beta"]);
+      expect([...unfoldSubtree(collapsed, tasks, "parent")].sort()).toEqual([
+        "Beta",
+        "sibling",
+      ]);
+    });
+
+    it("unfolds a whole project from its root", () => {
+      const collapsed = new Set(["parent", "shared", "sibling", "unrelated"]);
+      expect([...unfoldSubtree(collapsed, tasks, "Alpha")]).toEqual([
+        "unrelated",
+      ]);
+    });
+
+    it("returns the same set when nothing in scope is folded", () => {
+      const collapsed = new Set(["sibling"]);
+      expect(unfoldSubtree(collapsed, tasks, "parent")).toBe(collapsed);
+    });
   });
 
   it("retains every visibility filter while removing the previous task search and focus", () => {

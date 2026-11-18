@@ -446,7 +446,9 @@
     "expand_children": "Expand child tasks",
     "create_project_task": "Create task in this project",
     "open_note": "Open note (Ctrl-click or middle-click for new tab)",
-    "priority": "Priority: {{priority}}"
+    "priority": "Priority: {{priority}}",
+    "focus_project": "Show whole project",
+    "focus_subtree": "Show this task and its subtasks"
   },
   "quick_update": {
     "label": "Quick update",
@@ -505,6 +507,7 @@
     "task_missing": "The task is no longer available.",
     "projects_missing": "The projects are no longer available. Returning to the previous task view.",
     "title": "Project overview: {{projects}}",
+    "subtree_title": "Focused: {{task}} and its subtasks",
     "return_available": "Previous task view available",
     "back": "Back to task view",
     "navigate": "Select a task",

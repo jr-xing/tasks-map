@@ -79,10 +79,12 @@ function categoryColor(
 
 interface FoldBadgeProps {
   data: TaskNodeData;
+  /** Slim task row: a smaller badge. */
+  row: boolean;
 }
 
 /** "+N" while folded, "−" while open; toggles the node's children. */
-function FoldBadge({ data }: FoldBadgeProps) {
+function FoldBadge({ data, row }: FoldBadgeProps) {
   const { task, childrenCollapsed, foldedChildrenCount = 0 } = data;
   const onToggle = data.onToggleChildren;
   const handleClick = useCallback(
@@ -108,6 +110,7 @@ function FoldBadge({ data }: FoldBadgeProps) {
       type="button"
       className={[
         "tasks-map-mcard-fold nodrag nopan",
+        row && "tasks-map-mcard-fold--row",
         data.layoutDirection === "Vertical" && "tasks-map-mcard-fold--bottom",
       ]
         .filter(Boolean)
@@ -435,13 +438,15 @@ export function MinimalTaskCard({
               )}
           </>
         )}
-        {revealed && (
-          <div className="tasks-map-mcard-controls tasks-map-mcard-toolbar nodrag nopan">
-            {toolbar}
-          </div>
-        )}
-        <FoldBadge data={data} />
       </div>
+      {/* Outside the card: summary cards clip their overflow, which hid the
+          toolbar and half the fold badge. */}
+      {revealed && (
+        <div className="tasks-map-mcard-controls tasks-map-mcard-toolbar nodrag nopan">
+          {toolbar}
+        </div>
+      )}
+      <FoldBadge data={data} row={variant === "row"} />
       {selected && details && (
         <div className="tasks-map-mcard-controls tasks-map-mcard-details nodrag nopan">
           {details}

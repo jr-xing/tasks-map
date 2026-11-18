@@ -446,7 +446,9 @@
     "expand_children": "展开子任务",
     "create_project_task": "在此项目中创建任务",
     "priority": "优先级：{{priority}}",
-    "open_note": "打开笔记（Ctrl 点击或中键点击新建标签页）"
+    "open_note": "打开笔记（Ctrl 点击或中键点击新建标签页）",
+    "focus_project": "显示整个项目",
+    "focus_subtree": "仅显示此任务及其子任务"
   },
   "quick_update": {
     "label": "快速更新",
@@ -505,6 +507,7 @@
     "task_missing": "该任务已不存在。",
     "projects_missing": "这些项目已不存在，正在返回之前的任务视图。",
     "title": "项目概览：{{projects}}",
+    "subtree_title": "聚焦：「{{task}}」及其子任务",
     "return_available": "可返回之前的任务视图",
     "back": "返回任务视图",
     "navigate": "选择任务",

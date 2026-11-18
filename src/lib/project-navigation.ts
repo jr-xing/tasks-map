@@ -1,5 +1,6 @@
 import { buildProjectTree, getTaskTreeLabel, TreeNode } from "./project-tree";
 import { traverseGraph } from "./traverse-graph";
+import { createTaskFocusFilter } from "./task-focus-picker";
 import { BaseTask } from "src/types/task";
 import { FilterState } from "src/types/filter-state";
 import type { Viewport } from "reactflow";
@@ -125,4 +126,30 @@ export function createOverviewState(
     collapsedTaskIds: new Set<string>(),
     hideUnlinkedTasks: current.hideUnlinkedTasks,
   };
+}
+
+/** Card focus: one task and its subtasks, unfolded, with a way back. */
+export function createSubtreeFocusState(
+  current: TaskMapReturnState,
+  existingReturnState: TaskMapReturnState | null,
+  taskId: string
+) {
+  return {
+    returnState: existingReturnState ?? structuredClone(current),
+    filter: createTaskFocusFilter(current.filter, taskId),
+    collapsedTaskIds: new Set<string>(),
+  };
+}
+
+/** Unfold every card in a task's subtree; folds elsewhere are kept. */
+export function unfoldSubtree(
+  collapsedTaskIds: Set<string>,
+  tasks: BaseTask[],
+  rootTaskId: string
+): Set<string> {
+  const scope = getProjectScopeTaskIds(tasks, [rootTaskId]);
+  if (![...collapsedTaskIds].some((id) => scope.has(id))) {
+    return collapsedTaskIds;
+  }
+  return new Set([...collapsedTaskIds].filter((id) => !scope.has(id)));
 }

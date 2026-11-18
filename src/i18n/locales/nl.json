@@ -446,7 +446,9 @@
     "expand_children": "Onderliggende taken uitvouwen",
     "create_project_task": "Taak in dit project maken",
     "open_note": "Notitie openen (Ctrl-klik of middelklik voor nieuw tabblad)",
-    "priority": "Prioriteit: {{priority}}"
+    "priority": "Prioriteit: {{priority}}",
+    "focus_project": "Hele project tonen",
+    "focus_subtree": "Deze taak en subtaken tonen"
   },
   "quick_update": {
     "label": "Snelle update",
@@ -505,6 +507,7 @@
     "task_missing": "De taak is niet meer beschikbaar.",
     "projects_missing": "De projecten zijn niet meer beschikbaar. Terug naar de vorige taakweergave.",
     "title": "Projectoverzicht: {{projects}}",
+    "subtree_title": "Gefocust: {{task}} en subtaken",
     "return_available": "Vorige taakweergave beschikbaar",
     "back": "Terug naar taakweergave",
     "navigate": "Taak selecteren",

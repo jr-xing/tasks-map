@@ -80,7 +80,11 @@ import {
 import { TaskMinimap } from "src/components/task-minimap";
 import HashEdge from "src/components/hash-edge";
 import { DeleteEdgeButton } from "src/components/delete-edge-button";
-import { TagsContext, StatusConfigContext } from "src/contexts/context";
+import {
+  TagsContext,
+  StatusConfigContext,
+  TaskFocusActionsContext,
+} from "src/contexts/context";
 import UnlinkedTasksPanel, {
   DRAG_DATA_KEY,
 } from "src/components/unlinked-tasks-panel";
@@ -96,6 +100,8 @@ import {
   getNavigationTaskId,
   getProjectScopeTaskIds,
   createOverviewState,
+  createSubtreeFocusState,
+  unfoldSubtree,
   TaskMapReturnState,
   TaskMapNavigationContext,
   selectProjectRoots,
@@ -1211,11 +1217,13 @@ export default function TaskMapGraphView({
     }
     branchFoldAppliedRef.current = true;
     if (!settings.foldToBranches || branchModel.foldIds.size === 0) return;
-    const keep = filterState.selectedRootTask
-      ? [filterState.selectedRootTask]
-      : [];
-    const fold = getBranchFoldIds(branchModel, tasks, keep);
-    setCollapsedTaskIds((previous) => new Set([...previous, ...fold]));
+    const root = filterState.selectedRootTask;
+    const fold = getBranchFoldIds(branchModel, tasks, root ? [root] : []);
+    setCollapsedTaskIds((previous) => {
+      const next = new Set([...previous, ...fold]);
+      // A map reopened on a focused task shows that task fully unfolded.
+      return root ? unfoldSubtree(next, tasks, root) : next;
+    });
   }, [
     branchModel,
     filterState.selectedRootTask,
@@ -1224,17 +1232,19 @@ export default function TaskMapGraphView({
     tasks,
   ]);
 
-  // Focusing a folded branch shows its tasks.
+  // Focusing a task or project unfolds every card under it, once per focus,
+  // so cards the user folds afterwards stay folded across refreshes.
+  const unfoldedFocusRef = React.useRef<string | null>(null);
   useEffect(() => {
     const root = filterState.selectedRootTask;
-    if (!root) return;
-    setCollapsedTaskIds((previous) => {
-      if (!previous.has(root)) return previous;
-      const next = new Set(previous);
-      next.delete(root);
-      return next;
-    });
-  }, [filterState.selectedRootTask]);
+    if (!root) {
+      unfoldedFocusRef.current = null;
+      return;
+    }
+    if (isLoading || unfoldedFocusRef.current === root) return;
+    unfoldedFocusRef.current = root;
+    setCollapsedTaskIds((previous) => unfoldSubtree(previous, tasks, root));
+  }, [filterState.selectedRootTask, isLoading, tasks]);
 
   const handleFoldToBranches = useCallback(() => {
     skipFitViewRef.current = false;
@@ -1941,16 +1951,11 @@ export default function TaskMapGraphView({
       setOverviewSourceId(taskId);
       setOverviewRootIds(roots.map((root) => root.rootTaskId));
       setFilterState(overview.filter);
-      setCollapsedTaskIds(
-        settings.foldToBranches
-          ? getBranchFoldIds(branchModel, tasks, [taskId])
-          : overview.collapsedTaskIds
-      );
+      // The whole project opens unfolded; Back restores the previous folds.
+      setCollapsedTaskIds(overview.collapsedTaskIds);
       setHideUnlinkedTasks(overview.hideUnlinkedTasks);
     },
     [
-      settings.foldToBranches,
-      branchModel,
       projectOptions,
       tasks,
       filterState,
@@ -1965,6 +1970,75 @@ export default function TaskMapGraphView({
   const handleShowFullProject = useCallback(() => {
     if (navigationTaskId) beginProjectOverview(navigationTaskId);
   }, [navigationTaskId, beginProjectOverview]);
+
+  /** Show one task and its subtasks, keeping a way back to this view. */
+  const beginSubtreeFocus = useCallback(
+    (taskId: string) => {
+      if (!tasks.some((task) => task.id === taskId)) {
+        new Notice(t("project_overview.task_missing"));
+        return;
+      }
+      const focus = createSubtreeFocusState(
+        {
+          filter: filterState,
+          collapsedTaskIds: [...collapsedTaskIds],
+          selectedTaskIds: reactFlowInstance
+            .getNodes()
+            .filter((node) => node.selected)
+            .map((node) => node.id),
+          hideUnlinkedTasks,
+          viewport: reactFlowInstance.getViewport(),
+        },
+        returnState,
+        taskId
+      );
+      pendingRestoreRef.current = null;
+      afterLayoutRef.current = null;
+      pendingTreeFocusRef.current = null;
+      pendingOverviewPulseRef.current = taskId;
+      skipFitViewRef.current = false;
+      setReturnState(focus.returnState);
+      setOverviewRootIds(null);
+      setOverviewSourceId(null);
+      setFilterState(focus.filter);
+      setCollapsedTaskIds(focus.collapsedTaskIds);
+    },
+    [
+      tasks,
+      filterState,
+      collapsedTaskIds,
+      hideUnlinkedTasks,
+      reactFlowInstance,
+      returnState,
+      setFilterState,
+    ]
+  );
+
+  // Cards read the latest actions through a ref, so the context value stays
+  // stable and opening a focus menu never re-renders the whole map.
+  const focusActionsRef = React.useRef({
+    projectOptions,
+    beginProjectOverview,
+    beginSubtreeFocus,
+  });
+  useEffect(() => {
+    focusActionsRef.current = {
+      projectOptions,
+      beginProjectOverview,
+      beginSubtreeFocus,
+    };
+  }, [projectOptions, beginProjectOverview, beginSubtreeFocus]);
+  const taskFocusActions = useMemo(
+    () => ({
+      canShowProject: (taskId: string) =>
+        !!focusActionsRef.current.projectOptions.get(taskId)?.length,
+      showProject: (taskId: string) =>
+        focusActionsRef.current.beginProjectOverview(taskId),
+      showSubtree: (taskId: string) =>
+        focusActionsRef.current.beginSubtreeFocus(taskId),
+    }),
+    []
+  );
 
   useEffect(() => {
     if (!focusRequest || isLoading) return;
@@ -2788,293 +2862,304 @@ export default function TaskMapGraphView({
   return (
     <StatusConfigContext.Provider value={settings.taskStatuses}>
       <TagsContext.Provider value={tagsContextValue}>
-        <div
-          className="tasks-map-graph-container"
-          ref={containerRef}
-          onDrop={(e) => void onDrop(e)}
-          onDragOver={onDragOver}
-          onDragStartCapture={beginDragInteraction}
-          onDragEndCapture={endDragInteraction}
-          onFocusCapture={onRefreshBlockingFocus}
-          onBlurCapture={onRefreshBlockingBlur}
-        >
-          {returnState && (
-            <div className="tasks-map-project-overview" ref={overviewStripRef}>
-              <span className="tasks-map-project-overview__label">
-                {overviewRootIds
-                  ? t("project_overview.title", {
-                      projects: overviewRootIds
-                        .map((id) => {
-                          const task = tasks.find(
-                            (candidate) => candidate.id === id
-                          );
-                          return task?.summary || task?.text || id;
-                        })
-                        .join(", "),
-                    })
-                  : t("project_overview.return_available")}
-              </span>
-              <button type="button" onClick={restoreTaskView}>
-                {t("project_overview.back")}
-              </button>
-            </div>
-          )}
-          <div className="tasks-map-corner" ref={cornerRef}>
-            <div className="tasks-map-rail-row">
-              <LeftRail
-                openPanel={openPanel}
-                onToggle={togglePanel}
-                onRefresh={manualReloadTasks}
-                showFilters={embed.showFilterPanel}
-                showKanban={embed.showFilterPanel}
-                showPresets={embed.showPresetsPanel}
-                showUnlinked={embed.showUnlinkedPanel}
-                showTree={embed.showUnlinkedPanel}
-                unlinkedCount={sidebarTasks.length}
-                onShowFullProject={handleShowFullProject}
-                canShowFullProject={canShowFullProject}
-                projectActionLabel={
-                  navigationTask
-                    ? t(
-                        canShowFullProject
-                          ? "project_overview.show_for"
-                          : "project_overview.no_project_for",
-                        {
-                          task:
-                            navigationTask.summary ||
-                            navigationTask.text ||
-                            navigationTask.id,
-                        }
-                      )
-                    : t("project_overview.select_task")
-                }
-              />
-              {openPanel && openPanel !== "kanban" && (
-                <div className="tasks-map-flyout">
-                  {openPanel === "filters" && (
-                    <GuiOverlay
-                      allTags={allTags}
-                      filterState={filterState}
-                      setFilterState={setFilterState}
-                      allFiles={allFiles}
-                      allProjects={allProjects}
-                      statuses={settings.taskStatuses}
-                      onSearch={handleSearch}
-                      searchResultCount={searchResultCount}
-                      suggestionTasks={preSearchFilteredTasks}
-                    />
-                  )}
-                  {openPanel === "presets" && (
-                    <FilterPresetsPanel
-                      presets={settings.filterPresets}
-                      filterState={filterState}
-                      plugin={plugin}
-                      onApply={(filter) => setFilterState(filter)}
-                      onSave={handleSavePreset}
-                      onRename={handleRenamePreset}
-                      onDelete={handleDeletePreset}
-                    />
-                  )}
-                  {openPanel === "view" && (
-                    <ControlsPanel
-                      showTags={settings.showTags}
-                      hideTags={hideTags}
-                      setHideTags={toggleHideTags}
-                      reloadTasks={manualReloadTasks}
-                      showUnlinkedPanel={embed.showUnlinkedPanel}
-                      hideUnlinkedTasks={hideUnlinkedTasks}
-                      setHideUnlinkedTasks={setHideUnlinkedTasks}
-                      showGroupByProject={showGroupByProject}
-                      groupByProject={groupByProject}
-                      setGroupByProject={setGroupByProject}
-                      arrangeMode={arrangeMode}
-                      setArrangeMode={setArrangeMode}
-                      layout={{
-                        layoutMode: settings.layoutMode,
-                        layoutDirection: settings.layoutDirection,
-                      }}
-                      onLayoutChange={onLayoutChange}
-                      groupArrangement={
-                        showGroupArrangement
-                          ? settings.taskGroupArrangement
-                          : undefined
-                      }
-                      onGroupArrangementChange={handleGroupArrangementChange}
-                      onFoldToBranches={
-                        branchModel.foldIds.size > 0
-                          ? handleFoldToBranches
-                          : undefined
-                      }
-                      onUnfoldAll={
-                        collapsedTaskIds.size > 0 ? handleUnfoldAll : undefined
-                      }
-                    />
-                  )}
-                  {openPanel === "unlinked" && (
-                    <UnlinkedTasksPanel tasks={sidebarTasks} />
-                  )}
-                  {openPanel === "tree" && (
-                    <ProjectTreePanel
-                      tasks={treeTasks}
-                      selectedRootTask={filterState.selectedRootTask}
-                      selectedRootLabel={selectedRootLabel}
-                      onClearFocus={handleTreeClearFocus}
-                      onTaskClick={handleTreeTaskClick}
-                      onTaskFocus={handleTreeTaskFocus}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          {openPanel === "kanban" && (
-            <div
-              className="tasks-map-kanban-overlay"
-              ref={(element) => {
-                kanbanPanelRef.current = element;
-                if (!element) return;
-                element.style.setProperty(
-                  "--tasks-map-kanban-height",
-                  `${kanbanPanelHeight}px`
-                );
-                element.style.setProperty(
-                  "--tasks-map-kanban-right",
-                  editorState ? `${editorPanelWidth + 8}px` : "16px"
-                );
-              }}
-            >
-              <KanbanPanel
-                tasks={kanbanTasks}
-                statuses={settings.taskStatuses}
-                notePriorityOptions={notePriorityOptions}
-                focusOptions={kanbanFocusOptions}
-                preferences={kanbanPreferences}
-                pinned={isKanbanPinned}
-                onPinnedChange={setIsKanbanPinned}
-                onClose={closeKanban}
-                onFocusProject={handleTreeTaskFocus}
-                onTaskStatusChange={handleTaskStatusChange}
-                onTaskTodayChange={handleKanbanTodayChange}
-                onTaskStatusMove={handleKanbanStatusMove}
-                onPreferencesChange={handleKanbanPreferencesChange}
-                onColumnOrderChange={handleKanbanColumnOrderChange}
-                trackVaultWrite={trackVaultWrite}
-              />
-              <div
-                className="tasks-map-kanban-resize-handle"
-                onPointerDown={onKanbanResizePointerDown}
-                onPointerMove={onKanbanResizePointerMove}
-                onPointerUp={onKanbanResizePointerUp}
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label={t("kanban.resize")}
-              />
-            </div>
-          )}
-          {isLoading && (
-            <div className="tasks-map-loading-container">
-              <div className="tasks-map-spinner" />
-              <div className="tasks-map-loading-text">Loading tasks...</div>
-            </div>
-          )}
-          {!isLoading && tasks.length === 0 && (
-            <GraphEmptyState variant="no_tasks" />
-          )}
-          {!isLoading && tasks.length > 0 && graphTasks.length === 0 && (
-            <GraphEmptyState variant="all_unlinked" />
-          )}
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            proOptions={{ hideAttribution: true }}
-            minZoom={0.1}
-            zoomOnScroll={false}
-            zoomOnPinch
-            zoomActivationKeyCode="Control"
-            panOnScroll
-            panOnScrollMode={
-              settings.layoutMode === "tree" &&
-              settings.layoutDirection === "Vertical"
-                ? PanOnScrollMode.Vertical
-                : PanOnScrollMode.Free
-            }
-            fitView
-            onConnect={(params) => void onConnect(params)}
-            onConnectStart={onConnectStart}
-            onConnectEnd={(e) => void onConnectEnd(e)}
-            onEdgeClick={onEdgeClick}
-            onNodeClick={onNodeClick}
-            onNodeDoubleClick={onNodeDoubleClick}
-            onPaneClick={onPaneClick}
-            onNodeDragStart={beginDragInteraction}
-            onNodeDrag={onNodeDrag}
-            onNodeDragStop={(e, node, nodes) =>
-              void onNodeDragStop(e, node, nodes)
-            }
-            onSelectionDragStart={beginDragInteraction}
-            onSelectionDrag={onSelectionDrag}
-            onSelectionDragStop={(e, nodes) =>
-              void onSelectionDragStop(e, nodes)
-            }
-            multiSelectionKeyCode="Shift"
-            selectionKeyCode="Shift"
-            nodesDraggable={arrangeMode}
+        <TaskFocusActionsContext.Provider value={taskFocusActions}>
+          <div
+            className="tasks-map-graph-container"
+            ref={containerRef}
+            onDrop={(e) => void onDrop(e)}
+            onDragOver={onDragOver}
+            onDragStartCapture={beginDragInteraction}
+            onDragEndCapture={endDragInteraction}
+            onFocusCapture={onRefreshBlockingFocus}
+            onBlurCapture={onRefreshBlockingBlur}
           >
-            {embed.showMinimap && <TaskMinimap />}
-            <Background />
-            {settings.showStatusCounts && embed.showStatusCounts && (
-              <StatusCountsOverlay tasks={filteredTasks} />
-            )}
-          </ReactFlow>
-          {selectedEdge && (
-            <DeleteEdgeButton onDelete={() => void onDeleteSelectedEdge()} />
-          )}
-          {taskNotesEditorAvailable && !editorState && (
-            <button
-              className="tasks-map-new-task-button"
-              onClick={() => openTaskEditor("create")}
-            >
-              <Plus size={16} />
-              <span>{t("task_editor.new_task")}</span>
-            </button>
-          )}
-          {editorState && (
-            <div
-              className="tasks-map-editor-panel-container"
-              ref={(el) => {
-                if (el) el.style.width = `${editorPanelWidth}px`;
-              }}
-            >
+            {returnState && (
               <div
-                className="tasks-map-editor-resize-handle"
-                onPointerDown={onEditorResizePointerDown}
-                onPointerMove={onEditorResizePointerMove}
-                onPointerUp={onEditorResizePointerUp}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t("task_editor.resize")}
-              />
-              <TaskEditorPanel
-                key={`${editorState.mode}:${editorState.taskPath ?? ""}`}
-                app={app}
-                mode={editorState.mode}
-                taskPath={editorState.taskPath}
-                availableTasks={noteTasks}
-                layout={editorPanelLayout}
-                onLayoutChange={handleEditorLayoutChange}
-                bodyFontSize={editorBodyFontSize}
-                onBodyFontSizeChange={handleEditorBodyFontSizeChange}
-                autosaveEnabled={settings.editorAutosave}
-                onClose={() => setEditorState(null)}
-                onSaved={() => requestAutoRefresh({ force: true })}
-              />
+                className="tasks-map-project-overview"
+                ref={overviewStripRef}
+              >
+                <span className="tasks-map-project-overview__label">
+                  {overviewRootIds
+                    ? t("project_overview.title", {
+                        projects: overviewRootIds
+                          .map((id) => {
+                            const task = tasks.find(
+                              (candidate) => candidate.id === id
+                            );
+                            return task?.summary || task?.text || id;
+                          })
+                          .join(", "),
+                      })
+                    : selectedRootLabel
+                      ? t("project_overview.subtree_title", {
+                          task: selectedRootLabel,
+                        })
+                      : t("project_overview.return_available")}
+                </span>
+                <button type="button" onClick={restoreTaskView}>
+                  {t("project_overview.back")}
+                </button>
+              </div>
+            )}
+            <div className="tasks-map-corner" ref={cornerRef}>
+              <div className="tasks-map-rail-row">
+                <LeftRail
+                  openPanel={openPanel}
+                  onToggle={togglePanel}
+                  onRefresh={manualReloadTasks}
+                  showFilters={embed.showFilterPanel}
+                  showKanban={embed.showFilterPanel}
+                  showPresets={embed.showPresetsPanel}
+                  showUnlinked={embed.showUnlinkedPanel}
+                  showTree={embed.showUnlinkedPanel}
+                  unlinkedCount={sidebarTasks.length}
+                  onShowFullProject={handleShowFullProject}
+                  canShowFullProject={canShowFullProject}
+                  projectActionLabel={
+                    navigationTask
+                      ? t(
+                          canShowFullProject
+                            ? "project_overview.show_for"
+                            : "project_overview.no_project_for",
+                          {
+                            task:
+                              navigationTask.summary ||
+                              navigationTask.text ||
+                              navigationTask.id,
+                          }
+                        )
+                      : t("project_overview.select_task")
+                  }
+                />
+                {openPanel && openPanel !== "kanban" && (
+                  <div className="tasks-map-flyout">
+                    {openPanel === "filters" && (
+                      <GuiOverlay
+                        allTags={allTags}
+                        filterState={filterState}
+                        setFilterState={setFilterState}
+                        allFiles={allFiles}
+                        allProjects={allProjects}
+                        statuses={settings.taskStatuses}
+                        onSearch={handleSearch}
+                        searchResultCount={searchResultCount}
+                        suggestionTasks={preSearchFilteredTasks}
+                      />
+                    )}
+                    {openPanel === "presets" && (
+                      <FilterPresetsPanel
+                        presets={settings.filterPresets}
+                        filterState={filterState}
+                        plugin={plugin}
+                        onApply={(filter) => setFilterState(filter)}
+                        onSave={handleSavePreset}
+                        onRename={handleRenamePreset}
+                        onDelete={handleDeletePreset}
+                      />
+                    )}
+                    {openPanel === "view" && (
+                      <ControlsPanel
+                        showTags={settings.showTags}
+                        hideTags={hideTags}
+                        setHideTags={toggleHideTags}
+                        reloadTasks={manualReloadTasks}
+                        showUnlinkedPanel={embed.showUnlinkedPanel}
+                        hideUnlinkedTasks={hideUnlinkedTasks}
+                        setHideUnlinkedTasks={setHideUnlinkedTasks}
+                        showGroupByProject={showGroupByProject}
+                        groupByProject={groupByProject}
+                        setGroupByProject={setGroupByProject}
+                        arrangeMode={arrangeMode}
+                        setArrangeMode={setArrangeMode}
+                        layout={{
+                          layoutMode: settings.layoutMode,
+                          layoutDirection: settings.layoutDirection,
+                        }}
+                        onLayoutChange={onLayoutChange}
+                        groupArrangement={
+                          showGroupArrangement
+                            ? settings.taskGroupArrangement
+                            : undefined
+                        }
+                        onGroupArrangementChange={handleGroupArrangementChange}
+                        onFoldToBranches={
+                          branchModel.foldIds.size > 0
+                            ? handleFoldToBranches
+                            : undefined
+                        }
+                        onUnfoldAll={
+                          collapsedTaskIds.size > 0
+                            ? handleUnfoldAll
+                            : undefined
+                        }
+                      />
+                    )}
+                    {openPanel === "unlinked" && (
+                      <UnlinkedTasksPanel tasks={sidebarTasks} />
+                    )}
+                    {openPanel === "tree" && (
+                      <ProjectTreePanel
+                        tasks={treeTasks}
+                        selectedRootTask={filterState.selectedRootTask}
+                        selectedRootLabel={selectedRootLabel}
+                        onClearFocus={handleTreeClearFocus}
+                        onTaskClick={handleTreeTaskClick}
+                        onTaskFocus={handleTreeTaskFocus}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+            {openPanel === "kanban" && (
+              <div
+                className="tasks-map-kanban-overlay"
+                ref={(element) => {
+                  kanbanPanelRef.current = element;
+                  if (!element) return;
+                  element.style.setProperty(
+                    "--tasks-map-kanban-height",
+                    `${kanbanPanelHeight}px`
+                  );
+                  element.style.setProperty(
+                    "--tasks-map-kanban-right",
+                    editorState ? `${editorPanelWidth + 8}px` : "16px"
+                  );
+                }}
+              >
+                <KanbanPanel
+                  tasks={kanbanTasks}
+                  statuses={settings.taskStatuses}
+                  notePriorityOptions={notePriorityOptions}
+                  focusOptions={kanbanFocusOptions}
+                  preferences={kanbanPreferences}
+                  pinned={isKanbanPinned}
+                  onPinnedChange={setIsKanbanPinned}
+                  onClose={closeKanban}
+                  onFocusProject={handleTreeTaskFocus}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onTaskTodayChange={handleKanbanTodayChange}
+                  onTaskStatusMove={handleKanbanStatusMove}
+                  onPreferencesChange={handleKanbanPreferencesChange}
+                  onColumnOrderChange={handleKanbanColumnOrderChange}
+                  trackVaultWrite={trackVaultWrite}
+                />
+                <div
+                  className="tasks-map-kanban-resize-handle"
+                  onPointerDown={onKanbanResizePointerDown}
+                  onPointerMove={onKanbanResizePointerMove}
+                  onPointerUp={onKanbanResizePointerUp}
+                  role="separator"
+                  aria-orientation="horizontal"
+                  aria-label={t("kanban.resize")}
+                />
+              </div>
+            )}
+            {isLoading && (
+              <div className="tasks-map-loading-container">
+                <div className="tasks-map-spinner" />
+                <div className="tasks-map-loading-text">Loading tasks...</div>
+              </div>
+            )}
+            {!isLoading && tasks.length === 0 && (
+              <GraphEmptyState variant="no_tasks" />
+            )}
+            {!isLoading && tasks.length > 0 && graphTasks.length === 0 && (
+              <GraphEmptyState variant="all_unlinked" />
+            )}
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              proOptions={{ hideAttribution: true }}
+              minZoom={0.1}
+              zoomOnScroll={false}
+              zoomOnPinch
+              zoomActivationKeyCode="Control"
+              panOnScroll
+              panOnScrollMode={
+                settings.layoutMode === "tree" &&
+                settings.layoutDirection === "Vertical"
+                  ? PanOnScrollMode.Vertical
+                  : PanOnScrollMode.Free
+              }
+              fitView
+              onConnect={(params) => void onConnect(params)}
+              onConnectStart={onConnectStart}
+              onConnectEnd={(e) => void onConnectEnd(e)}
+              onEdgeClick={onEdgeClick}
+              onNodeClick={onNodeClick}
+              onNodeDoubleClick={onNodeDoubleClick}
+              onPaneClick={onPaneClick}
+              onNodeDragStart={beginDragInteraction}
+              onNodeDrag={onNodeDrag}
+              onNodeDragStop={(e, node, nodes) =>
+                void onNodeDragStop(e, node, nodes)
+              }
+              onSelectionDragStart={beginDragInteraction}
+              onSelectionDrag={onSelectionDrag}
+              onSelectionDragStop={(e, nodes) =>
+                void onSelectionDragStop(e, nodes)
+              }
+              multiSelectionKeyCode="Shift"
+              selectionKeyCode="Shift"
+              nodesDraggable={arrangeMode}
+            >
+              {embed.showMinimap && <TaskMinimap />}
+              <Background />
+              {settings.showStatusCounts && embed.showStatusCounts && (
+                <StatusCountsOverlay tasks={filteredTasks} />
+              )}
+            </ReactFlow>
+            {selectedEdge && (
+              <DeleteEdgeButton onDelete={() => void onDeleteSelectedEdge()} />
+            )}
+            {taskNotesEditorAvailable && !editorState && (
+              <button
+                className="tasks-map-new-task-button"
+                onClick={() => openTaskEditor("create")}
+              >
+                <Plus size={16} />
+                <span>{t("task_editor.new_task")}</span>
+              </button>
+            )}
+            {editorState && (
+              <div
+                className="tasks-map-editor-panel-container"
+                ref={(el) => {
+                  if (el) el.style.width = `${editorPanelWidth}px`;
+                }}
+              >
+                <div
+                  className="tasks-map-editor-resize-handle"
+                  onPointerDown={onEditorResizePointerDown}
+                  onPointerMove={onEditorResizePointerMove}
+                  onPointerUp={onEditorResizePointerUp}
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label={t("task_editor.resize")}
+                />
+                <TaskEditorPanel
+                  key={`${editorState.mode}:${editorState.taskPath ?? ""}`}
+                  app={app}
+                  mode={editorState.mode}
+                  taskPath={editorState.taskPath}
+                  availableTasks={noteTasks}
+                  layout={editorPanelLayout}
+                  onLayoutChange={handleEditorLayoutChange}
+                  bodyFontSize={editorBodyFontSize}
+                  onBodyFontSizeChange={handleEditorBodyFontSizeChange}
+                  autosaveEnabled={settings.editorAutosave}
+                  onClose={() => setEditorState(null)}
+                  onSaved={() => requestAutoRefresh({ force: true })}
+                />
+              </div>
+            )}
+          </div>
+        </TaskFocusActionsContext.Provider>
       </TagsContext.Provider>
     </StatusConfigContext.Provider>
   );
