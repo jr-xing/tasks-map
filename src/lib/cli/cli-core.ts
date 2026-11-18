@@ -58,6 +58,32 @@ export interface TaskMatch {
   score: number;
 }
 
+interface MatchFields {
+  id: string;
+  path: string;
+  name: string;
+  title: string;
+}
+
+function scoreFields(
+  { id, path, name, title }: MatchFields,
+  needle: string,
+  words: string[]
+): number {
+  if (path === needle || id === needle) return 100;
+  if (name === needle) return 95;
+  if (title === needle) return 90;
+  if (name.startsWith(needle) || title.startsWith(needle)) return 70;
+  if (name.includes(needle) || title.includes(needle)) return 50;
+  if (
+    words.length > 1 &&
+    words.every((word) => name.includes(word) || title.includes(word))
+  ) {
+    return 30;
+  }
+  return 0;
+}
+
 /** Rank tasks against a path, wikilink, filename, or title fragment. */
 export function rankTasks(tasks: BaseTask[], query: string): TaskMatch[] {
   const needle = normalizeRef(query);
@@ -65,21 +91,23 @@ export function rankTasks(tasks: BaseTask[], query: string): TaskMatch[] {
   const words = needle.split(/\s+/).filter(Boolean);
   const matches: TaskMatch[] = [];
   for (const task of tasks) {
-    const path = (task.link || task.id).replace(/\.md$/i, "").toLowerCase();
-    const name = basename(task.link || task.id).toLowerCase();
-    const title = taskTitle(task).toLowerCase();
-    let score = 0;
-    if (path === needle || task.id.toLowerCase() === needle) score = 100;
-    else if (name === needle) score = 95;
-    else if (title === needle) score = 90;
-    else if (name.startsWith(needle) || title.startsWith(needle)) score = 70;
-    else if (name.includes(needle) || title.includes(needle)) score = 50;
-    else if (
-      words.length > 1 &&
-      words.every((word) => name.includes(word) || title.includes(word))
-    ) {
-      score = 30;
-    }
+    const fields: MatchFields = {
+      id: task.id.toLowerCase(),
+      path: (task.link || task.id).replace(/\.md$/i, "").toLowerCase(),
+      name: basename(task.link || task.id).toLowerCase(),
+      title: taskTitle(task).toLowerCase(),
+    };
+    // A checkbox task shares its note's path and filename. It matches its
+    // own text at full strength, but a match that only comes from the file
+    // ranks just below the note task itself, so a project note with
+    // checkboxes in its body still resolves by path or name.
+    const score =
+      task.type === "note"
+        ? scoreFields(fields, needle, words)
+        : Math.max(
+            scoreFields({ ...fields, path: "", name: "" }, needle, words),
+            scoreFields(fields, needle, words) - 1
+          );
     if (score > 0) matches.push({ task, score });
   }
   return matches.sort(
@@ -101,7 +129,11 @@ export function resolveTask(tasks: BaseTask[], ref: string): BaseTask {
   if (tied.length > 1) {
     const options = tied
       .slice(0, 8)
-      .map((match) => `  - ${match.task.link || match.task.id}`)
+      .map(({ task }) =>
+        task.type === "note"
+          ? `  - ${task.link || task.id}`
+          : `  - ${task.link || task.id} (checkbox: ${taskTitle(task)})`
+      )
       .join("\n");
     throw new CliError(
       `"${ref}" matches ${tied.length} tasks equally well. Pass the path:\n${options}`

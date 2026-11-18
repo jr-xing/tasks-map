@@ -12,6 +12,7 @@ import {
   unescapeCliText,
 } from "../src/lib/cli/cli-core";
 import { DEFAULT_TASK_STATUSES } from "../src/lib/status-config";
+import { DataviewTask } from "../src/types/dataview-task";
 import { NoteTask } from "../src/types/note-task";
 
 function makeTask(
@@ -105,6 +106,46 @@ describe("cli core", () => {
 
     it("matches all words in any order as a last resort", () => {
       expect(rankTasks(tasks, "cohort clean")[0].task).toBe(clean);
+    });
+
+    describe("checkbox tasks inside a note", () => {
+      const notePath = "projects/2026-03-07-Project PIS score.md";
+      const pis = makeTask({ id: notePath, summary: "PIS score" });
+      const checkbox = (text: string, line: number) =>
+        new DataviewTask({
+          id: `${notePath}:${line}`,
+          summary: text,
+          text,
+          tags: [],
+          status: "todo",
+          priority: "",
+          link: notePath,
+          incomingLinks: [],
+          starred: false,
+          projects: [],
+        });
+      const freeze = checkbox("By 2026-08-14: freeze the PIS v0 cohort", 22);
+      const train = checkbox("By 2026-08-28: train the T1 baseline", 24);
+      const withCheckboxes = [freeze, pis, train];
+
+      it.each([
+        [notePath],
+        ["[[2026-03-07-Project PIS score]]"],
+        ["2026-03-07-Project PIS"],
+        ["PIS score"],
+      ])("resolves %p to the note, not its checkboxes", (ref) => {
+        expect(resolveTask(withCheckboxes, ref)).toBe(pis);
+      });
+
+      it("still finds a checkbox by its own text", () => {
+        expect(resolveTask(withCheckboxes, "freeze the PIS v0")).toBe(freeze);
+      });
+
+      it("names checkboxes when only checkboxes match the file", () => {
+        expect(() => resolveTask([freeze, train], notePath)).toThrow(
+          /checkbox: By 2026-08-14/
+        );
+      });
     });
   });
 
