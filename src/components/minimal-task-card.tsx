@@ -247,7 +247,7 @@ export interface MinimalTaskCardProps {
   status: TaskStatus;
   priority: string;
   starred: boolean;
-  summaryRef: React.RefObject<HTMLSpanElement>;
+  summaryRef: React.Ref<HTMLSpanElement>;
   /** The clickable status dot. */
   statusToggle: React.ReactNode;
   /** Buttons shown on hover and selection. */

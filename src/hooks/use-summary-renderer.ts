@@ -1,21 +1,26 @@
-import { useEffect, useRef } from "react";
+import { RefCallback, useCallback } from "react";
 import { App } from "obsidian";
 import { openFileInObsidian } from "../lib/open-file";
 
+/**
+ * Returns a callback ref that renders the summary into whichever element it
+ * is attached to. A callback ref (rather than an effect keyed on the summary)
+ * also covers the element being remounted with an unchanged summary, e.g. when
+ * a card switches between the row and summary-card layouts.
+ */
 export function useSummaryRenderer<T extends HTMLElement = HTMLSpanElement>(
   summary: string,
   app?: App
-) {
-  const containerRef = useRef<T>(null);
+): RefCallback<T> {
+  return useCallback(
+    (element: T | null) => {
+      if (!element) return;
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    containerRef.current.empty();
-    renderSummaryWithLinks(summary, containerRef.current, app);
-  }, [summary, app]);
-
-  return containerRef;
+      element.empty();
+      renderSummaryWithLinks(summary, element, app);
+    },
+    [summary, app]
+  );
 }
 
 function renderSummaryWithLinks(
